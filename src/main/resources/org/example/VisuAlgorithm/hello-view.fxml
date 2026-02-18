@@ -29,12 +29,12 @@
                         <Insets bottom="40.0" left="40.0" right="40.0" top="20.0" />
                     </padding>
 
-                    <VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
+                    <VBox onMouseClicked="#gotoSorting" alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
                         <children>
                             <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
-                        <image>
-                           <Image url="@/Images/sorting.png" />
-                        </image></ImageView>
+                                <image>
+                                    <Image url="@/Images/sorting.png" />
+                                </image></ImageView>
                             <Label text="Sorting" textFill="#51c4d3">
                                 <font>
                                     <Font name="System Bold" size="20.0" />
@@ -46,12 +46,12 @@
                         </padding>
                     </VBox>
 
-                    <VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
+                    <VBox onMouseClicked="#gotoArray" alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
                         <children>
                             <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
-                        <image>
-                           <Image url="@../../../Images/array.png" />
-                        </image></ImageView>
+                                <image>
+                                    <Image url="@../../../Images/array.png" />
+                                </image></ImageView>
                             <Label text="Array" textFill="#51c4d3">
                                 <font>
                                     <Font name="System Bold" size="20.0" />
@@ -63,12 +63,12 @@
                         </padding>
                     </VBox>
 
-                    <VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
+                    <VBox onMouseClicked="#gotoLinkedList" alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
                         <children>
                             <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
-                        <image>
-                           <Image url="@../../../Images/linked_list.png" />
-                        </image></ImageView>
+                                <image>
+                                    <Image url="@../../../Images/linked_list.png" />
+                                </image></ImageView>
                             <Label text="Linked List" textFill="#51c4d3">
                                 <font>
                                     <Font name="System Bold" size="20.0" />
@@ -79,54 +79,54 @@
                             <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                         </padding>
                     </VBox>
-               <VBox alignment="CENTER" layoutX="312.0" layoutY="280.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
-                  <children>
-                     <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
-                        <image>
-                           <Image url="@../../../Images/stack.png" />
-                        </image></ImageView>
-                     <Label text="Stack" textFill="#51c4d3">
-                        <font>
-                           <Font name="System Bold" size="20.0" />
-                        </font>
-                     </Label>
-                  </children>
-                  <padding>
-                     <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                  </padding>
-               </VBox>
-               <VBox alignment="CENTER" layoutX="468.0" layoutY="280.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
-                  <children>
-                     <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
-                        <image>
-                           <Image url="@../../../Images/queue.png" />
-                        </image></ImageView>
-                     <Label text="Queue" textFill="#51c4d3">
-                        <font>
-                           <Font name="System Bold" size="20.0" />
-                        </font>
-                     </Label>
-                  </children>
-                  <padding>
-                     <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                  </padding>
-               </VBox>
-               <VBox alignment="CENTER" layoutX="312.0" layoutY="531.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
-                  <children>
-                     <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
-                        <image>
-                           <Image url="@../../../Images/graph.png" />
-                        </image></ImageView>
-                     <Label text="Graph" textFill="#51c4d3">
-                        <font>
-                           <Font name="System Bold" size="20.0" />
-                        </font>
-                     </Label>
-                  </children>
-                  <padding>
-                     <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                  </padding>
-               </VBox>
+                    <VBox onMouseClicked="#gotoStack" alignment="CENTER" layoutX="312.0" layoutY="280.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
+                        <children>
+                            <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
+                                <image>
+                                    <Image url="@../../../Images/stack.png" />
+                                </image></ImageView>
+                            <Label text="Stack" textFill="#51c4d3">
+                                <font>
+                                    <Font name="System Bold" size="20.0" />
+                                </font>
+                            </Label>
+                        </children>
+                        <padding>
+                            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                        </padding>
+                    </VBox>
+                    <VBox onMouseClicked="#gotoQueue" alignment="CENTER" layoutX="468.0" layoutY="280.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
+                        <children>
+                            <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
+                                <image>
+                                    <Image url="@../../../Images/queue.png" />
+                                </image></ImageView>
+                            <Label text="Queue" textFill="#51c4d3">
+                                <font>
+                                    <Font name="System Bold" size="20.0" />
+                                </font>
+                            </Label>
+                        </children>
+                        <padding>
+                            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                        </padding>
+                    </VBox>
+                    <VBox onMouseClicked="#gotoGraph" alignment="CENTER" layoutX="312.0" layoutY="531.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="220.0" prefWidth="280.0" spacing="10.0" style="-fx-background-color: #1a1460; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); -fx-cursor: hand;">
+                        <children>
+                            <ImageView fitHeight="150.0" fitWidth="260.0" pickOnBounds="true" preserveRatio="true">
+                                <image>
+                                    <Image url="@../../../Images/graph.png" />
+                                </image></ImageView>
+                            <Label text="Graph" textFill="#51c4d3">
+                                <font>
+                                    <Font name="System Bold" size="20.0" />
+                                </font>
+                            </Label>
+                        </children>
+                        <padding>
+                            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                        </padding>
+                    </VBox>
 
                 </FlowPane>
             </content>
