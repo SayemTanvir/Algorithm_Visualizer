@@ -19,7 +19,7 @@ public class HelloController {
     @FXML
     void gotoSorting(MouseEvent click) throws IOException{
         System.out.println("sort_window");
-        switchScene("org.example.VisuAlgorithm/sorting-view.fxml", click);
+        switchScene("/org/example/VisuAlgorithm/sorting-view.fxml", click);
     }
     @FXML
     void gotoArray(MouseEvent click){
@@ -44,6 +44,7 @@ public class HelloController {
 
 
     private void switchScene(String fxml_name, MouseEvent click) throws IOException {
+
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource(fxml_name));
         Parent root = fxmlLoader.load();
         Stage stage = (Stage) ((Node)click.getSource()).getScene().getWindow();
