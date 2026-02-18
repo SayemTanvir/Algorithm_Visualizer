@@ -48,42 +48,53 @@
 
     <!-- RIGHT: CONTROLS -->
     <right>
-        <VBox spacing="10" style="-fx-background-color:#1a1460;" prefWidth="260">
-            <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                    style="-fx-background: transparent; -fx-background-color: transparent;">
+            <content>
+                <VBox fx:id="controlPanel" spacing="10" style="-fx-background-color:#1a1460;" prefWidth="260">
+                    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
 
-            <RadioButton fx:id="fixedBtn" text="Fixed Array" selected="true" onAction="#switchMode" textFill="white"/>
-            <RadioButton fx:id="dynamicBtn" text="Dynamic Array" onAction="#switchMode" textFill="white"/>
+                    <RadioButton fx:id="fixedBtn" text="Fixed Array" selected="true" onAction="#switchMode" textFill="white"/>
+                    <RadioButton fx:id="dynamicBtn" text="Dynamic Array" onAction="#switchMode" textFill="white"/>
 
-            <Separator/>
+                    <Separator/>
 
-            <Label text="Create / Random" textFill="#f5a9a9"/>
-            <TextField fx:id="sizeField" promptText="size (e.g. 10)"/>
-            <Button text="Create" onAction="#createArray" maxWidth="1.7976931348623157E308"/>
-            <Button text="Random Fill" onAction="#randomFill" maxWidth="1.7976931348623157E308"/>
+                    <Label text="Create / Random" textFill="#f5a9a9"/>
+                    <TextField fx:id="sizeField" promptText="size (e.g. 10)"/>
+                    <Button text="Create" onAction="#createArray" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Random Fill" onAction="#randomFill" maxWidth="1.7976931348623157E308"/>
 
-            <Separator/>
+                    <Separator/>
 
-            <Label text="Operations" textFill="#f5a9a9"/>
-            <TextField fx:id="indexField" promptText="index"/>
-            <TextField fx:id="valueField" promptText="value"/>
+                    <Label text="Operations" textFill="#f5a9a9"/>
+                    <TextField fx:id="indexField" promptText="index"/>
+                    <TextField fx:id="valueField" promptText="value"/>
 
-            <Button text="Get(index)" onAction="#getValue" maxWidth="1.7976931348623157E308"/>
-            <Button text="Set(index, value)" onAction="#setValue" maxWidth="1.7976931348623157E308"/>
-            <Button text="Insert(index, value)" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
-            <Button text="Delete(index)" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Get(index)" onAction="#getValue" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Set(index, value)" onAction="#setValue" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Insert(index, value)" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
 
-            <Separator/>
+                    <!-- ✅ move Merge Sort here -->
+                    <Button text="Merge Sort" onAction="#mergeSort" maxWidth="1.7976931348623157E308"/>
 
-            <Label text="Searching" textFill="#f5a9a9"/>
-            <TextField fx:id="searchField" promptText="search value"/>
-            <Button text="Linear Search" onAction="#linearSearch" maxWidth="1.7976931348623157E308"/>
-            <Button text="Binary Search (sorted)" onAction="#binarySearch" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Delete(index)" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
 
-            <Separator/>
+                    <Separator/>
 
-            <Label text="Speed" textFill="white"/>
-            <Slider fx:id="speedSlider" min="0.2" max="2.5" value="1.0" showTickLabels="true"/>
-        </VBox>
+                    <Label text="Searching" textFill="#f5a9a9"/>
+                    <TextField fx:id="searchField" promptText="search value"/>
+                    <Button text="Linear Search" onAction="#linearSearch" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Binary Search (sorted)" onAction="#binarySearch" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Ternary Search (sorted)" onAction="#ternarySearch" maxWidth="1.7976931348623157E308"/>
+
+                    <Separator/>
+
+                    <Label text="Speed" textFill="white"/>
+                    <Slider fx:id="speedSlider" min="0.2" max="2.5" value="1.0" showTickLabels="true"/>
+                </VBox>
+            </content>
+        </ScrollPane>
     </right>
+
 
 </BorderPane>

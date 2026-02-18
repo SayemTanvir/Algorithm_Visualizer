@@ -298,6 +298,27 @@ public class ArrayController {
         }
     }
 
+    private boolean isSortedNonDecreasing() {
+        if (!ensureCreated()) return false;
+
+        if (!dynamicMode) {
+            if (fixedLast <= 0) return true;
+            for (int i = 0; i <= fixedLast; i++) {
+                if (fixed[i] == null) return false; // gaps => treat as invalid
+            }
+            for (int i = 0; i < fixedLast; i++) {
+                if (fixed[i] > fixed[i + 1]) return false;
+            }
+            return true;
+        } else {
+            if (dynSize <= 1) return true;
+            for (int i = 0; i < dynSize - 1; i++) {
+                if (dyn[i] > dyn[i + 1]) return false;
+            }
+            return true;
+        }
+    }
+
     // ------------ Searching ------------
     @FXML
     void linearSearch() {
@@ -333,9 +354,14 @@ public class ArrayController {
     @FXML
     void binarySearch() {
         if (!ensureCreated()) return;
+
         Integer target = parseInteger(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
 
+        if (!isSortedNonDecreasing()) {
+            flashStatus("Binary search needs SORTED array. Click Sort first.", true);
+            return;
+        }
         // requirement: sorted + no nulls for fixed
         if (!dynamicMode) {
             if (fixedLast < 0) { flashStatus("Array empty!", true); return; }
@@ -350,7 +376,7 @@ public class ArrayController {
         SequentialTransition seq = new SequentialTransition();
 
         while (low <= high) {
-            int mid = (low + high) / 2;
+            int mid = low + (high-low) / 2;
             final int fLow = low, fMid = mid, fHigh = high;
 
             seq.getChildren().add(step(0.25, () -> {
@@ -377,6 +403,229 @@ public class ArrayController {
         }
 
         seq.play();
+    }
+    @FXML
+    void ternarySearch() {
+        if (!ensureCreated()) return;
+        Integer target = parseInteger(searchField.getText());
+        if (target == null) { flashStatus("Invalid search value!", true); return; }
+        if (!isSortedNonDecreasing()) {
+            flashStatus("Ternary search needs SORTED array. Click Merge Sort first.", true);
+            return;
+        }
+
+        // requirement: sorted + no nulls for fixed
+        if (!dynamicMode) {
+            if (fixedLast < 0) { flashStatus("Array empty!", true); return; }
+            for (int i = 0; i <= fixedLast; i++) {
+                if (fixed[i] == null) {
+                    flashStatus("Fixed array has empty slots before lastUsed.", true);
+                    return;
+                }
+            }
+        } else {
+            if (dynSize == 0) { flashStatus("Array empty!", true); return; }
+        }
+
+        int low = 0;
+        int high = dynamicMode ? dynSize - 1 : fixedLast;
+
+        SequentialTransition seq = new SequentialTransition();
+
+        while (low <= high) {
+            int third = (high - low) / 3;
+            int mid1 = low + third;
+            int mid2 = high - third;
+
+            final int fLow = low, fHigh = high, fMid1 = mid1, fMid2 = mid2;
+
+            seq.getChildren().add(step(0.28, () -> {
+                clearColors();
+                // low/high purple, mid1/mid2 yellow
+                colorCell(fLow, "#9b59b6");
+                colorCell(fHigh, "#9b59b6");
+                colorCell(fMid1, "#f1c40f");
+                colorCell(fMid2, "#f1c40f");
+
+                statusLabel.setText("low=" + fLow + " mid1=" + fMid1 + " mid2=" + fMid2 + " high=" + fHigh);
+            }));
+
+            int v1 = dynamicMode ? dyn[mid1] : fixed[mid1];
+            int v2 = dynamicMode ? dyn[mid2] : fixed[mid2];
+
+            if (v1 == target) {
+                seq.getChildren().add(step(0.28, () -> {
+                    clearColors();
+                    colorCell(fMid1, "#2ecc71");
+                    statusLabel.setText("FOUND at index " + fMid1);
+                }));
+                break;
+            }
+
+            if (v2 == target) {
+                seq.getChildren().add(step(0.28, () -> {
+                    clearColors();
+                    colorCell(fMid2, "#2ecc71");
+                    statusLabel.setText("FOUND at index " + fMid2);
+                }));
+                break;
+            }
+
+            if (target < v1) {
+                high = mid1 - 1;
+            } else if (target > v2) {
+                low = mid2 + 1;
+            } else {
+                low = mid1 + 1;
+                high = mid2 - 1;
+            }
+        }
+
+        seq.play();
+    }
+    // ------------ Sorting (Merge Sort) ------------
+    @FXML
+    void mergeSort() {
+        if (!ensureCreated()) return;
+
+        if (!dynamicMode) {
+            if (fixedLast <= 0) { flashStatus("Need at least 2 elements!", true); return; }
+            for (int i = 0; i <= fixedLast; i++) {
+                if (fixed[i] == null) { flashStatus("Fill array first (no empty slots).", true); return; }
+            }
+
+            // copy into int[] for sorting
+            int[] arr = new int[fixedLast + 1];
+            for (int i = 0; i <= fixedLast; i++) arr[i] = fixed[i];
+
+            SequentialTransition seq = new SequentialTransition();
+            mergeSortSteps(arr, 0, arr.length - 1, seq, false);
+
+            // final
+            seq.getChildren().add(step(0.25, () -> {
+                for (int i = 0; i < arr.length; i++) fixed[i] = arr[i];
+                drawFixed();
+                clearColors();
+                statusLabel.setText("Merge Sort DONE ✅");
+            }));
+
+            seq.play();
+
+        } else {
+            if (dynSize <= 1) { flashStatus("Need at least 2 elements!", true); return; }
+
+            int[] arr = new int[dynSize];
+            System.arraycopy(dyn, 0, arr, 0, dynSize);
+
+            SequentialTransition seq = new SequentialTransition();
+            mergeSortSteps(arr, 0, arr.length - 1, seq, true);
+
+            seq.getChildren().add(step(0.25, () -> {
+                System.arraycopy(arr, 0, dyn, 0, dynSize);
+                drawDynamic();
+                clearColors();
+                statusLabel.setText("Merge Sort DONE ✅");
+            }));
+
+            seq.play();
+        }
+    }
+
+    private void mergeSortSteps(int[] a, int l, int r, SequentialTransition seq, boolean isDynamic) {
+        if (l >= r) return;
+        int m = (l + r) / 2;
+
+        // show split range
+        seq.getChildren().add(step(0.15, () -> {
+            clearColors();
+            colorRange(l, r, "#34495e"); // gray-blue
+            statusLabel.setText("Split range [" + l + ", " + r + "]");
+        }));
+
+        mergeSortSteps(a, l, m, seq, isDynamic);
+        mergeSortSteps(a, m + 1, r, seq, isDynamic);
+        mergeSteps(a, l, m, r, seq, isDynamic);
+    }
+
+    private void mergeSteps(int[] a, int l, int m, int r, SequentialTransition seq, boolean isDynamic) {
+        int n1 = m - l + 1;
+        int n2 = r - m;
+
+        int[] L = new int[n1];
+        int[] R = new int[n2];
+        System.arraycopy(a, l, L, 0, n1);
+        System.arraycopy(a, m + 1, R, 0, n2);
+
+        int i = 0, j = 0, k = l;
+
+        while (i < n1 && j < n2) {
+            int chosen;
+            if (L[i] <= R[j]) chosen = L[i++];
+            else chosen = R[j++];
+
+            final int idx = k;
+            final int val = chosen;
+
+            seq.getChildren().add(step(0.22, () -> {
+                a[idx] = val;
+
+                // update UI array immediately (this gives the "shuffle" effect)
+                if (!isDynamic) {
+                    fixed[idx] = val;
+                    drawFixed();
+                } else {
+                    dyn[idx] = val;
+                    drawDynamic();
+                }
+
+                clearColors();
+                colorCell(idx, "#e67e22"); // orange write
+                statusLabel.setText("Write " + val + " at index " + idx + " (merge)");
+            }));
+
+            k++;
+        }
+
+        while (i < n1) {
+            final int idx = k;
+            final int val = L[i++];
+
+            seq.getChildren().add(step(0.18, () -> {
+                a[idx] = val;
+                if (!isDynamic) { fixed[idx] = val; drawFixed(); }
+                else { dyn[idx] = val; drawDynamic(); }
+
+                clearColors();
+                colorCell(idx, "#e67e22");
+                statusLabel.setText("Write " + val + " at index " + idx + " (left remain)");
+            }));
+
+            k++;
+        }
+
+        while (j < n2) {
+            final int idx = k;
+            final int val = R[j++];
+
+            seq.getChildren().add(step(0.18, () -> {
+                a[idx] = val;
+                if (!isDynamic) { fixed[idx] = val; drawFixed(); }
+                else { dyn[idx] = val; drawDynamic(); }
+
+                clearColors();
+                colorCell(idx, "#e67e22");
+                statusLabel.setText("Write " + val + " at index " + idx + " (right remain)");
+            }));
+
+            k++;
+        }
+
+        // mark merged range
+        seq.getChildren().add(step(0.18, () -> {
+            clearColors();
+            colorRange(l, r, "#2ecc71");
+            statusLabel.setText("Merged range [" + l + ", " + r + "]");
+        }));
     }
 
     // ------------ Draw helpers ------------
@@ -441,6 +690,9 @@ public class ArrayController {
 
     private void colorCell(int idx, String hex) {
         setFill(idx, hex);
+    }
+    private void colorRange(int l, int r, String hex) {
+        for (int i = l; i <= r; i++) colorCell(i, hex);
     }
 
     private void setFill(int idx, String hex) {
