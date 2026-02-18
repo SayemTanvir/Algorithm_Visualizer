@@ -1,0 +1,6 @@
+.root {
+    -fx-background-color: #090934;
+    -fx-background-image: url("/image/hexagons.png");
+    -fx-background-repeat: repeat;
+    -fx-background-size: 100px 100px;
+}
