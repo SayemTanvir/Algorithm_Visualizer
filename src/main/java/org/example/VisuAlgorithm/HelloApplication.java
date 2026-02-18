@@ -17,9 +17,9 @@ public class HelloApplication extends Application {
         stage.setTitle("Hello!");
         stage.setScene(scene);
 
-        Image image = new Image("file:F:\\CSE108\\Project\\demo\\snowmouintan.jpg");
-
+        Image image = new Image(getClass().getResourceAsStream("/Images/sorting.png"));
         stage.getIcons().add(image);
+
 
         stage.show();
     }

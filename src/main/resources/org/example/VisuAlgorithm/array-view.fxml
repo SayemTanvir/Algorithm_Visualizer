@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.VisuAlgorithm.ArrayController"
+            prefHeight="600.0" prefWidth="900.0"
+            style="-fx-background-color: #090247;">
+
+    <!-- TOP BAR -->
+    <top>
+        <HBox spacing="12" alignment="CENTER_LEFT" style="-fx-background-color:#1a1460;">
+            <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+
+            <Button text="⬅ Back" onAction="#backHome"
+                    style="-fx-background-color:#51c4d3; -fx-font-weight:bold; -fx-cursor:hand;" />
+
+            <Label text="ARRAY VISUALIZER" textFill="#f5a9a9">
+                <font><Font name="Candara Bold" size="28"/></font>
+            </Label>
+
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Label fx:id="modeLabel" text="Mode: Fixed Array" textFill="white"/>
+        </HBox>
+    </top>
+
+    <!-- CENTER: VISUAL -->
+    <center>
+        <VBox spacing="12" alignment="TOP_CENTER">
+            <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+
+            <Label fx:id="statusLabel" text="Create an array to start" textFill="#51c4d3"/>
+
+            <!-- Array cells will be placed here -->
+            <ScrollPane fitToHeight="true" fitToWidth="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                        style="-fx-background: transparent; -fx-background-color: transparent;">
+                <content>
+                    <HBox fx:id="arrayBox" spacing="8" alignment="CENTER_LEFT"/>
+                </content>
+            </ScrollPane>
+
+            <Label fx:id="sizeCapLabel" text="" textFill="white"/>
+        </VBox>
+    </center>
+
+    <!-- RIGHT: CONTROLS -->
+    <right>
+        <VBox spacing="10" style="-fx-background-color:#1a1460;" prefWidth="260">
+            <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+
+            <RadioButton fx:id="fixedBtn" text="Fixed Array" selected="true" onAction="#switchMode" textFill="white"/>
+            <RadioButton fx:id="dynamicBtn" text="Dynamic Array" onAction="#switchMode" textFill="white"/>
+
+            <Separator/>
+
+            <Label text="Create / Random" textFill="#f5a9a9"/>
+            <TextField fx:id="sizeField" promptText="size (e.g. 10)"/>
+            <Button text="Create" onAction="#createArray" maxWidth="1.7976931348623157E308"/>
+            <Button text="Random Fill" onAction="#randomFill" maxWidth="1.7976931348623157E308"/>
+
+            <Separator/>
+
+            <Label text="Operations" textFill="#f5a9a9"/>
+            <TextField fx:id="indexField" promptText="index"/>
+            <TextField fx:id="valueField" promptText="value"/>
+
+            <Button text="Get(index)" onAction="#getValue" maxWidth="1.7976931348623157E308"/>
+            <Button text="Set(index, value)" onAction="#setValue" maxWidth="1.7976931348623157E308"/>
+            <Button text="Insert(index, value)" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
+            <Button text="Delete(index)" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
+
+            <Separator/>
+
+            <Label text="Searching" textFill="#f5a9a9"/>
+            <TextField fx:id="searchField" promptText="search value"/>
+            <Button text="Linear Search" onAction="#linearSearch" maxWidth="1.7976931348623157E308"/>
+            <Button text="Binary Search (sorted)" onAction="#binarySearch" maxWidth="1.7976931348623157E308"/>
+
+            <Separator/>
+
+            <Label text="Speed" textFill="white"/>
+            <Slider fx:id="speedSlider" min="0.2" max="2.5" value="1.0" showTickLabels="true"/>
+        </VBox>
+    </right>
+
+</BorderPane>

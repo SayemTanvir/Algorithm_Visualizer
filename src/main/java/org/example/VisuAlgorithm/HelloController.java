@@ -22,9 +22,13 @@ public class HelloController {
         switchScene("org.example.VisuAlgorithm/sorting-view.fxml", click);
     }
     @FXML
-    void gotoArray(MouseEvent click){
+    void gotoArray(MouseEvent click) throws IOException {
         System.out.println("array_window");
+        switchScene("/org/example/VisuAlgorithm/array-view.fxml", click);
+
+
     }
+
     @FXML
     void gotoLinkedList(MouseEvent click){
         System.out.println("LL_window");
