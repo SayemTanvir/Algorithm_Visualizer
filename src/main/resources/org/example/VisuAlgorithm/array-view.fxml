@@ -75,7 +75,7 @@
                     <Button text="Insert(index, value)" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
 
                     <!-- ✅ move Merge Sort here -->
-                    <Button text="Merge Sort" onAction="#mergeSort" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Sort" onAction="#mergeSort" maxWidth="1.7976931348623157E308"/>
 
                     <Button text="Delete(index)" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
 
