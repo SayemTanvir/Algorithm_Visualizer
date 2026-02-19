@@ -1,5 +1,6 @@
 package org.example.VisuAlgorithm;
 
+import javafx.application.Platform;
 import javafx.animation.PauseTransition;
 import javafx.animation.SequentialTransition;
 import javafx.fxml.FXML;
@@ -850,18 +851,23 @@ public class ArrayController {
 
     // ------------ Popups ------------
     private void showWarningPopup(String title, String msg) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(title);
-        alert.setContentText(msg);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle(title);
+            alert.setHeaderText(title);
+            alert.setContentText(msg);
+            alert.show(); // NOT showAndWait
+        });
     }
 
     private void showInfoPopup(String title, String msg) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(title);
-        alert.setContentText(msg);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(title);
+            alert.setHeaderText(title);
+            alert.setContentText(msg);
+            alert.show(); // NOT showAndWait
+        });
     }
+
 }
