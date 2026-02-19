@@ -30,9 +30,11 @@ public class HelloController {
     }
 
     @FXML
-    void gotoLinkedList(MouseEvent click){
-        System.out.println("LL_window");
+    void gotoLinkedList(MouseEvent click) throws IOException {
+        System.out.println("linked_list_window");
+        switchScene("/org/example/VisuAlgorithm/linked-list-view.fxml", click);
     }
+
     @FXML
     void gotoStack(MouseEvent click){
         System.out.println("stack_window");
