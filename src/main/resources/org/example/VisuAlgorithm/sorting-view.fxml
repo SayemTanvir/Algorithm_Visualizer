@@ -11,15 +11,14 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.VisuAlgorithm.SortingController">
    <top>
       <HBox alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="600.0" spacing="20.0" style="-fx-background-color: #1e005e;" BorderPane.alignment="CENTER">
          <padding>
             <Insets left="20.0" />
          </padding>
          <children>
-            <Button mnemonicParsing="false" text="Back" />
+            <Button mnemonicParsing="false" onAction="#backToHome" text="Back" />
             <Label text="Sorting Visualization" textFill="#ff7272">
                <font>
                   <Font size="37.0" />
@@ -29,15 +28,43 @@
       </HBox>
    </top>
    <right>
-      <VBox prefHeight="340.0" prefWidth="66.0" spacing="7.0" BorderPane.alignment="CENTER">
+      <VBox prefHeight="340.0" prefWidth="66.0" spacing="2.0" BorderPane.alignment="CENTER">
          <children>
-            <Button mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Selection Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
-            <Button layoutX="10.0" layoutY="10.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Insertion Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
-            <Button layoutX="10.0" layoutY="52.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Bubble Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
-            <Button layoutX="10.0" layoutY="95.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Merge Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
-            <Button layoutX="10.0" layoutY="137.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Quick Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
-            <Button layoutX="10.0" layoutY="180.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Counting Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
-            <Button layoutX="10.0" layoutY="222.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Heap Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true" />
+            <Button mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Selection Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
+            <Button layoutX="10.0" layoutY="10.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Insertion Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
+            <Button fx:id="bubbleSortBtn" layoutX="10.0" layoutY="52.0" mnemonicParsing="false" onAction="#runBubbleSort" style="-fx-background-color: #36a5c7;" text="Bubble Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
+            <Button layoutX="10.0" layoutY="95.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Merge Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
+            <Button layoutX="10.0" layoutY="137.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Quick Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
+            <Button layoutX="10.0" layoutY="180.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Counting Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
+            <Button layoutX="10.0" layoutY="222.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Heap   Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+               <font>
+                  <Font size="11.0" />
+               </font>
+            </Button>
          </children>
       </VBox>
    </right>
@@ -47,9 +74,9 @@
    <left>
       <VBox prefHeight="340.0" prefWidth="86.0" spacing="10.0" BorderPane.alignment="CENTER">
          <children>
-            <Label prefHeight="24.0" prefWidth="86.0" text="    Array Size" textAlignment="CENTER" />
-            <Slider max="25.0" min="1.0" />
-            <Button mnemonicParsing="false" text="Random Generate" textAlignment="CENTER" wrapText="true">
+            <Label fx:id="sizeLabel" prefHeight="24.0" prefWidth="86.0" text="    Array Size" textAlignment="CENTER" />
+            <Slider fx:id="sizeSlider" max="30.0" min="1.0" minorTickCount="1" showTickLabels="true" snapToTicks="true" />
+            <Button mnemonicParsing="false" onAction="#generateRandomArray" text="Random Generate" textAlignment="CENTER" wrapText="true">
                <font>
                   <Font size="10.0" />
                </font>
@@ -59,23 +86,23 @@
                   <Font size="13.0" />
                </font>
             </Label>
-            <TextField text="5, 12, 8, 2,10" />
-            <Button mnemonicParsing="false" prefHeight="26.0" prefWidth="91.0" text="Load Input" />
+            <TextField fx:id="customInput" text="5, 12, 8, 2,10" />
+            <Button mnemonicParsing="false" onAction="#loadCustomInput" prefHeight="26.0" prefWidth="91.0" text="Load Input" />
          </children>
       </VBox>
    </left>
    <bottom>
       <HBox prefHeight="33.0" prefWidth="600.0" spacing="10.0" BorderPane.alignment="CENTER">
          <children>
-            <Button mnemonicParsing="false" text="⏮" />
-            <Button layoutX="10.0" layoutY="10.0" mnemonicParsing="false" text="▶" />
-            <Button layoutX="62.0" layoutY="10.0" mnemonicParsing="false" text="⏭" />
+            <Button fx:id="stepBackBtn" mnemonicParsing="false" onAction="#stepBackward" text="⏮" />
+            <Button fx:id="playPauseBtn" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#togglePlayPause" text="▶" />
+            <Button fx:id="skipBtn" layoutX="62.0" layoutY="10.0" mnemonicParsing="false" onAction="#stepForward" text="⏭" />
             <Label prefHeight="34.0" prefWidth="45.0" text="Speed">
                <font>
                   <Font size="16.0" />
                </font>
             </Label>
-            <Slider max="10.0" prefHeight="35.0" prefWidth="140.0" />
+            <Slider fx:id="speedSlider" max="10.0" prefHeight="35.0" prefWidth="140.0" />
          </children>
       </HBox>
    </bottom>
