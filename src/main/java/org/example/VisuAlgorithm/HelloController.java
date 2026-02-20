@@ -34,7 +34,21 @@ public class HelloController {
         System.out.println("linked_list_window");
         switchScene("/org/example/VisuAlgorithm/linked-list-view.fxml", click);
     }
-
+    @FXML
+    void gotoSinglyLinkedList(MouseEvent click) throws IOException {
+        System.out.println("linked_list_window");
+        switchScene("/org/example/VisuAlgorithm/singly-linked-list-view.fxml", click);
+    }
+    @FXML
+    void gotoDoublyLinkedList(MouseEvent click) throws IOException {
+        System.out.println("linked_list_window");
+        switchScene("/org/example/VisuAlgorithm/doubly-linked-list-view.fxml.fxml", click);
+    }
+    @FXML
+    void gotoMultiLinkedList(MouseEvent click) throws IOException {
+        System.out.println("linked_list_window");
+        switchScene("/org/example/VisuAlgorithm/multi-linked-list-view.fxml", click);
+    }
     @FXML
     void gotoStack(MouseEvent click){
         System.out.println("stack_window");
