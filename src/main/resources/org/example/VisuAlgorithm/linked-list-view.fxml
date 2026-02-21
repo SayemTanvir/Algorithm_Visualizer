@@ -7,16 +7,15 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.VisuAlgorithm.LinkedListController"
-            prefHeight="600.0" prefWidth="900.0"
-            style="-fx-background-color: #090247;">
+            prefHeight="650.0" prefWidth="980.0"
+            style="-fx-background-color:#090247;">
 
     <!-- TOP BAR -->
     <top>
         <HBox spacing="12" alignment="CENTER_LEFT" style="-fx-background-color:#1a1460;">
             <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
 
-            <Button fx:id="backBtn"
-                    text="⬅ Back" onAction="#backHome"
+            <Button fx:id="backBtn" text="⬅ Back" onAction="#backHome"
                     style="-fx-background-color:#51c4d3; -fx-font-weight:bold; -fx-cursor:hand;" />
 
             <Label text="LINKED LIST VISUALIZER" textFill="#f5a9a9">
@@ -28,55 +27,89 @@
         </HBox>
     </top>
 
-    <!-- CENTER: list visual area -->
+    <!-- CENTER -->
     <center>
-        <ScrollPane fitToWidth="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
-                    style="-fx-background: transparent; -fx-background-color: transparent;">
-            <content>
-                <VBox spacing="12" alignment="TOP_CENTER">
-                    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+        <VBox spacing="12" alignment="TOP_CENTER">
+            <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
 
-                    <HBox fx:id="listBox" spacing="14" alignment="CENTER_LEFT"/>
-                </VBox>
-            </content>
-        </ScrollPane>
+            <Label text="Nodes + Edges" textFill="white"/>
+
+            <ScrollPane fitToHeight="true" fitToWidth="true"
+                        hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                        style="-fx-background: transparent; -fx-background-color: transparent;">
+                <content>
+                    <!-- Edge layer overlays nodes -->
+                    <StackPane>
+                        <Pane fx:id="edgeLayer" minHeight="120" prefHeight="140"
+                              style="-fx-background-color: transparent;"/>
+
+                        <HBox fx:id="listBox" spacing="24" alignment="CENTER_LEFT"
+                              style="-fx-padding: 30 10 30 10;"/>
+                    </StackPane>
+                </content>
+            </ScrollPane>
+
+        </VBox>
     </center>
 
-    <!-- RIGHT: CONTROLS -->
+    <!-- RIGHT CONTROLS -->
     <right>
-        <ScrollPane fx:id="controlsPane"
-                    fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
-                    style="-fx-background:#1a1460; -fx-background-color:#1a1460;"
-                    prefWidth="280">
+        <ScrollPane fx:id="controlsPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                    style="-fx-background:#1a1460; -fx-background-color:#1a1460;" prefWidth="310">
             <content>
                 <VBox spacing="10" style="-fx-background-color:#1a1460;">
                     <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
 
-                    <Label text="Create" textFill="#f5a9a9"/>
-                    <TextField fx:id="valueField" promptText="value (int)"/>
-
-                    <Button text="Insert Head" onAction="#insertHead" maxWidth="1.7976931348623157E308"/>
-                    <Button text="Insert Tail" onAction="#insertTail" maxWidth="1.7976931348623157E308"/>
+                    <Label text="Mode" textFill="#f5a9a9"/>
+                    <HBox spacing="10">
+                        <RadioButton fx:id="singlyBtn" text="Singly" onAction="#switchMode" textFill="white"/>
+                        <RadioButton fx:id="doublyBtn" text="Doubly" onAction="#switchMode" textFill="white"/>
+                    </HBox>
 
                     <Separator/>
 
-                    <Label text="Index Ops" textFill="#f5a9a9"/>
-                    <TextField fx:id="indexField" promptText="index"/>
+                    <Label text="Create Node (int/float/double)" textFill="#f5a9a9"/>
+                    <TextField fx:id="valueField" promptText="value (e.g. 10, 3.14, -2.5)"/>
+                    <HBox spacing="10">
+                        <Button text="Insert Head" onAction="#insertHead" maxWidth="1.7976931348623157E308"/>
+                        <Button text="Insert Tail" onAction="#insertTail" maxWidth="1.7976931348623157E308"/>
+                    </HBox>
 
+                    <Separator/>
+
+                    <Label text="Index Ops (linear from head)" textFill="#f5a9a9"/>
+                    <TextField fx:id="indexField" promptText="index"/>
                     <Button text="Insert At Index" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
                     <Button text="Delete At Index" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
 
                     <Separator/>
 
-                    <Label text="Search" textFill="#f5a9a9"/>
+                    <Label text="Search (linear)" textFill="#f5a9a9"/>
                     <TextField fx:id="searchField" promptText="search value"/>
                     <Button text="Linear Search" onAction="#search" maxWidth="1.7976931348623157E308"/>
 
                     <Separator/>
 
+                    <Label text="Edge Builder" textFill="#f5a9a9"/>
+                    <HBox spacing="10">
+                        <TextField fx:id="fromField" promptText="from" prefWidth="90"/>
+                        <TextField fx:id="toField" promptText="to" prefWidth="90"/>
+                        <ChoiceBox fx:id="edgeTypeChoice" prefWidth="90"/>
+                    </HBox>
+                    <Button text="Apply / Replace Edge" onAction="#applyEdge" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Remove Edge From 'from'" onAction="#removeEdge" maxWidth="1.7976931348623157E308"/>
+
+                    <Separator/>
+
+                    <Label text="Cycle" textFill="#f5a9a9"/>
+                    <Button text="Find &amp; Animate Cycles" onAction="#findAndAnimateCycles"
+                            maxWidth="1.7976931348623157E308"/>
+
+                    <Separator/>
+
                     <Label text="Other" textFill="#f5a9a9"/>
-                    <Button text="Reverse List" onAction="#reverse" maxWidth="1.7976931348623157E308"/>
-                    <Button text="Clear" onAction="#clear" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Reverse (linear only)" onAction="#reverse" maxWidth="1.7976931348623157E308"/>
+                    <Button text="Clear All" onAction="#clear" maxWidth="1.7976931348623157E308"/>
 
                     <Separator/>
 
