@@ -30,7 +30,7 @@
    <right>
       <VBox prefHeight="340.0" prefWidth="66.0" spacing="2.0" BorderPane.alignment="CENTER">
          <children>
-            <Button mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Selection Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+            <Button mnemonicParsing="false" onAction="#runSelectionSort" style="-fx-background-color: #36a5c7;" text="Selection Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
                <font>
                   <Font size="11.0" />
                </font>

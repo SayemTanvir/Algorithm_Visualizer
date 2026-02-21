@@ -37,64 +37,72 @@ public class SortingController {
     @FXML private Button stepBackBtn;
     @FXML private Button skipBtn;
 
-    // Master Data
+    // Main Data -> changes as the animation goes
     private int[] array;
     private Rectangle[] bars;
 
-    // Time-Machine Architecture
+    // Animation helpers
     private interface SortStep {
         void forward();
         void backward();
     }
 
-    private List<SortStep> stepQueue = new ArrayList<>();
-    private int currentStepIndex = 0;
-    private Timeline playTimeline;
+    private List<SortStep> stepQueue = new ArrayList<>();               //stores thee steps
+    private int currentStepIndex = 0;                                   //current step in animation
+    private Timeline playTimeline;                                      //jfx animator
     private boolean isPlaying = false;
 
-    // --- NEW: VIRTUAL STATE FOR GENERATORS ---
-    // These track the "future" state while generating the steps
-    private int[] tempArray;
-    private Color[] virtualColors;
+    private int[] tempArray;                                            //array sorted at the beginning to record steps
+    private Color[] virtualColors;                                      // array of colors to keep track of bar colors
 
     @FXML
     public void initialize() {
+        //setting default size to 10
         sizeSlider.setValue(10);
         updateSizeLabel(10);
 
+        //setting speed slider (default = 3x)
         if (speedSlider != null) {
             speedSlider.setMin(0.5);
             speedSlider.setMax(10.0);
             speedSlider.setValue(3.0);
         }
 
+        //generates array after creating window
         Platform.runLater(this::generateRandomArray);
 
+        //generates new array everytime size slider is changed  (.addListener watches for value change and executes the following lambda func)
         sizeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             int size = newVal.intValue();
             updateSizeLabel(size);
             generateRandomArray();
         });
 
+        //draws new bars for everytime window size is changed
         displayPane.widthProperty().addListener((obs, o, n) -> drawArray());
         displayPane.heightProperty().addListener((obs, o, n) -> drawArray());
 
+        //play,pause,back,forward buttons disabled
         setMediaControlsDisable(true);
+
         setupTimeline();
     }
 
+    //updates size text
     private void updateSizeLabel(int size) {
         if (sizeLabel != null) sizeLabel.setText("Size: " + size);
     }
 
+    //animator
     private void setupTimeline() {
-        playTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> executeNextStep()));
-        playTimeline.setCycleCount(Timeline.INDEFINITE);
+        playTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> executeNextStep()));        //calls executeNextStep() every 300ms
+        playTimeline.setCycleCount(Timeline.INDEFINITE);          // setting end to indefinite
         if (speedSlider != null) {
-            playTimeline.rateProperty().bind(speedSlider.valueProperty());
+            playTimeline.rateProperty().bind(speedSlider.valueProperty());      //rate is bind to value of speed slider
         }
     }
 
+    //disable controls
     private void setControlsDisable(boolean disable) {
         sizeSlider.setDisable(disable);
         customInput.setDisable(disable);
@@ -107,8 +115,7 @@ public class SortingController {
         if (skipBtn != null) skipBtn.setDisable(disable);
     }
 
-    // --- MEDIA / STEP CONTROLS ---
-
+    //controls
     @FXML
     void togglePlayPause() {
         if (stepQueue.isEmpty() || currentStepIndex >= stepQueue.size()) return;
@@ -233,11 +240,7 @@ public class SortingController {
         }
     }
 
-    // =======================================================
-    // --- STEP GENERATION HELPERS ---
-    // =======================================================
 
-    // Sets up the virtual arrays required to generate steps
     private boolean prepareSort() {
         if (array == null || array.length == 0) return false;
 
@@ -253,21 +256,20 @@ public class SortingController {
         return true;
     }
 
-    // Helper 1: Swap Step
+    // swap
     private void addSwapStep(int idx1, int idx2) {
-        // 1. Update virtual array for future steps
         int temp = tempArray[idx1];
         tempArray[idx1] = tempArray[idx2];
         tempArray[idx2] = temp;
 
-        // 2. Queue the visual step
+        // 2. add the step
         stepQueue.add(new SortStep() {
             @Override public void forward() { executeSwap(idx1, idx2); }
             @Override public void backward() { executeSwap(idx1, idx2); }
         });
     }
 
-    // Helper 2: Single Color Step
+    // colors 1 bar
     private void addColorStep(int idx, Color newColor) {
         Color oldColor = virtualColors[idx]; // Remember what it WAS
         virtualColors[idx] = newColor;       // Update what it WILL BE
@@ -278,7 +280,7 @@ public class SortingController {
         });
     }
 
-    // Helper 3: Multi-Color Step (Useful for highlighting 2 bars at once)
+    // colors 2 bars in one frame
     private void addColorStep(int idx1, int idx2, Color newColor) {
         Color old1 = virtualColors[idx1];
         Color old2 = virtualColors[idx2];
@@ -291,7 +293,7 @@ public class SortingController {
         });
     }
 
-    // Performs the physical swapping of visual bars and master array
+    //swaps bars
     private void executeSwap(int idx1, int idx2) {
         double h = bars[idx1].getHeight();
         bars[idx1].setHeight(bars[idx2].getHeight());
@@ -311,7 +313,7 @@ public class SortingController {
     // =======================================================
 
     @FXML
-    void runBubbleSort() {
+    void runBubbleSort(){
         if (!prepareSort()) return;
 
         for (int i = 0; i < tempArray.length - 1; i++) {
@@ -336,6 +338,37 @@ public class SortingController {
         addColorStep(0, Color.LIMEGREEN);
 
         togglePlayPause(); // Auto-start playback
+    }
+
+    @FXML
+    void runSelectionSort(){
+        if(!prepareSort()) return;
+
+        for(int i = 0; i < tempArray.length - 1; i++){
+            int min_idx = i;
+
+            addColorStep(i, Color.YELLOW);
+            for(int j = i + 1; j < tempArray.length; j++){
+                addColorStep(j, Color.YELLOW);
+                if(tempArray[j] < tempArray[min_idx]){
+                    if(min_idx == i){
+                        addColorStep(i, Color.YELLOW);
+                    }
+                    else{
+                        addColorStep(min_idx, Color.CYAN);
+                    }
+                    min_idx = j;
+                    addColorStep(min_idx, Color.RED);
+                }
+                else addColorStep(j, Color.CYAN);
+            }
+            addColorStep(min_idx, Color.CYAN);
+            addSwapStep(i, min_idx);
+            addColorStep(i, Color.LIMEGREEN);
+        }
+        addColorStep(tempArray.length - 1, Color.LIMEGREEN);
+
+        togglePlayPause();
     }
 
     // =======================================================

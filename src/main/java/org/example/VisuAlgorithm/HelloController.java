@@ -50,12 +50,11 @@ public class HelloController {
 
 
     private void switchScene(String fxml_name, MouseEvent click) throws IOException {
-
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource(fxml_name));
         Parent root = fxmlLoader.load();
-        Stage stage = (Stage) ((Node)click.getSource()).getScene().getWindow();
-        Scene scene = new Scene(root);
-        stage.setScene(scene);
-        stage.show();
+
+        Stage stage = (Stage)((Node)click.getSource()).getScene().getWindow();
+
+        stage.getScene().setRoot(root);
     }
 }
