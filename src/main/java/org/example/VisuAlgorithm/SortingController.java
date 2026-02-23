@@ -375,6 +375,54 @@ public class SortingController {
             }
         });
     }
+
+    private void quickSortHelper(int low, int high) {
+        if (low < high) {
+            int pivotIndex = partition(low, high);
+
+            addColorStep(pivotIndex, Color.LIMEGREEN);
+
+            quickSortHelper(low, pivotIndex - 1);
+            quickSortHelper(pivotIndex + 1, high);
+
+        } else if (low == high) {
+            addColorStep(low, Color.LIMEGREEN);
+        }
+    }
+
+    private int partition(int low, int high){
+        int pivotValue = tempArray[high];
+        addColorStep(high, Color.MAGENTA);
+
+        int i = low - 1;
+
+        for (int j = low; j < high; j++){
+            addColorStep(j, Color.YELLOW);
+
+            if (tempArray[j] < pivotValue){
+                i++;
+
+                if (i != j) {
+                    addSwapStep(i, j);
+                    addColorStep(i, Color.CYAN);
+
+                } else {
+                    addColorStep(j, Color.CYAN);
+                }
+            } else {
+                addColorStep(j, Color.CYAN);
+            }
+        }
+
+        if (i + 1 != high) {
+            addSwapStep(i + 1, high);
+
+            addColorStep(i + 1, Color.MAGENTA);
+            addColorStep(high, Color.CYAN);
+        }
+
+        return i + 1;
+    }
     // =======================================================
     // --- SORTING ALGORITHMS ---
     // =======================================================
@@ -404,7 +452,7 @@ public class SortingController {
         // Mark the very first element as sorted when done
         addColorStep(0, Color.LIMEGREEN);
 
-        togglePlayPause(); // Auto-start playback
+        togglePlayPause();
     }
 
     @FXML
@@ -429,7 +477,7 @@ public class SortingController {
                 }
                 else addColorStep(j, Color.CYAN);
             }
-            addColorStep(min_idx, Color.CYAN);
+            addColorStep(i, Color.CYAN);
             addSwapStep(i, min_idx);
             addColorStep(i, Color.LIMEGREEN);
         }
@@ -465,6 +513,18 @@ public class SortingController {
         togglePlayPause();
     }
 
+    @FXML
+    void runQuickSort() {
+        if (!prepareSort()) return;
+
+        quickSortHelper(0, tempArray.length - 1);
+
+        for (int i = 0; i < tempArray.length; i++) {
+            addColorStep(i, Color.LIMEGREEN);
+        }
+
+        togglePlayPause();
+    }
     //run run
     // =======================================================
 
