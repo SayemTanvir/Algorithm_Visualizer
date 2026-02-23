@@ -24,6 +24,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+
+ import javafx.animation.KeyValue;
+ import javafx.animation.Interpolator;
+
 public class SortingController {
 
     @FXML private Pane displayPane;
@@ -65,7 +69,7 @@ public class SortingController {
         if (speedSlider != null) {
             speedSlider.setMin(0.5);
             speedSlider.setMax(10.0);
-            speedSlider.setValue(3.0);
+            speedSlider.setValue(2.0);
         }
 
         //generates array after creating window
@@ -294,18 +298,42 @@ public class SortingController {
     }
 
     //swaps bars
-    private void executeSwap(int idx1, int idx2) {
-        double h = bars[idx1].getHeight();
-        bars[idx1].setHeight(bars[idx2].getHeight());
-        bars[idx2].setHeight(h);
+    private void executeSwap(int idx1, int idx2){
+        Rectangle r1 = bars[idx1];
+        Rectangle r2 = bars[idx2];
 
-        double y = bars[idx1].getY();
-        bars[idx1].setY(bars[idx2].getY());
-        bars[idx2].setY(y);
+        // 2. Swap them in our tracking array so future steps grab the correct physical bar!
+        bars[idx1] = r2;
+        bars[idx2] = r1;
 
+        // 3. Swap the master math array
         int t = array[idx1];
         array[idx1] = array[idx2];
         array[idx2] = t;
+
+        // 4. Calculate exactly where they are supposed to move to on the screen
+        double paneW = displayPane.getWidth();
+        if (paneW <= 0) paneW = 600;
+        double slotWidth = paneW / array.length;
+
+        double targetXForR1 = idx2 * slotWidth;
+        double targetXForR2 = idx1 * slotWidth;
+
+        // 5. Create the smooth sliding animation
+        Timeline swapAnimation = new Timeline(
+                new KeyFrame(Duration.millis(600), // Takes 250ms to slide
+                        new KeyValue(r1.xProperty(), targetXForR1, Interpolator.EASE_BOTH),
+                        new KeyValue(r2.xProperty(), targetXForR2, Interpolator.EASE_BOTH)
+                )
+        );
+
+        // 6. Bind the sliding animation speed to our speed slider!
+        if (speedSlider != null) {
+            swapAnimation.rateProperty().bind(speedSlider.valueProperty());
+        }
+
+        // Action!
+        swapAnimation.play();
     }
 
     private void addInstantInsertStep(int fromIdx, int toIdx) {
