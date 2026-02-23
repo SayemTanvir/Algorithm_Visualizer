@@ -308,6 +308,45 @@ public class SortingController {
         array[idx2] = t;
     }
 
+    private void addInstantInsertStep(int fromIdx, int toIdx) {
+        if (fromIdx == toIdx) return;
+
+        // shifting math
+        int temp = tempArray[fromIdx];
+        for (int k = fromIdx; k > toIdx; k--) {
+            tempArray[k] = tempArray[k - 1];
+        }
+        tempArray[toIdx] = temp;
+
+        // 2. Instantly update the color scratchpad
+        Color[] oldColors = virtualColors.clone(); // Save snapshot for Rewind
+
+        for (int k = fromIdx; k > toIdx; k--) {
+            virtualColors[k] = Color.LIMEGREEN; // The bars shifted right stay Green
+        }
+        virtualColors[toIdx] = Color.RED; // The newly inserted bar stays Red
+
+        // 3. Package all of the movement into ONE single animation frame
+        stepQueue.add(new SortStep() {
+            @Override
+            public void forward() {
+                // Ripple the swaps downward instantly
+                for (int k = fromIdx; k > toIdx; k--) executeSwap(k, k - 1);
+
+                // Snap all the colors to their new states instantly
+                for (int k = toIdx; k <= fromIdx; k++) bars[k].setFill(virtualColors[k]);
+            }
+
+            @Override
+            public void backward() {
+                // To undo, ripple the swaps back upward instantly
+                for (int k = toIdx + 1; k <= fromIdx; k++) executeSwap(k, k - 1);
+
+                // Restore old colors
+                for (int k = toIdx; k <= fromIdx; k++) bars[k].setFill(oldColors[k]);
+            }
+        });
+    }
     // =======================================================
     // --- SORTING ALGORITHMS ---
     // =======================================================
@@ -371,6 +410,32 @@ public class SortingController {
         togglePlayPause();
     }
 
+    @FXML
+    void runInsertionSort(){
+        if(!prepareSort()) return;
+
+        addColorStep(0, Color.LIMEGREEN);
+        for(int i = 1; i < tempArray.length; i++){
+            int j = i - 1;
+            addColorStep(i, Color.RED);
+            int target = tempArray[i];
+            while(j >= 0 && tempArray[j] > target){
+                addColorStep(j, Color.YELLOW);
+                addColorStep(j, Color.LIMEGREEN);
+                j--;
+            }
+            int targetSpot = j + 1;
+
+            if (targetSpot != i) {
+                addInstantInsertStep(i, targetSpot);
+            }
+
+            addColorStep(targetSpot, Color.LIMEGREEN);
+        }
+
+
+        togglePlayPause();
+    }
 
     //run run
     // =======================================================
