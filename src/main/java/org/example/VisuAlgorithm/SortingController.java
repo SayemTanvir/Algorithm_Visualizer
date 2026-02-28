@@ -21,6 +21,7 @@ import javafx.util.Duration;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -524,6 +525,337 @@ public class SortingController {
         }
 
         togglePlayPause();
+    }
+
+    // Merge sort depth-row tracking
+    private int[] virtualDepth;   // -1 = full-height display, 0+ = merge sort row
+    private int   maxSortDepth;   // ceil(log₂ n) — how many rows the tree needs
+    private int   maxArrayValue;  // max value, stable — used for height scaling
+    // =======================================================
+// MERGE SORT — depth-row tree visualisation
+// =======================================================
+
+    @FXML
+    void runMergeSort() {
+        if (!prepareSort()) return;
+
+        int n = tempArray.length;
+
+        // How many levels the recursion tree has
+        maxSortDepth   = (n <= 1) ? 0 : (int) Math.ceil(Math.log(n) / Math.log(2));
+        virtualDepth   = new int[n];
+        Arrays.fill(virtualDepth, -1);   // -1 = currently in full-height display mode
+
+        maxArrayValue = 0;
+        for (int v : array) if (v > maxArrayValue) maxArrayValue = v;
+
+        // ── Phase 1: shrink all bars and slide them into row 0 ──
+        addRepositionStep(0, n - 1, 0);
+
+        // ── Phase 2: recursive divide + merge ──
+        mergeSortHelper(0, n - 1, 0);
+
+        // ── Phase 3: expand bars back to full-height and colour green ──
+        addRepositionStep(0, n - 1, -1);
+        for (int i = 0; i < n; i++) addColorStep(i, Color.LIMEGREEN);
+
+        togglePlayPause();
+    }
+
+    /**
+     * Recursively builds steps for the depth-row tree.
+     *
+     * @param depth  current row in the tree (0 = root row at the top)
+     */
+    private void mergeSortHelper(int low, int high, int depth) {
+        if (low >= high) {
+            if (low == high) {
+                addColorStep(low, Color.LIMEGREEN);
+                addSingleRepositionStep(low, depth);    // leaf rises to its own row
+            }
+            return;
+        }
+
+        int mid = (low + high) / 2;
+
+        // Flash the subarray so the viewer sees the divide happening
+        for (int i = low; i <= high; i++) addColorStep(i, Color.YELLOW);
+        for (int i = low; i <= high; i++) addColorStep(i, Color.CYAN);
+
+        // Divide: both halves drop one row lower
+        addRepositionStep(low,      mid,  depth + 1);
+        addRepositionStep(mid + 1, high, depth + 1);
+
+        mergeSortHelper(low,      mid,  depth + 1);
+        mergeSortHelper(mid + 1, high, depth + 1);
+
+        // Merge: each element rises to `depth` one by one as it's sorted
+        merge(low, mid, high, depth);
+        // ↑ no separate addRepositionStep here anymore — merge() does it per element
+    }
+
+    private void merge(int low, int mid, int high, int depth) {
+        for (int i = low;      i <= mid;  i++) addColorStep(i, Color.CYAN);
+        for (int i = mid + 1; i <= high; i++) addColorStep(i, Color.MAGENTA);
+
+        int left         = low;
+        int currentMid   = mid;
+        int right        = mid + 1;
+        int currentDepth = depth + 1;   // elements are sitting one level below target
+
+        while (left <= currentMid && right <= high) {
+            addColorStep(left,  Color.YELLOW);
+            addColorStep(right, Color.YELLOW);
+
+            if (tempArray[left] <= tempArray[right]) {
+                // Left element wins: already in place, just rise straight up
+                addColorStep(left, Color.LIMEGREEN);
+                addSingleRepositionStep(left, depth);
+                left++;
+            } else {
+                // Right element wins: diagonal arc up-left + displace middle bars right
+                // (no separate RED/addInstantInsertStep needed — this does it all in one)
+                addMergeRotateAndRiseStep(right, left, currentDepth, depth);
+                currentMid++;
+                right++;
+                left++;
+            }
+        }
+
+        // Remaining left-half: already in place, rise straight up
+        while (left <= currentMid) {
+            addColorStep(left, Color.LIMEGREEN);
+            addSingleRepositionStep(left, depth);
+            left++;
+        }
+
+        // Remaining right-half: already in place, rise straight up
+        while (right <= high) {
+            addColorStep(right, Color.LIMEGREEN);
+            addSingleRepositionStep(right, depth);
+            right++;
+        }
+    }
+// =======================================================
+// REPOSITION HELPERS
+// =======================================================
+
+    /**
+     * Records a step that smoothly animates bars [low..high] to the target depth row.
+     *
+     *  depth  <  0  →  full-height display (the normal pre/post-sort view)
+     *  depth  >= 0  →  a compact row in the merge tree
+     *                  row 0 is near the top, deeper rows go further down
+     */
+    /** Records a step that moves a single bar to a target depth row. */
+
+    /**
+     * When the right-half element wins the comparison:
+     * - It rotates into position AND rises to the parent row in one diagonal arc.
+     * - The displaced bars [toIdx..fromIdx-1] slide right simultaneously.
+     */
+    private void addMergeRotateAndRiseStep(int fromIdx, int toIdx, int currentDepth, int targetDepth) {
+        // ── Advance tempArray ──
+        int temp = tempArray[fromIdx];
+        for (int k = fromIdx; k > toIdx; k--) tempArray[k] = tempArray[k - 1];
+        tempArray[toIdx] = temp;
+
+        // ── Advance virtualDepth for the winner ──
+        virtualDepth[toIdx] = targetDepth;   // winner rises; shifted bars stay at currentDepth
+
+        // ── Snapshot virtualColors before this step (needed for backward) ──
+        Color[] oldColors = virtualColors.clone();
+        // Rotate virtualColors to match bars moving right
+        for (int k = fromIdx; k > toIdx; k--) virtualColors[k] = virtualColors[k - 1];
+        virtualColors[toIdx] = Color.LIMEGREEN;
+
+        stepQueue.add(new SortStep() {
+            @Override
+            public void forward() {
+                // 1. Rotate bars[] and array[] in sync
+                Rectangle winner = bars[fromIdx];
+                int winnerVal    = array[fromIdx];
+                for (int k = fromIdx; k > toIdx; k--) {
+                    bars[k]  = bars[k - 1];
+                    array[k] = array[k - 1];
+                }
+                bars[toIdx]  = winner;
+                array[toIdx] = winnerVal;
+
+                // 2. Build one Timeline — winner goes diagonal, others slide right
+                double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
+                double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
+                double slotW = paneW / array.length;
+                double rowH  = paneH / (maxSortDepth + 2.0);
+
+                // Winner: arc diagonally up-left to (toIdx, targetDepth)
+                double wH = (array[toIdx] / (double) maxArrayValue) * rowH * 0.85;
+                double wY = (targetDepth + 1) * rowH - wH;
+                double wX = toIdx * slotW;
+
+                Timeline tl = new Timeline();
+                tl.getKeyFrames().add(new KeyFrame(Duration.millis(450),
+                        new KeyValue(winner.xProperty(),      wX, Interpolator.EASE_BOTH),
+                        new KeyValue(winner.yProperty(),      wY, Interpolator.EASE_BOTH),
+                        new KeyValue(winner.heightProperty(), wH, Interpolator.EASE_BOTH)
+                ));
+                winner.setFill(Color.LIMEGREEN);
+
+
+
+                if (speedSlider != null) tl.rateProperty().bind(speedSlider.valueProperty());
+                tl.play();
+            }
+
+            @Override
+            public void backward() {
+                // 1. Reverse-rotate bars[] and array[]
+                Rectangle winner = bars[toIdx];
+                int winnerVal    = array[toIdx];
+                for (int k = toIdx; k < fromIdx; k++) {
+                    bars[k]  = bars[k + 1];
+                    array[k] = array[k + 1];
+                }
+                bars[fromIdx]  = winner;
+                array[fromIdx] = winnerVal;
+
+                // 2. Restore depth and color tracking
+                virtualDepth[toIdx] = currentDepth;
+                System.arraycopy(oldColors, 0, virtualColors, 0, oldColors.length);
+
+                // 3. Animate winner back down-right, shifted bars back left
+                double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
+                double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
+                double slotW = paneW / array.length;
+                double rowH  = paneH / (maxSortDepth + 2.0);
+
+                // Winner returns to fromIdx at currentDepth
+                double wH = (array[fromIdx] / (double) maxArrayValue) * rowH * 0.85;
+                double wY = (currentDepth + 1) * rowH - wH;
+                double wX = fromIdx * slotW;
+
+                Timeline tl = new Timeline();
+                tl.getKeyFrames().add(new KeyFrame(Duration.millis(450),
+                        new KeyValue(winner.xProperty(),      wX, Interpolator.EASE_BOTH),
+                        new KeyValue(winner.yProperty(),      wY, Interpolator.EASE_BOTH),
+                        new KeyValue(winner.heightProperty(), wH, Interpolator.EASE_BOTH)
+                ));
+                winner.setFill(oldColors[fromIdx]);
+
+                // Restore colors only — positions were never moved
+                for (int k = toIdx; k < fromIdx; k++) {
+                    bars[k].setFill(oldColors[k]);
+                }
+
+                if (speedSlider != null) tl.rateProperty().bind(speedSlider.valueProperty());
+                tl.play();
+            }
+        });
+    }
+
+    private void addSingleRepositionStep(int idx, int targetDepth) {
+        int prevDepth = virtualDepth[idx];
+        virtualDepth[idx] = targetDepth;
+
+        stepQueue.add(new SortStep() {
+            @Override public void forward()  { playSingleRepositionAnim(idx, targetDepth); }
+            @Override public void backward() { playSingleRepositionAnim(idx, prevDepth);   }
+        });
+    }
+
+    private void playSingleRepositionAnim(int idx, int depth) {
+        double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
+        double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
+        double slotW = paneW / array.length;
+        double rowH  = paneH / (maxSortDepth + 2.0);
+
+        double barH, barY, barX;
+        barX = idx * slotW;   // ← always land in the correct sorted column
+
+        if (depth < 0) {
+            barH = (array[idx] / (double) maxArrayValue) * paneH * 0.9;
+            barY = paneH - barH;
+        } else {
+            barH = (array[idx] / (double) maxArrayValue) * rowH * 0.85;
+            barY = (depth + 1) * rowH - barH;
+        }
+
+        Timeline tl = new Timeline(new KeyFrame(Duration.millis(400),
+                new KeyValue(bars[idx].xProperty(),      barX, Interpolator.EASE_BOTH),  // ← X corrected
+                new KeyValue(bars[idx].yProperty(),      barY, Interpolator.EASE_BOTH),
+                new KeyValue(bars[idx].heightProperty(), barH, Interpolator.EASE_BOTH)
+        ));
+        if (speedSlider != null) tl.rateProperty().bind(speedSlider.valueProperty());
+        tl.play();
+    }
+
+    private void addRepositionStep(int low, int high, int targetDepth) {
+        int   count      = high - low + 1;
+        int[] indices    = new int[count];
+        int[] prevDepths = new int[count];
+
+        for (int i = low; i <= high; i++) {
+            int k      = i - low;
+            indices[k] = i;
+            prevDepths[k] = virtualDepth[i];
+            virtualDepth[i] = targetDepth;
+        }
+
+        // Capture for lambdas
+        int[] targetDepths = makeUniform(count, targetDepth);
+
+        stepQueue.add(new SortStep() {
+            @Override public void forward()  { playRepositionAnim(indices, targetDepths); }
+            @Override public void backward() { playRepositionAnim(indices, prevDepths);   }
+        });
+    }
+
+    /** Convenience: fills an int[] of given length with one value. */
+    private int[] makeUniform(int length, int value) {
+        int[] arr = new int[length];
+        Arrays.fill(arr, value);
+        return arr;
+    }
+
+    /**
+     * Fires a Timeline that slides each bar[indices[k]] to the Y/height
+     * dictated by depths[k].
+     *
+     * Called at PLAYBACK time, so array[idx] always reflects the live sorted
+     * state of the display (executeSwap keeps array[] in sync).
+     */
+    private void playRepositionAnim(int[] indices, int[] depths) {
+        double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
+        double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
+        double slotW = paneW / array.length;
+        double rowH  = paneH / (maxSortDepth + 2.0);
+
+        Timeline tl = new Timeline();
+
+        for (int k = 0; k < indices.length; k++) {
+            int idx   = indices[k];
+            int depth = depths[k];
+
+            double barH, barY, barX;
+            barX = idx * slotW;   // ← always snap to correct column
+
+            if (depth < 0) {
+                barH = (array[idx] / (double) maxArrayValue) * paneH * 0.9;
+                barY = paneH - barH;
+            } else {
+                barH = (array[idx] / (double) maxArrayValue) * rowH * 0.85;
+                barY = (depth + 1) * rowH - barH;
+            }
+
+            tl.getKeyFrames().add(new KeyFrame(Duration.millis(500),
+                    new KeyValue(bars[idx].xProperty(),      barX, Interpolator.EASE_BOTH),  // ← X corrected
+                    new KeyValue(bars[idx].yProperty(),      barY, Interpolator.EASE_BOTH),
+                    new KeyValue(bars[idx].heightProperty(), barH, Interpolator.EASE_BOTH)
+            ));
+        }
+
+        if (speedSlider != null) tl.rateProperty().bind(speedSlider.valueProperty());
+        tl.play();
     }
     //run run
     // =======================================================

@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Slider?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
 
 <!--yumm-->
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.VisuAlgorithm.SortingController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.VisuAlgorithm.SortingController">
    <top>
       <HBox alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="600.0" spacing="20.0" style="-fx-background-color: #1e005e;" BorderPane.alignment="CENTER">
          <padding>
@@ -47,7 +41,7 @@
                   <Font size="11.0" />
                </font>
             </Button>
-            <Button layoutX="10.0" layoutY="95.0" mnemonicParsing="false" style="-fx-background-color: #36a5c7;" text="Merge Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
+            <Button layoutX="10.0" layoutY="95.0" mnemonicParsing="false" onAction="#runMergeSort" style="-fx-background-color: #36a5c7;" text="Merge Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
                <font>
                   <Font size="11.0" />
                </font>
