@@ -12,10 +12,16 @@
 
     <top>
         <ToolBar>
+            <Button fx:id="backButton"
+                    text="Back"
+                    onAction="#handleBackButton"/>
+
+            <Separator/>
 
             <ToggleButton text="Node"
                           fx:id="nodeTool"
-                          toggleGroup="$toolGroup"/>
+                          toggleGroup="$toolGroup"
+                          selected="true"/>
 
             <ToggleButton text="Edge"
                           fx:id="edgeTool"
