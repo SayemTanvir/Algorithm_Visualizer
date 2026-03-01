@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.VisuAlgorithm.graphController">
+
+    <fx:define>
+        <ToggleGroup fx:id="toolGroup"/>
+    </fx:define>
+
+    <top>
+        <ToolBar>
+
+            <ToggleButton text="Node"
+                          fx:id="nodeTool"
+                          toggleGroup="$toolGroup"/>
+
+            <ToggleButton text="Edge"
+                          fx:id="edgeTool"
+                          toggleGroup="$toolGroup"/>
+
+            <Separator/>
+
+            <CheckBox text="Directed"
+                      fx:id="directedCheck"/>
+
+            <CheckBox text="Weighted"
+                      fx:id="weightedCheck"/>
+
+            <TextField fx:id="weightField"
+                       prefWidth="60"
+                       promptText="1"/>
+
+            <Separator/>
+
+            <CheckBox text="Custom Node Value"
+                      fx:id="customNodeCheck"/>
+
+            <TextField fx:id="nodeValueField"
+                       prefWidth="80"
+                       promptText="Value"/>
+
+            <Separator/>
+
+            <Button text="Delete Selected"
+                    onAction="#deleteSelected"/>
+
+        </ToolBar>
+    </top>
+
+    <center>
+        <Pane fx:id="canvasPane"
+              style="-fx-background-color: white;"
+              onMouseClicked="#handleCanvasClick"/>
+    </center>
+
+</BorderPane>

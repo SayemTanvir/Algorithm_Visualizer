@@ -58,8 +58,9 @@ public class HelloController {
         System.out.println("queue_window");
     }
     @FXML
-    void gotoGraph(MouseEvent click){
+    void gotoGraph(MouseEvent click) throws IOException {
         System.out.println("graph_window");
+        switchScene("/org/example/VisuAlgorithm/graph-view.fxml", click);
     }
 
 
