@@ -78,9 +78,13 @@ public class SortingController {
 
         //generates new array everytime size slider is changed  (.addListener watches for value change and executes the following lambda func)
         sizeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
-            int size = newVal.intValue();
-            updateSizeLabel(size);
-            generateRandomArray();
+            int oldSize = oldVal.intValue();
+            int newSize = newVal.intValue();
+
+            if (oldSize != newSize) {
+                updateSizeLabel(newSize);
+                generateRandomArray();
+            }
         });
 
         //draws new bars for everytime window size is changed

@@ -1,5 +1,7 @@
 package org.example.VisuAlgorithm;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -22,6 +24,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.*;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.IOException;
 import java.util.*;
@@ -64,6 +67,17 @@ public class graphController {
                 });
             }
         });
+
+        // Setup Algorithm Dropdown
+        if (algoComboBox != null) {
+            algoComboBox.getItems().addAll(
+                    "BFS (Breadth-First Search)",
+                    "DFS (Depth-First Search)",
+                    "Dijkstra's Shortest Path",
+                    "Prim's MST",
+                    "Kruskal's MST"
+            );
+        }
     }
 
     // ===============================
@@ -107,6 +121,7 @@ public class graphController {
 
     @FXML
     private void handleCanvasClick(MouseEvent event) {
+        if (isAlgorithmMode) return;
         if (event.getTarget() != canvasPane) return;
 
         if (nodeTool.isSelected()) {
@@ -470,6 +485,265 @@ public class graphController {
         // TODO: Add your cleanup logic here.
         // For example: stop timeline animations, cancel background threads, or clear data.
         clearSelection();
+    }
+
+    //Algorithms
+    // --- UI Mode Panels ---
+    @FXML private ToolBar buildToolbar;
+    @FXML private ToolBar algoToolbar;
+    @FXML private ToolBar playbackToolbar;
+
+    // --- Algorithm Controls ---
+    // --- Algorithm Controls ---
+    @FXML private ComboBox<String> algoComboBox;
+    @FXML private TextField startNodeField;
+    @FXML private TextField endNodeField;
+    @FXML private Slider speedSlider;
+    @FXML private Button playPauseButton;
+
+    // A flag to prevent drawing/dragging while algorithms run
+    private boolean isAlgorithmMode = false;
+
+    @FXML
+    private void switchToAlgoMode() {
+        if (nodes.isEmpty()) {
+            System.out.println("Graph is empty! Build a graph first.");
+            return;
+        }
+
+        isAlgorithmMode = true;
+        clearSelection();
+
+        // Hide Build tools
+        buildToolbar.setVisible(false);
+
+        // Show Top Algo Setup & Bottom Playback Controls
+        algoToolbar.setVisible(true);
+        playbackToolbar.setVisible(true);
+        playbackToolbar.setManaged(true);
+    }
+
+    @FXML
+    private void switchToBuildMode() {
+        isAlgorithmMode = false;
+
+        resetAlgorithmState(); // Stop animations and clear colors
+
+        // Hide Top Algo Setup & Bottom Playback Controls
+        algoToolbar.setVisible(false);
+        playbackToolbar.setVisible(false);
+        playbackToolbar.setManaged(false);
+
+        // Show Build tools
+        buildToolbar.setVisible(true);
+    }
+
+    @FXML
+    private void resetGraphColors() {
+        // Restores all nodes and edges to black/lightblue
+        for (GraphNode n : nodes) {
+            n.circle.setFill(Color.LIGHTBLUE);
+            n.circle.setStroke(Color.BLACK);
+        }
+        for (GraphEdge e : edges) {
+            e.line.setStroke(Color.BLACK);
+            // If you added color to arrowheads, reset them here too
+        }
+    }
+
+    //BFS
+    @FXML private Label resultLabel;
+
+    // --- Animation State ---
+    private Timeline timeline;
+    private final List<Runnable> algorithmSteps = new ArrayList<>();
+    private int currentStep = 0;
+
+    // ===============================
+    // ALGORITHMS & ANIMATION
+    // ===============================
+
+    private GraphNode findNodeByValue(String value) {
+        if (value == null || value.isEmpty()) return null;
+        for (GraphNode node : nodes) {
+            if (node.label.getText().equals(value)) {
+                return node;
+            }
+        }
+        return null; // Not found
+    }
+
+    // ===============================
+    // ALGORITHMS & ANIMATION
+    // ===============================
+
+    private void initializeAlgorithm() {
+        // Stops animation, resets colors, and calculates the whole algorithm in the background
+        if (timeline != null) timeline.stop();
+        resetGraphColors();
+        resultLabel.setText("Traversal Order: ");
+        algorithmSteps.clear();
+        currentStep = 0;
+
+        GraphNode startNode = findNodeByValue(startNodeField.getText());
+        if (startNode == null) startNode = nodes.get(0);
+
+        String selectedAlgo = algoComboBox.getValue();
+        if (selectedAlgo != null) {
+            if (selectedAlgo.startsWith("BFS")) {
+                recordBFS(startNode);
+            }
+//            else if (selectedAlgo.startsWith("DFS")) {
+//                recordDFS(startNode);
+//            }
+        }
+    }
+
+    private void setupTimeline() {
+        timeline = new Timeline(new KeyFrame(Duration.seconds(1.0), event -> {
+            if (currentStep < algorithmSteps.size()) {
+                algorithmSteps.get(currentStep).run();
+                currentStep++;
+            } else {
+                // Algorithm finished
+                timeline.stop();
+                playPauseButton.setText("↺ Restart");
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.rateProperty().bind(speedSlider.valueProperty());
+    }
+
+    @FXML
+    private void togglePlayPause() {
+        if (nodes.isEmpty() || algoComboBox.getValue() == null) return;
+
+        // If it's currently running, PAUSE it
+        if (timeline != null && timeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
+            timeline.pause();
+            playPauseButton.setText("▶ Play");
+            return;
+        }
+
+        // If it was finished or hasn't started, initialize it
+        if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
+            initializeAlgorithm();
+        }
+
+        if (timeline == null) {
+            setupTimeline();
+        }
+
+        // PLAY it
+        timeline.play();
+        playPauseButton.setText("⏸ Pause");
+    }
+
+    @FXML
+    private void stepForward() {
+        if (nodes.isEmpty() || algoComboBox.getValue() == null) return;
+
+        // Pause automatic playback if user decides to manually step
+        if (timeline != null) {
+            timeline.pause();
+            playPauseButton.setText("▶ Play");
+        }
+
+        if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
+            initializeAlgorithm();
+        }
+
+        if (currentStep < algorithmSteps.size()) {
+            algorithmSteps.get(currentStep).run();
+            currentStep++;
+        }
+    }
+
+    @FXML
+    private void stepBackward() {
+        if (algorithmSteps.isEmpty() || currentStep <= 0) return;
+
+        // Pause automatic playback
+        if (timeline != null) {
+            timeline.pause();
+            playPauseButton.setText("▶ Play");
+        }
+
+        // Move the step counter back by one
+        currentStep--;
+
+        // The "Scrubbing" Trick:
+        // Reset the graph instantly, then fast-forward a loop to the exact previous step
+        resetGraphColors();
+        resultLabel.setText("Traversal Order: ");
+        for (int i = 0; i < currentStep; i++) {
+            algorithmSteps.get(i).run();
+        }
+    }
+
+    @FXML
+    private void resetAlgorithmState() {
+        if (timeline != null) timeline.stop();
+        if (playPauseButton != null) playPauseButton.setText("▶ Play");
+        resetGraphColors();
+        resultLabel.setText("Traversal Order: ");
+        algorithmSteps.clear();
+        currentStep = 0;
+    }
+
+    // --- The BFS Logic ---
+    // --- The Updated BFS Logic ---
+    private void recordBFS(GraphNode startNode) {
+        Set<GraphNode> visited = new HashSet<>();
+        Queue<GraphNode> queue = new LinkedList<>();
+        List<String> visitedOrder = new ArrayList<>();
+
+        queue.add(startNode);
+        visited.add(startNode);
+
+        // Step 1: Mark Start Node as Discovered/Waiting (Yellow)
+        algorithmSteps.add(() -> startNode.circle.setFill(Color.YELLOW));
+
+        while (!queue.isEmpty()) {
+            GraphNode current = queue.poll();
+
+            // Step 2: Mark current node as Actively Exploring (Magenta) and update text
+            visitedOrder.add(current.label.getText());
+            final String currentPath = "Traversal Order: " + String.join(" ➔ ", visitedOrder);
+            final GraphNode exploringNode = current;
+
+            algorithmSteps.add(() -> {
+                exploringNode.circle.setFill(Color.MAGENTA);
+                resultLabel.setText(currentPath);
+            });
+
+            for (GraphEdge edge : current.connectedEdges) {
+                // Determine the neighbor based on directed/undirected rules
+                GraphNode neighbor = null;
+                if (edge.from == current) {
+                    neighbor = edge.to;
+                } else if (!edge.isDirected && edge.to == current) {
+                    neighbor = edge.from;
+                }
+
+                if (neighbor != null && !visited.contains(neighbor)) {
+                    visited.add(neighbor);
+                    queue.add(neighbor);
+
+                    final GraphEdge traversedEdge = edge;
+                    final GraphNode nextNode = neighbor;
+
+                    // Step 3: Animate Traversing the Edge (Orange) and Discovered Node (Yellow)
+                    algorithmSteps.add(() -> {
+                        traversedEdge.line.setStroke(Color.ORANGE);
+                        nextNode.circle.setFill(Color.YELLOW);
+                    });
+                }
+            }
+
+            // Step 4: Mark the current node as Done (Green) AFTER all neighbors are checked
+            algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
+        }
     }
 
 }
