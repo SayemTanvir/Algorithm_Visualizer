@@ -370,6 +370,88 @@ public class graphController {
         edge.update();
     }
 
+    @FXML
+    public void generateRandomGraph() {
+        // 1. Clear the canvas for a clean slate
+        clearGraph();
+
+        Random random = new Random();
+
+        // Use canvas dimensions, or fall back to defaults
+        double width = canvasPane.getWidth() > 0 ? canvasPane.getWidth() : 600;
+        double height = canvasPane.getHeight() > 0 ? canvasPane.getHeight() : 400;
+
+        // 2. Generate a clean number of nodes (e.g., 5 to 8)
+        int numNodes = random.nextInt(4) + 5;
+
+        // --- NEW: Circular Layout Math ---
+        double centerX = width / 2;
+        double centerY = height / 2;
+        // Radius leaves a 50px margin from the edges
+        double radius = Math.min(centerX, centerY) - 50;
+        double angleStep = 2 * Math.PI / numNodes;
+
+        for (int i = 0; i < numNodes; i++) {
+            // Distribute nodes evenly around the circle
+            double x = centerX + radius * Math.cos(i * angleStep);
+            double y = centerY + radius * Math.sin(i * angleStep);
+
+            GraphNode node = new GraphNode(x, y, String.valueOf(nodeCounter++));
+            restoreNodeInternal(node);
+        }
+
+        // 3. Generate Edges (Spanning tree to ensure it's fully connected)
+        boolean isDirected = directedCheck.isSelected();
+        boolean isWeighted = weightedCheck.isSelected();
+
+        List<GraphNode> connected = new ArrayList<>();
+        List<GraphNode> unconnected = new ArrayList<>(nodes);
+
+        // Start the tree with a random node
+        connected.add(unconnected.remove(random.nextInt(unconnected.size())));
+
+        while (!unconnected.isEmpty()) {
+            GraphNode from = connected.get(random.nextInt(connected.size()));
+            GraphNode to = unconnected.remove(random.nextInt(unconnected.size()));
+
+            int weight = isWeighted ? random.nextInt(20) + 1 : 1;
+            GraphEdge edge = new GraphEdge(from, to, weight, isDirected, isWeighted);
+            restoreEdgeInternal(edge);
+            connected.add(to);
+        }
+
+        // 4. Add a VERY small number of extra edges to keep it clean
+        // Max 2 extra edges to prevent the "messy" look
+        int extraEdges = random.nextInt(3);
+        for (int i = 0; i < extraEdges; i++) {
+            GraphNode from = nodes.get(random.nextInt(nodes.size()));
+            GraphNode to = nodes.get(random.nextInt(nodes.size()));
+
+            if (from != to) {
+                boolean exists = edges.stream().anyMatch(e ->
+                        (e.from == from && e.to == to) ||
+                                (!isDirected && e.from == to && e.to == from)
+                );
+
+                if (!exists) {
+                    int weight = isWeighted ? random.nextInt(20) + 1 : 1;
+                    GraphEdge edge = new GraphEdge(from, to, weight, isDirected, isWeighted);
+                    restoreEdgeInternal(edge);
+                }
+            }
+        }
+    }
+
+    @FXML
+    public void clearGraph() {
+        nodes.clear();
+        edges.clear();
+        canvasPane.getChildren().clear();
+        undoStack.clear(); // Reset undo history for the new graph
+        nodeCounter = 1;
+        clearSelection();
+    }
+
     @FXML private Button backButton;
 
     @FXML

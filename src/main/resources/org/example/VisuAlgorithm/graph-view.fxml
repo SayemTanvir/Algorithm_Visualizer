@@ -53,6 +53,10 @@
             <Button text="Delete Selected"
                     onAction="#deleteSelected"/>
 
+            <Button text="Generate Random" onAction="#generateRandomGraph" />
+
+            <Button text="Clear Graph" onAction="#clearGraph" />
+
         </ToolBar>
     </top>
 
