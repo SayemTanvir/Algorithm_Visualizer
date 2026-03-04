@@ -593,9 +593,9 @@ public class graphController {
             if (selectedAlgo.startsWith("BFS")) {
                 recordBFS(startNode);
             }
-//            else if (selectedAlgo.startsWith("DFS")) {
-//                recordDFS(startNode);
-//            }
+            else if (selectedAlgo.startsWith("DFS")) {
+                recordDFS(startNode);
+            }
         }
     }
 
@@ -746,4 +746,60 @@ public class graphController {
         }
     }
 
+    // --- The True Recursive DFS Logic ---
+    private void recordDFS(GraphNode startNode) {
+        Set<GraphNode> visited = new HashSet<>();
+        List<String> visitedOrder = new ArrayList<>();
+
+        // Start the recursive recording
+        dfsHelper(startNode, null, visited, visitedOrder);
+    }
+
+    private void dfsHelper(GraphNode current, GraphEdge edgeToReach, Set<GraphNode> visited, List<String> visitedOrder) {
+        // Mark as visited the moment we enter the node
+        visited.add(current);
+
+        // Step 1: Animate the arrival
+        if (edgeToReach != null) {
+            // If we traveled an edge to get here, turn the edge Orange and the node Yellow
+            final GraphEdge traversedEdge = edgeToReach;
+            final GraphNode nextNode = current;
+            algorithmSteps.add(() -> {
+                traversedEdge.line.setStroke(Color.ORANGE);
+                nextNode.circle.setFill(Color.YELLOW);
+            });
+        } else {
+            // If it's the very first starting node, just turn it Yellow
+            algorithmSteps.add(() -> current.circle.setFill(Color.YELLOW));
+        }
+
+        // Step 2: Mark current node as Actively Exploring (Magenta) and update the text
+        visitedOrder.add(current.label.getText());
+        final String currentPath = "Traversal Order: " + String.join(" ➔ ", visitedOrder);
+        final GraphNode exploringNode = current;
+
+        algorithmSteps.add(() -> {
+            exploringNode.circle.setFill(Color.MAGENTA);
+            resultLabel.setText(currentPath);
+        });
+
+        // Step 3: Check neighbors and DIVE DEEP immediately
+        for (GraphEdge edge : current.connectedEdges) {
+            // Determine the neighbor based on directed/undirected rules
+            GraphNode neighbor = null;
+            if (edge.from == current) {
+                neighbor = edge.to;
+            } else if (!edge.isDirected && edge.to == current) {
+                neighbor = edge.from;
+            }
+
+            // If the neighbor is unvisited, immediately pause this node and dive into the neighbor
+            if (neighbor != null && !visited.contains(neighbor)) {
+                dfsHelper(neighbor, edge, visited, visitedOrder);
+            }
+        }
+
+        // Step 4: All neighbors checked. Mark this node as completely Done (Green)
+        algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
+    }
 }
