@@ -3,121 +3,130 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.VisuAlgorithm.LinkedListController"
-            prefHeight="650.0" prefWidth="980.0"
-            style="-fx-background-color:#090247;">
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.VisuAlgorithm.LinkedListController">
 
-    <!-- TOP BAR -->
+    <!-- Non-visual objects MUST be in fx:define -->
+    <fx:define>
+        <ToggleGroup fx:id="modeGroup"/>
+    </fx:define>
+
+    <!-- ===== TOP (Header + Toolbar) ===== -->
     <top>
-        <HBox spacing="12" alignment="CENTER_LEFT" style="-fx-background-color:#1a1460;">
-            <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+        <VBox>
 
-            <Button fx:id="backBtn" text="⬅ Back" onAction="#backHome"
-                    style="-fx-background-color:#51c4d3; -fx-font-weight:bold; -fx-cursor:hand;" />
+            <!-- Header Bar (match your other modules by changing these colors) -->
+            <HBox alignment="CENTER_LEFT" spacing="12"
+                  style="-fx-background-color: #0f172a;">
+                <padding>
+                    <Insets top="10" right="12" bottom="10" left="12"/>
+                </padding>
 
-            <Label text="LINKED LIST VISUALIZER" textFill="#f5a9a9">
-                <font><Font name="Candara Bold" size="24"/></font>
-            </Label>
+                <Button fx:id="backBtn"
+                        text="← Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;"/>
 
-            <Pane HBox.hgrow="ALWAYS"/>
-            <Label fx:id="statusLabel" text="Create nodes to start" textFill="#51c4d3"/>
-        </HBox>
-    </top>
+                <Label text="Linked List"
+                       style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"/>
 
-    <!-- CENTER -->
-    <center>
-        <VBox spacing="12" alignment="TOP_CENTER">
-            <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
+                <Region HBox.hgrow="ALWAYS"/>
 
-            <Label text="Nodes + Edges" textFill="white"/>
+                <Label fx:id="headerStatusLabel"
+                       text=""
+                       style="-fx-text-fill: #cbd5e1; -fx-font-size: 12px;"/>
+            </HBox>
 
-            <ScrollPane fitToHeight="true" fitToWidth="true"
-                        hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
-                        style="-fx-background: transparent; -fx-background-color: transparent;">
-                <content>
-                    <!-- Edge layer overlays nodes -->
-                    <StackPane>
-                        <Pane fx:id="edgeLayer" minHeight="120" prefHeight="140"
-                              style="-fx-background-color: transparent;"/>
+            <!-- Toolbar Panel -->
+            <VBox spacing="10"
+                  style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0;">
+                <padding>
+                    <Insets top="12" right="12" bottom="12" left="12"/>
+                </padding>
 
-                        <HBox fx:id="listBox" spacing="24" alignment="CENTER_LEFT"
-                              style="-fx-padding: 30 10 30 10;"/>
-                    </StackPane>
-                </content>
-            </ScrollPane>
+                <!-- Row 1: Mode + Node ops -->
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="Mode:" style="-fx-font-weight: bold;"/>
+
+                    <RadioButton fx:id="rbSingly"
+                                 text="Singly"
+                                 toggleGroup="$modeGroup"
+                                 selected="true"
+                                 onAction="#onModeChanged"/>
+
+                    <RadioButton fx:id="rbDoubly"
+                                 text="Doubly"
+                                 toggleGroup="$modeGroup"
+                                 onAction="#onModeChanged"/>
+
+                    <RadioButton fx:id="rbMulti"
+                                 text="Multi"
+                                 toggleGroup="$modeGroup"
+                                 onAction="#onModeChanged"/>
+
+                    <Separator prefWidth="18"/>
+
+                    <Label text="Value:"/>
+                    <TextField fx:id="valueField" promptText="int" prefWidth="90"/>
+
+                    <Button text="Insert Head" onAction="#onInsertHead"/>
+                    <Button text="Insert Tail" onAction="#onInsertTail"/>
+
+                    <Separator prefWidth="18"/>
+
+                    <Label text="Delete idx:"/>
+                    <TextField fx:id="deleteIndexField" promptText="index" prefWidth="80"/>
+                    <Button text="Delete" onAction="#onDeleteIndex"/>
+
+                    <Button text="Clear All"
+                            onAction="#onClearAll"
+                            style="-fx-background-color: #fee2e2; -fx-text-fill: #991b1b; -fx-font-weight: bold;"/>
+                </HBox>
+
+                <!-- Row 2: Edge builder -->
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="Edge Builder:" style="-fx-font-weight: bold;"/>
+
+                    <Label text="from"/>
+                    <TextField fx:id="fromField" promptText="idx" prefWidth="70"/>
+
+                    <Label text="to"/>
+                    <TextField fx:id="toField" promptText="idx" prefWidth="70"/>
+
+                    <Label text="op"/>
+                    <ChoiceBox fx:id="edgeOpChoice" prefWidth="90"/>
+
+                    <Button text="Apply" onAction="#onApplyEdge"/>
+
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="modeHintLabel" text="" opacity="0.8"/>
+                </HBox>
+
+                <Label fx:id="statusLabel" text="" opacity="0.85"/>
+            </VBox>
 
         </VBox>
-    </center>
+    </top>
 
-    <!-- RIGHT CONTROLS -->
-    <right>
-        <ScrollPane fx:id="controlsPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
-                    style="-fx-background:#1a1460; -fx-background-color:#1a1460;" prefWidth="310">
+    <!-- ===== CENTER (Scrollable Canvas) ===== -->
+    <center>
+        <ScrollPane fx:id="scroll"
+                    fitToWidth="true"
+                    fitToHeight="true"
+                    pannable="true"
+                    hbarPolicy="AS_NEEDED"
+                    vbarPolicy="AS_NEEDED"
+                    style="-fx-background: blue;">
             <content>
-                <VBox spacing="10" style="-fx-background-color:#1a1460;">
-                    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-
-                    <Label text="Mode" textFill="#f5a9a9"/>
-                    <HBox spacing="10">
-                        <RadioButton fx:id="singlyBtn" text="Singly" onAction="#switchMode" textFill="white"/>
-                        <RadioButton fx:id="doublyBtn" text="Doubly" onAction="#switchMode" textFill="white"/>
-                    </HBox>
-
-                    <Separator/>
-
-                    <Label text="Create Node (int/float/double)" textFill="#f5a9a9"/>
-                    <TextField fx:id="valueField" promptText="value (e.g. 10, 3.14, -2.5)"/>
-                    <HBox spacing="10">
-                        <Button text="Insert Head" onAction="#insertHead" maxWidth="1.7976931348623157E308"/>
-                        <Button text="Insert Tail" onAction="#insertTail" maxWidth="1.7976931348623157E308"/>
-                    </HBox>
-
-                    <Separator/>
-
-                    <Label text="Index Ops (linear from head)" textFill="#f5a9a9"/>
-                    <TextField fx:id="indexField" promptText="index"/>
-                    <Button text="Insert At Index" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
-                    <Button text="Delete At Index" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
-
-                    <Separator/>
-
-                    <Label text="Search (linear)" textFill="#f5a9a9"/>
-                    <TextField fx:id="searchField" promptText="search value"/>
-                    <Button text="Linear Search" onAction="#search" maxWidth="1.7976931348623157E308"/>
-
-                    <Separator/>
-
-                    <Label text="Edge Builder" textFill="#f5a9a9"/>
-                    <HBox spacing="10">
-                        <TextField fx:id="fromField" promptText="from" prefWidth="90"/>
-                        <TextField fx:id="toField" promptText="to" prefWidth="90"/>
-                        <ChoiceBox fx:id="edgeTypeChoice" prefWidth="90"/>
-                    </HBox>
-                    <Button text="Apply / Replace Edge" onAction="#applyEdge" maxWidth="1.7976931348623157E308"/>
-                    <Button text="Remove Edge From 'from'" onAction="#removeEdge" maxWidth="1.7976931348623157E308"/>
-
-                    <Separator/>
-
-                    <Label text="Cycle" textFill="#f5a9a9"/>
-                    <Button text="Find &amp; Animate Cycles" onAction="#findAndAnimateCycles"
-                            maxWidth="1.7976931348623157E308"/>
-
-                    <Separator/>
-
-                    <Label text="Other" textFill="#f5a9a9"/>
-                    <Button text="Reverse (linear only)" onAction="#reverse" maxWidth="1.7976931348623157E308"/>
-                    <Button text="Clear All" onAction="#clear" maxWidth="1.7976931348623157E308"/>
-
-                    <Separator/>
-
-                    <Label text="Speed" textFill="white"/>
-                    <Slider fx:id="speedSlider" min="0.2" max="2.5" value="1.0" showTickLabels="true"/>
-                </VBox>
+                <!-- Big preferred size so scrolling works for long lists -->
+                <Pane fx:id="canvas"
+                      prefWidth="2200"
+                      prefHeight="900"
+                      style="-fx-background-color: black;"/>
             </content>
         </ScrollPane>
-    </right>
+    </center>
 
 </BorderPane>

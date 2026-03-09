@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.VisuAlgorithm.QueueController"
+            style="-fx-background-color: #eef2ff;">
+
+    <fx:define>
+        <ToggleGroup fx:id="modeGroup"/>
+        <ToggleGroup fx:id="priorityTypeGroup"/>
+    </fx:define>
+
+    <top>
+        <VBox spacing="0">
+
+            <!-- Header -->
+            <HBox alignment="CENTER_LEFT" spacing="12"
+                  style="-fx-background-color: linear-gradient(to right, #1e293b, #334155);">
+                <padding>
+                    <Insets top="12" right="16" bottom="12" left="16"/>
+                </padding>
+
+                <Button fx:id="backBtn"
+                        text="← Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: rgba(255,255,255,0.12);
+                               -fx-text-fill: white;
+                               -fx-background-radius: 12;
+                               -fx-padding: 8 14 8 14;
+                               -fx-font-weight: bold;"/>
+
+                <Label text="Queue Visualizer"
+                       style="-fx-text-fill: white;
+                              -fx-font-size: 18px;
+                              -fx-font-weight: bold;"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Label fx:id="headerStatusLabel"
+                       text="Ready."
+                       style="-fx-text-fill: #dbeafe;
+                              -fx-font-size: 12px;"/>
+            </HBox>
+
+            <!-- Main controls panel -->
+            <VBox spacing="12"
+                  style="-fx-background-color: #ffffff;
+                         -fx-border-color: #dbeafe;
+                         -fx-border-width: 0 0 1 0;">
+                <padding>
+                    <Insets top="14" right="16" bottom="14" left="16"/>
+                </padding>
+
+                <!-- Row 1 -->
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="Mode:"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+
+                    <RadioButton fx:id="rbQueue"
+                                 text="Queue"
+                                 toggleGroup="$modeGroup"
+                                 selected="true"
+                                 onAction="#onModeChanged"/>
+
+                    <RadioButton fx:id="rbDeque"
+                                 text="Deque"
+                                 toggleGroup="$modeGroup"
+                                 onAction="#onModeChanged"/>
+
+                    <RadioButton fx:id="rbPriority"
+                                 text="Priority Queue"
+                                 toggleGroup="$modeGroup"
+                                 onAction="#onModeChanged"/>
+
+                    <RadioButton fx:id="rbCircular"
+                                 text="Circular Queue"
+                                 toggleGroup="$modeGroup"
+                                 onAction="#onModeChanged"/>
+
+                    <Separator orientation="VERTICAL" prefHeight="28"/>
+
+                    <Label text="Value:"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                    <TextField fx:id="valueField" promptText="Enter value" prefWidth="110"/>
+
+                    <Label fx:id="priorityLabel"
+                           text="Priority:"
+                           visible="false"
+                           managed="false"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                    <TextField fx:id="priorityField"
+                               promptText="Priority"
+                               prefWidth="100"
+                               visible="false"
+                               managed="false"/>
+
+                    <Label fx:id="capacityLabel"
+                           text="Capacity:"
+                           visible="false"
+                           managed="false"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                    <TextField fx:id="capacityField"
+                               promptText="Size"
+                               prefWidth="90"
+                               visible="false"
+                               managed="false"/>
+
+                    <Button fx:id="setCapacityBtn"
+                            text="Set Capacity"
+                            onAction="#onSetCapacity"
+                            visible="false"
+                            managed="false"
+                            style="-fx-background-color: #dbeafe;
+                                   -fx-text-fill: #1e3a8a;
+                                   -fx-background-radius: 10;
+                                   -fx-font-weight: bold;"/>
+
+                    <Region HBox.hgrow="ALWAYS"/>
+                </HBox>
+
+                <!-- Row 2 -->
+                <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Button fx:id="enqueueBtn"
+                            text="Enqueue"
+                            onAction="#onEnqueue"
+                            style="-fx-background-color: #2563eb;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button fx:id="dequeueBtn"
+                            text="Dequeue"
+                            onAction="#onDequeue"
+                            style="-fx-background-color: #0f766e;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button fx:id="pushFrontBtn"
+                            text="Push Front"
+                            onAction="#onPushFront"
+                            visible="false"
+                            managed="false"
+                            style="-fx-background-color: #7c3aed;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button fx:id="pushRearBtn"
+                            text="Push Rear"
+                            onAction="#onPushRear"
+                            visible="false"
+                            managed="false"
+                            style="-fx-background-color: #6366f1;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button fx:id="popFrontBtn"
+                            text="Pop Front"
+                            onAction="#onPopFront"
+                            visible="false"
+                            managed="false"
+                            style="-fx-background-color: #ea580c;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button fx:id="popRearBtn"
+                            text="Pop Rear"
+                            onAction="#onPopRear"
+                            visible="false"
+                            managed="false"
+                            style="-fx-background-color: #dc2626;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button fx:id="peekBtn"
+                            text="Front"
+                            onAction="#onFront"
+                            style="-fx-background-color: #475569;
+                                   -fx-text-fill: white;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Button text="Clear"
+                            onAction="#onClear"
+                            style="-fx-background-color: #fee2e2;
+                                   -fx-text-fill: #991b1b;
+                                   -fx-background-radius: 12;
+                                   -fx-font-weight: bold;"/>
+
+                    <Separator orientation="VERTICAL" prefHeight="28"/>
+
+                    <HBox fx:id="priorityTypeBox"
+                          spacing="10"
+                          alignment="CENTER_LEFT"
+                          visible="false"
+                          managed="false">
+                        <Label text="Priority type:"
+                               style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                        <RadioButton fx:id="rbMaxPriority"
+                                     text="Max"
+                                     toggleGroup="$priorityTypeGroup"
+                                     selected="true"
+                                     onAction="#onPriorityTypeChanged"/>
+                        <RadioButton fx:id="rbMinPriority"
+                                     text="Min"
+                                     toggleGroup="$priorityTypeGroup"
+                                     onAction="#onPriorityTypeChanged"/>
+                    </HBox>
+
+                    <Region HBox.hgrow="ALWAYS"/>
+
+                    <Label text="Front:"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                    <Label fx:id="frontLabel" text="-1"/>
+
+                    <Label text="Rear:"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                    <Label fx:id="rearLabel" text="-1"/>
+                </HBox>
+
+                <!-- Row 3 -->
+                <Label fx:id="modeHintLabel"
+                       text=""
+                       style="-fx-text-fill: #475569; -fx-font-size: 12px;"/>
+
+                <Label fx:id="statusLabel"
+                       text="Ready."
+                       style="-fx-text-fill: #334155; -fx-font-size: 13px;"/>
+            </VBox>
+        </VBox>
+    </top>
+
+    <center>
+        <ScrollPane fx:id="scrollPane"
+                    fitToWidth="true"
+                    fitToHeight="true"
+                    pannable="true"
+                    hbarPolicy="AS_NEEDED"
+                    vbarPolicy="AS_NEEDED"
+                    style="-fx-background: transparent; -fx-background-color: transparent;">
+            <content>
+                <Pane fx:id="canvas"
+                      prefWidth="2600"
+                      prefHeight="900"
+                      style="-fx-background-color: linear-gradient(to bottom, #eef2ff, #f8fafc);"/>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>

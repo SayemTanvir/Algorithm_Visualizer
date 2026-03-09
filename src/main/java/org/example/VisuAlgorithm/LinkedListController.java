@@ -1,824 +1,439 @@
 package org.example.VisuAlgorithm;
 
-import javafx.scene.shape.Line;
-import javafx.animation.PauseTransition;
-import javafx.animation.SequentialTransition;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Bounds;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.shape.CubicCurve;
-import javafx.scene.shape.Polygon;
-import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.*;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 
-import java.io.IOException;
 import java.util.*;
 
-/**
- * Visual Linked List:
- * - Nodes show only value (double supports int/float/double)
- * - Edges drawn as arrows on edgeLayer (curved)
- * - Singly: →, Doubly: → and ←
- * - Far edges/cycles: higher curve
- */
 public class LinkedListController {
 
-    // ========= UI =========
-    @FXML private HBox listBox;
-    @FXML private Pane edgeLayer;
-    @FXML private Label statusLabel;
+    // -------- UI --------
+    @FXML private Pane canvas;
+
+    @FXML private ToggleGroup modeGroup;
+    @FXML private RadioButton rbSingly;
+    @FXML private RadioButton rbDoubly;
+    @FXML private RadioButton rbMulti;
+
+    @FXML private Button backBtn;
 
     @FXML private TextField valueField;
-    @FXML private TextField indexField;
-    @FXML private TextField searchField;
+    @FXML private TextField deleteIndexField;
 
     @FXML private TextField fromField;
     @FXML private TextField toField;
-    @FXML private ChoiceBox<String> edgeTypeChoice;
+    @FXML private ChoiceBox<String> edgeOpChoice;
 
-    @FXML private Slider speedSlider;
-    @FXML private ScrollPane controlsPane;
-    @FXML private Button backBtn;
+    @FXML private Label statusLabel;
+    @FXML private Label headerStatusLabel;
+    @FXML private Label modeHintLabel;
 
-    @FXML private RadioButton singlyBtn;
-    @FXML private RadioButton doublyBtn;
-    @FXML private ToggleGroup modeGroup;
+    // -------- Modes --------
+    private enum Mode { SINGLY, DOUBLY, MULTI }
+    private Mode mode = Mode.SINGLY;
 
-    // ========= STATE =========
-    private boolean busy = false;
-    private boolean doublyMode = false;
-
-    // ========= DATA MODEL =========
-    private static class NodeModel {
-        double val;
-        int next = -1;
-        int prev = -1; // used in doubly mode
-        NodeModel(double v) { val = v; }
+    // -------- Model --------
+    private static class Node {
+        int value;
+        Node(int v) { value = v; }
     }
 
-    private final ArrayList<NodeModel> nodes = new ArrayList<>();
-    private int head = -1;
+    private final ArrayList<Node> nodes = new ArrayList<>();
+    // directed adjacency: u -> set of v
+    private final HashMap<Integer, HashSet<Integer>> out = new HashMap<>();
 
-    // ========= INIT =========
+    // -------- Layout --------
+    private final double startX = 80;
+    private final double startY = 300;
+    private final double gap = 140;
+    private final double boxW = 80;
+    private final double boxH = 50;
+
     @FXML
     public void initialize() {
-        modeGroup = new ToggleGroup();
-        singlyBtn.setToggleGroup(modeGroup);
-        doublyBtn.setToggleGroup(modeGroup);
-        singlyBtn.setSelected(true);
-        doublyMode = false;
+        edgeOpChoice.getItems().addAll("+", "-", "clear");
+        edgeOpChoice.setValue("+");
 
-        edgeTypeChoice.getItems().setAll("→", "↔");
-        edgeTypeChoice.setValue("→");
-
-        redrawAll();
-
-        // important: redraw edges after layout happens
-        Platform.runLater(this::drawEdges);
+        setMode(Mode.SINGLY);
+        redraw();
+        setStatus("Ready.");
     }
 
-    // ========= NAV =========
+    // ================= BACK =================
     @FXML
-    void backHome() throws IOException {
-        Parent root = FXMLLoader.load(getClass().getResource("/org/example/VisuAlgorithm/hello-view.fxml"));
-        Stage stage = (Stage) listBox.getScene().getWindow();
-        stage.setScene(new Scene(root));
-        stage.show();
+    private void onBack() {
+        // 🔧 IMPORTANT:
+        // Change "hello-view.fxml" to your real menu/home FXML (same as other modules).
+        goTo("hello-view.fxml");
     }
 
-    // ========= MODE =========
+    private void goTo(String fxmlName) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlName));
+            Parent root = loader.load();
+            Stage stage = (Stage) canvas.getScene().getWindow();
+            stage.setScene(new Scene(root));
+        } catch (Exception e) {
+            setStatus("Back/navigation failed: " + e.getMessage());
+        }
+    }
+
+    // ================= MODE =================
     @FXML
-    void switchMode() {
-        if (busy) {
-            flashStatus("Busy... wait animation finish", true);
-            if (doublyMode) doublyBtn.setSelected(true); else singlyBtn.setSelected(true);
-            return;
+    private void onModeChanged() {
+        if (rbSingly.isSelected()) setMode(Mode.SINGLY);
+        else if (rbDoubly.isSelected()) setMode(Mode.DOUBLY);
+        else setMode(Mode.MULTI);
+    }
+
+    private void setMode(Mode m) {
+        mode = m;
+
+        if (mode == Mode.SINGLY) modeHintLabel.setText("Singly: each node max 1 outgoing next");
+        else if (mode == Mode.DOUBLY) modeHintLabel.setText("Doubly: next + prev auto");
+        else modeHintLabel.setText("Multi: unlimited outgoing links");
+
+        normalizeEdgesForMode();
+        redraw();
+        setStatus("Mode set to " + mode);
+    }
+
+    private void normalizeEdgesForMode() {
+        if (mode == Mode.MULTI) return;
+
+        // enforce max 1 outgoing per node
+        for (int u = 0; u < nodes.size(); u++) {
+            HashSet<Integer> tos = out.get(u);
+            if (tos == null || tos.isEmpty()) continue;
+
+            int pick = Integer.MAX_VALUE;
+            for (int v : tos) pick = Math.min(pick, v);
+
+            HashSet<Integer> only = new HashSet<>();
+            only.add(pick);
+            out.put(u, only);
         }
-        doublyMode = doublyBtn.isSelected();
-        if (doublyMode) rebuildPrevFromNext();
-        else for (NodeModel n : nodes) n.prev = -1;
 
-        redrawAll();
-        Platform.runLater(this::drawEdges);
-        flashStatus("Mode: " + (doublyMode ? "Doubly" : "Singly"), false);
-    }
-
-    // ========= BUSY LOCK =========
-    private void setBusyUI(boolean isBusy) {
-        if (controlsPane != null) controlsPane.setDisable(isBusy);
-        if (backBtn != null) backBtn.setDisable(false);
-        if (speedSlider != null) speedSlider.setDisable(false);
-    }
-
-    private void playSeq(SequentialTransition seq) {
-        busy = true;
-        setBusyUI(true);
-        seq.setOnFinished(e -> {
-            busy = false;
-            setBusyUI(false);
-            Platform.runLater(this::drawEdges);
-        });
-        seq.play();
-    }
-
-    private boolean guardBusy() {
-        if (busy) { flashStatus("Busy... wait animation finish", true); return true; }
-        return false;
-    }
-
-    // ========= HELPERS =========
-    private double speed() { return speedSlider == null ? 1.0 : Math.max(0.2, speedSlider.getValue()); }
-
-    private PauseTransition step(double baseSeconds, Runnable r) {
-        PauseTransition p = new PauseTransition(Duration.seconds(baseSeconds / speed()));
-        p.setOnFinished(e -> r.run());
-        return p;
-    }
-
-    private Integer parseInt(String s) {
-        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return null; }
-    }
-    private Double parseDouble(String s) {
-        try { return Double.parseDouble(s.trim()); } catch (Exception e) { return null; }
-    }
-
-    private void flashStatus(String msg, boolean error) {
-        statusLabel.setText(msg);
-        statusLabel.setStyle(error ? "-fx-text-fill:#ff6b6b;" : "-fx-text-fill:#51c4d3;");
-        PauseTransition p = new PauseTransition(Duration.seconds(0.55));
-        p.setOnFinished(e -> statusLabel.setStyle("-fx-text-fill:#51c4d3;"));
-        p.play();
-    }
-
-    private void showInfoPopup(String title, String msg) {
-        Platform.runLater(() -> {
-            Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setTitle(title);
-            a.setHeaderText(title);
-            a.setContentText(msg);
-            a.show();
-        });
-    }
-
-    private String fmt(double x) {
-        if (Double.isNaN(x) || Double.isInfinite(x)) return String.valueOf(x);
-        long L = (long) x;
-        if (Math.abs(x - L) < 1e-9) return String.valueOf(L);
-        String s = String.format(Locale.US, "%.6f", x);
-        while (s.contains(".") && (s.endsWith("0") || s.endsWith("."))) {
-            if (s.endsWith(".")) { s = s.substring(0, s.length() - 1); break; }
-            s = s.substring(0, s.length() - 1);
-        }
-        return s;
-    }
-
-    // ========= NODE VIEW =========
-    private StackPane makeNodeCell(double value) {
-        Rectangle bg = new Rectangle(90, 70);
-        bg.setArcWidth(16);
-        bg.setArcHeight(16);
-        bg.setStyle("-fx-fill:#0f3460; -fx-stroke:white; -fx-stroke-width:1;");
-
-        Text t = new Text(fmt(value));
-        t.setStyle("-fx-fill:white; -fx-font-size:18; -fx-font-weight:bold;");
-
-        StackPane cell = new StackPane(bg, t);
-        cell.setUserData(bg);
-        return cell;
-    }
-
-    private void redrawNodes() {
-        listBox.getChildren().clear();
-        for (NodeModel n : nodes) listBox.getChildren().add(makeNodeCell(n.val));
-    }
-
-    private void redrawAll() {
-        redrawNodes();
-        clearHighlights();
-        drawEdges();
-        statusLabel.setText(nodes.isEmpty() ? "Create nodes to start" : ("nodes=" + nodes.size() + "  head=" + (head == -1 ? "null" : head)));
-        statusLabel.setStyle("-fx-text-fill:#51c4d3;");
-    }
-
-    private void clearHighlights() {
-        for (var node : listBox.getChildren()) {
-            Rectangle r = (Rectangle) node.getUserData();
-            if (r != null) r.setStyle(r.getStyle().replaceAll("-fx-fill:[^;]+;", "-fx-fill:#0f3460;"));
-        }
-    }
-
-    private void highlightIndex(int idx, String hex) {
-        if (idx < 0 || idx >= listBox.getChildren().size()) return;
-        Rectangle r = (Rectangle) listBox.getChildren().get(idx).getUserData();
-        if (r == null) return;
-        r.setStyle(r.getStyle().replaceAll("-fx-fill:[^;]+;", "-fx-fill:" + hex + ";"));
-    }
-
-    // ========= EDGE DRAWING =========
-    private Bounds nodeBoundsInEdgeLayer(int idx) {
-        if (idx < 0 || idx >= listBox.getChildren().size()) return null;
-        var node = listBox.getChildren().get(idx);
-        Bounds bScene = node.localToScene(node.getBoundsInLocal());
-        return edgeLayer.sceneToLocal(bScene);
-    }
-
-    private void drawEdges() {
-        if (edgeLayer == null) return;
-        edgeLayer.getChildren().clear();
-
-        if (listBox.getChildren().isEmpty()) return;
-
-        for (int from = 0; from < nodes.size(); from++) {
-            int to = nodes.get(from).next;
-            if (to < 0 || to >= nodes.size()) continue;
-
-            // ✅ adjacent = straight
-            if (to == from + 1) addStraightArrow(from, to, 0);
-            else addCurvedArrow(from, to, 0);
-
-            // ✅ doubly: show backward edge (offset so it doesn't overlap)
-            if (doublyMode) {
-                if (nodes.get(to).prev == from) {
-                    // if backward is adjacent (from == to-1) => straight, else curved
-                    if (from == to - 1) addStraightArrow(to, from, 14);
-                    else addCurvedArrow(to, from, 18);
-                }
+        if (mode == Mode.SINGLY) {
+            // remove obvious reverse edges (if both directions exist, remove v->u)
+            for (int u = 0; u < nodes.size(); u++) {
+                Integer v = getSingleNext(u);
+                if (v != null) removeEdge(v, u);
+            }
+        } else if (mode == Mode.DOUBLY) {
+            // ensure reverse edge exists for each next
+            for (int u = 0; u < nodes.size(); u++) {
+                Integer v = getSingleNext(u);
+                if (v != null) addEdge(v, u);
             }
         }
     }
 
-    /**
-     * Draw a nice curved arrow from node A to node B.
-     * offsetPx: curve vertical offset (for double arrows)
-     */
-    private void addCurvedArrow(int from, int to, double offsetPx) {
-        Bounds a = nodeBoundsInEdgeLayer(from);
-        Bounds b = nodeBoundsInEdgeLayer(to);
-        if (a == null || b == null) return;
-
-        double x1 = a.getMaxX();
-        double y1 = a.getMinY() + a.getHeight() / 2.0;
-
-        double x2 = b.getMinX();
-        double y2 = b.getMinY() + b.getHeight() / 2.0;
-
-        // if arrow goes backward (cycle or to-left), swap anchor to look nicer
-        boolean backward = x2 < x1;
-        if (backward) {
-            x1 = a.getMinX();
-            x2 = b.getMaxX();
-        }
-
-        double dx = Math.abs(x2 - x1);
-
-        // curve height increases with distance (better for far edges/cycles)
-        double curve = Math.min(140, 25 + dx * 0.35) + offsetPx;
-        if (backward) curve += 25; // give more height for backward/cycle edges
-
-        CubicCurve c = new CubicCurve();
-        c.setStartX(x1);
-        c.setStartY(y1);
-        c.setEndX(x2);
-        c.setEndY(y2);
-
-        // control points for smooth curve (go upward)
-        c.setControlX1(x1 + (x2 - x1) * 0.33);
-        c.setControlY1(y1 - curve);
-        c.setControlX2(x1 + (x2 - x1) * 0.66);
-        c.setControlY2(y2 - curve);
-
-        c.setFill(null);
-        c.setStyle("-fx-stroke: rgba(255,255,255,0.85); -fx-stroke-width: 2.2;");
-
-        // arrow head at end
-        Polygon head = arrowHead(c.getEndX(), c.getEndY(), c.getControlX2(), c.getControlY2());
-
-        edgeLayer.getChildren().addAll(c, head);
+    private Integer getSingleNext(int u) {
+        HashSet<Integer> tos = out.get(u);
+        if (tos == null || tos.isEmpty()) return null;
+        return tos.iterator().next();
     }
 
-    // straight arrow between adjacent nodes
-    private void addStraightArrow(int from, int to, double yOffset) {
-        Bounds a = nodeBoundsInEdgeLayer(from);
-        Bounds b = nodeBoundsInEdgeLayer(to);
-        if (a == null || b == null) return;
-
-        // start at right middle of "from" and end at left middle of "to"
-        double x1 = a.getMaxX();
-        double y1 = a.getMinY() + a.getHeight() / 2.0 + yOffset;
-
-        double x2 = b.getMinX();
-        double y2 = b.getMinY() + b.getHeight() / 2.0 + yOffset;
-
-        Line line = new Line(x1, y1, x2, y2);
-        line.setStyle("-fx-stroke: rgba(255,255,255,0.85); -fx-stroke-width: 2.2;");
-
-        Polygon head = arrowHeadLine(x2, y2, x1, y1);
-
-        edgeLayer.getChildren().addAll(line, head);
-    }
-
-    // arrow head for straight line using start->end direction
-    private Polygon arrowHeadLine(double ex, double ey, double sx, double sy) {
-        double angle = Math.atan2(ey - sy, ex - sx);
-
-        double len = 12;
-        double w = 7;
-
-        double xA = ex;
-        double yA = ey;
-
-        double xB = ex - len * Math.cos(angle) + w * Math.sin(angle);
-        double yB = ey - len * Math.sin(angle) - w * Math.cos(angle);
-
-        double xC = ex - len * Math.cos(angle) - w * Math.sin(angle);
-        double yC = ey - len * Math.sin(angle) + w * Math.cos(angle);
-
-        Polygon p = new Polygon(xA, yA, xB, yB, xC, yC);
-        p.setStyle("-fx-fill: rgba(255,255,255,0.90);");
-        return p;
-    }
-    /**
-     * Create arrow head triangle at (ex,ey).
-     * Direction estimated using last control point (cx,cy) -> end point.
-     */
-    private Polygon arrowHead(double ex, double ey, double cx, double cy) {
-        double angle = Math.atan2(ey - cy, ex - cx);
-
-        double len = 12;
-        double w = 7;
-
-        double xA = ex;
-        double yA = ey;
-
-        double xB = ex - len * Math.cos(angle) + w * Math.sin(angle);
-        double yB = ey - len * Math.sin(angle) - w * Math.cos(angle);
-
-        double xC = ex - len * Math.cos(angle) - w * Math.sin(angle);
-        double yC = ey - len * Math.sin(angle) + w * Math.cos(angle);
-
-        Polygon p = new Polygon(xA, yA, xB, yB, xC, yC);
-        p.setStyle("-fx-fill: rgba(255,255,255,0.90);");
-        return p;
-    }
-
-    // ========= LIST LOGIC HELPERS =========
-    private void rebuildPrevFromNext() {
-        for (NodeModel n : nodes) n.prev = -1;
-        for (int i = 0; i < nodes.size(); i++) {
-            int nx = nodes.get(i).next;
-            if (nx >= 0 && nx < nodes.size()) nodes.get(nx).prev = i;
-        }
-    }
-
-    private List<Integer> linearOrderFromHead(int maxSteps) {
-        ArrayList<Integer> order = new ArrayList<>();
-        int cur = head;
-        int steps = 0;
-        HashSet<Integer> seen = new HashSet<>();
-        while (cur != -1 && steps < maxSteps) {
-            if (!seen.add(cur)) break;
-            order.add(cur);
-            cur = nodes.get(cur).next;
-            steps++;
-        }
-        return order;
-    }
-
-    // ========= BUTTON OPS =========
+    // ================= NODE OPS =================
     @FXML
-    void clear() {
-        if (guardBusy()) return;
+    private void onInsertHead() {
+        Integer v = parseInt(valueField.getText());
+        if (v == null) return;
+
+        nodes.add(0, new Node(v));
+
+        // shift edges: +1 all indices
+        HashMap<Integer, HashSet<Integer>> newOut = new HashMap<>();
+        for (int u : out.keySet()) {
+            HashSet<Integer> shifted = new HashSet<>();
+            for (int w : out.get(u)) shifted.add(w + 1);
+            newOut.put(u + 1, shifted);
+        }
+        out.clear();
+        out.putAll(newOut);
+        out.put(0, new HashSet<>());
+
+        // optional auto chain for singly/doubly
+        if (nodes.size() >= 2 && mode != Mode.MULTI) {
+            out.get(0).clear();
+            out.get(0).add(1);
+            if (mode == Mode.DOUBLY) addEdge(1, 0);
+        }
+
+        normalizeEdgesForMode();
+        redraw();
+        setStatus("Inserted head: " + v);
+    }
+
+    @FXML
+    private void onInsertTail() {
+        Integer v = parseInt(valueField.getText());
+        if (v == null) return;
+
+        int idx = nodes.size();
+        nodes.add(new Node(v));
+        out.put(idx, new HashSet<>());
+
+        // optional auto chain for singly/doubly
+        if (idx > 0 && mode != Mode.MULTI) {
+            out.get(idx - 1).clear();
+            out.get(idx - 1).add(idx);
+            if (mode == Mode.DOUBLY) addEdge(idx, idx - 1);
+        }
+
+        normalizeEdgesForMode();
+        redraw();
+        setStatus("Inserted tail: " + v);
+    }
+
+    @FXML
+    private void onDeleteIndex() {
+        Integer idx = parseInt(deleteIndexField.getText());
+        if (idx == null) return;
+
+        if (idx < 0 || idx >= nodes.size()) {
+            setStatus("Delete failed: index out of range");
+            return;
+        }
+
+        nodes.remove((int) idx);
+
+        // rebuild edges with index shift
+        HashMap<Integer, HashSet<Integer>> newOut = new HashMap<>();
+        for (int u : out.keySet()) {
+            if (u == idx) continue;
+
+            int newU = (u > idx) ? (u - 1) : u;
+
+            HashSet<Integer> newTos = new HashSet<>();
+            for (int v : out.get(u)) {
+                if (v == idx) continue;
+                int newV = (v > idx) ? (v - 1) : v;
+                newTos.add(newV);
+            }
+            newOut.put(newU, newTos);
+        }
+
+        out.clear();
+        out.putAll(newOut);
+
+        for (int i = 0; i < nodes.size(); i++) out.putIfAbsent(i, new HashSet<>());
+
+        normalizeEdgesForMode();
+        redraw();
+        setStatus("Deleted index: " + idx);
+    }
+
+    @FXML
+    private void onClearAll() {
         nodes.clear();
-        head = -1;
-        redrawAll();
-        flashStatus("Cleared ✅", false);
+        out.clear();
+        redraw();
+        setStatus("Cleared all nodes and edges.");
     }
 
+    // ================= EDGE BUILDER =================
     @FXML
-    void insertHead() {
-        if (guardBusy()) return;
+    private void onApplyEdge() {
+        Integer u = parseInt(fromField.getText());
+        if (u == null) return;
 
-        Double v = parseDouble(valueField.getText());
-        if (v == null) { flashStatus("Invalid value (int/float/double)", true); return; }
-
-        SequentialTransition seq = new SequentialTransition();
-        seq.getChildren().add(step(0.12, () -> flashStatus("Insert HEAD: " + fmt(v), false)));
-
-        seq.getChildren().add(step(0.18, () -> {
-            NodeModel n = new NodeModel(v);
-            nodes.add(n);
-            int newIdx = nodes.size() - 1;
-
-            n.next = head;
-            head = newIdx;
-
-            if (doublyMode) rebuildPrevFromNext();
-
-            redrawAll();
-            highlightIndex(head, "#2ecc71");
-        }));
-
-        playSeq(seq);
-    }
-
-    @FXML
-    void insertTail() {
-        if (guardBusy()) return;
-
-        Double v = parseDouble(valueField.getText());
-        if (v == null) { flashStatus("Invalid value (int/float/double)", true); return; }
-
-        SequentialTransition seq = new SequentialTransition();
-        seq.getChildren().add(step(0.12, () -> flashStatus("Insert TAIL: " + fmt(v), false)));
-
-        seq.getChildren().add(step(0.18, () -> {
-            nodes.add(new NodeModel(v));
-            int newIdx = nodes.size() - 1;
-
-            if (head == -1) {
-                head = newIdx;
-            } else {
-                // find tail by following next from head (cap)
-                List<Integer> order = linearOrderFromHead(nodes.size() + 10);
-                int tail = order.get(order.size() - 1);
-                nodes.get(tail).next = newIdx;
-            }
-
-            if (doublyMode) rebuildPrevFromNext();
-
-            redrawAll();
-            highlightIndex(newIdx, "#2ecc71");
-        }));
-
-        playSeq(seq);
-    }
-
-    @FXML
-    void insertAt() {
-        if (guardBusy()) return;
-
-        Integer idx = parseInt(indexField.getText());
-        if (idx == null || idx < 0) { flashStatus("Invalid index", true); return; }
-
-        Double v = parseDouble(valueField.getText());
-        if (v == null) { flashStatus("Invalid value (int/float/double)", true); return; }
-
-        if (idx == 0) { insertHead(); return; }
-
-        List<Integer> order = linearOrderFromHead(nodes.size() + 10);
-        if (order.isEmpty()) { flashStatus("List empty (use insert head/tail)", true); return; }
-        if (idx >= order.size()) { insertTail(); return; }
-
-        SequentialTransition seq = new SequentialTransition();
-        seq.getChildren().add(step(0.12, () -> flashStatus("Insert at linear index " + idx, false)));
-
-        // animate traversal
-        for (int i = 0; i < idx; i++) {
-            int hi = order.get(i);
-            seq.getChildren().add(step(0.16, () -> {
-                redrawAll();
-                clearHighlights();
-                highlightIndex(hi, "#f1c40f");
-            }));
-        }
-
-        seq.getChildren().add(step(0.18, () -> {
-            nodes.add(new NodeModel(v));
-            int newIdx = nodes.size() - 1;
-
-            int prevNode = order.get(idx - 1);
-            int nextNode = nodes.get(prevNode).next;
-
-            nodes.get(newIdx).next = nextNode;
-            nodes.get(prevNode).next = newIdx;
-
-            if (doublyMode) rebuildPrevFromNext();
-
-            redrawAll();
-            highlightIndex(newIdx, "#2ecc71");
-        }));
-
-        playSeq(seq);
-    }
-
-    @FXML
-    void deleteAt() {
-        if (guardBusy()) return;
-
-        Integer idx = parseInt(indexField.getText());
-        if (idx == null || idx < 0) { flashStatus("Invalid index", true); return; }
-        if (head == -1) { flashStatus("List is empty", true); return; }
-
-        List<Integer> order = linearOrderFromHead(nodes.size() + 10);
-        if (idx >= order.size()) { flashStatus("Index out of range", true); return; }
-
-        int target = order.get(idx);
-
-        SequentialTransition seq = new SequentialTransition();
-        for (int i = 0; i <= idx; i++) {
-            int hi = order.get(i);
-            seq.getChildren().add(step(0.16, () -> {
-                redrawAll();
-                clearHighlights();
-                highlightIndex(hi, "#f1c40f");
-            }));
-        }
-
-        seq.getChildren().add(step(0.16, () -> {
-            redrawAll();
-            clearHighlights();
-            highlightIndex(target, "#e74c3c");
-        }));
-
-        seq.getChildren().add(step(0.20, () -> {
-            if (target == head) {
-                head = nodes.get(head).next;
-            } else {
-                int prev = order.get(idx - 1);
-                nodes.get(prev).next = nodes.get(target).next;
-            }
-
-            // detach (keep indices stable)
-            nodes.get(target).next = -1;
-            nodes.get(target).prev = -1;
-
-            if (doublyMode) rebuildPrevFromNext();
-
-            redrawAll();
-            flashStatus("Deleted (detached) ✅", false);
-        }));
-
-        playSeq(seq);
-    }
-
-    @FXML
-    void search() {
-        if (guardBusy()) return;
-
-        Double target = parseDouble(searchField.getText());
-        if (target == null) { flashStatus("Invalid search value", true); return; }
-        if (head == -1) { flashStatus("List is empty", true); return; }
-
-        List<Integer> order = linearOrderFromHead(nodes.size() + 20);
-
-        SequentialTransition seq = new SequentialTransition();
-        final boolean[] found = {false};
-
-        for (int nodeIdx : order) {
-            double val = nodes.get(nodeIdx).val;
-            seq.getChildren().add(step(0.16, () -> {
-                redrawAll();
-                clearHighlights();
-                highlightIndex(nodeIdx, "#f1c40f");
-                statusLabel.setText("Check: " + fmt(val));
-            }));
-
-            if (Math.abs(val - target) < 1e-9) {
-                found[0] = true;
-                seq.getChildren().add(step(0.18, () -> {
-                    redrawAll();
-                    clearHighlights();
-                    highlightIndex(nodeIdx, "#2ecc71");
-                    flashStatus("FOUND ✅", false);
-                }));
-                break;
-            }
-        }
-
-        seq.setOnFinished(e -> {
-            if (!found[0]) showInfoPopup("Not Found", "Value not found on head path.");
-        });
-
-        playSeq(seq);
-    }
-
-    @FXML
-    void reverse() {
-        if (guardBusy()) return;
-        if (head == -1) { flashStatus("List is empty", true); return; }
-
-        // reverse only safe when no cycles on head path
-        List<Integer> order = linearOrderFromHead(nodes.size() + 10);
-        if (order.size() <= 1) { flashStatus("Need 2+ nodes", true); return; }
-
-        SequentialTransition seq = new SequentialTransition();
-        seq.getChildren().add(step(0.12, () -> flashStatus("Reversing...", false)));
-
-        for (int hi : order) {
-            seq.getChildren().add(step(0.14, () -> {
-                redrawAll();
-                clearHighlights();
-                highlightIndex(hi, "#f1c40f");
-            }));
-        }
-
-        seq.getChildren().add(step(0.20, () -> {
-            for (int i = 0; i < order.size(); i++) {
-                int cur = order.get(i);
-                nodes.get(cur).next = (i == 0) ? -1 : order.get(i - 1);
-            }
-            head = order.get(order.size() - 1);
-
-            if (doublyMode) rebuildPrevFromNext();
-
-            redrawAll();
-            flashStatus("Reversed ✅", false);
-        }));
-
-        playSeq(seq);
-    }
-
-    // ========= EDGE BUILDER =========
-    @FXML
-    void applyEdge() {
-        if (guardBusy()) return;
-
-        Integer from = parseInt(fromField.getText());
-        Integer to = parseInt(toField.getText());
-        if (from == null || to == null) { flashStatus("from/to must be integers", true); return; }
-        if (from < 0 || from >= nodes.size() || to < 0 || to >= nodes.size()) {
-            flashStatus("from/to out of range", true);
+        if (u < 0 || u >= nodes.size()) {
+            setStatus("Edge failed: from out of range");
             return;
         }
 
-        String type = edgeTypeChoice.getValue();
-        if (type == null) type = "→";
+        String op = edgeOpChoice.getValue();
+        if (op == null) op = "+";
 
-        int oldNext = nodes.get(from).next;
-
-        SequentialTransition seq = new SequentialTransition();
-        String msg = "Replace edge: " + from + " was " + (oldNext == -1 ? "null" : oldNext) + " -> " + to;
-        seq.getChildren().add(step(0.12, () -> flashStatus(msg, false)));
-
-        seq.getChildren().add(step(0.16, () -> {
-            redrawAll();
-            clearHighlights();
-            highlightIndex(from, "#f1c40f");
-            highlightIndex(to, "#9b59b6");
-        }));
-
-        String finalType = type;
-        seq.getChildren().add(step(0.18, () -> {
-            nodes.get(from).next = to;
-
-            if ("↔".equals(finalType)) {
-                nodes.get(to).next = from;
+        if (op.equals("clear")) {
+            out.get(u).clear();
+            if (mode == Mode.DOUBLY) {
+                for (int i = 0; i < nodes.size(); i++) removeEdge(i, u);
             }
-
-            if (doublyMode) rebuildPrevFromNext();
-
-            redrawAll();
-            highlightIndex(from, "#2ecc71");
-            highlightIndex(to, "#2ecc71");
-            flashStatus("Edge applied ✅", false);
-        }));
-
-        playSeq(seq);
-    }
-
-    @FXML
-    void removeEdge() {
-        if (guardBusy()) return;
-
-        Integer from = parseInt(fromField.getText());
-        if (from == null || from < 0 || from >= nodes.size()) { flashStatus("Invalid from", true); return; }
-
-        SequentialTransition seq = new SequentialTransition();
-        seq.getChildren().add(step(0.12, () -> flashStatus("Removing edge from " + from, false)));
-
-        seq.getChildren().add(step(0.16, () -> {
-            redrawAll();
-            clearHighlights();
-            highlightIndex(from, "#e67e22");
-        }));
-
-        seq.getChildren().add(step(0.18, () -> {
-            nodes.get(from).next = -1;
-            if (doublyMode) rebuildPrevFromNext();
-            redrawAll();
-            flashStatus("Removed ✅", false);
-        }));
-
-        playSeq(seq);
-    }
-
-    // ========= CYCLE FIND + ANIMATION (your previous logic can stay) =========
-    private List<List<Integer>> findAllCycles() {
-        int n = nodes.size();
-        int[] state = new int[n]; // 0 unvisited, 1 visiting, 2 done
-        int[] parent = new int[n];
-        Arrays.fill(parent, -1);
-
-        List<List<Integer>> cycles = new ArrayList<>();
-
-        for (int i = 0; i < n; i++) {
-            if (state[i] != 0) continue;
-
-            int cur = i;
-            while (cur != -1 && cur >= 0 && cur < n && state[cur] == 0) {
-                state[cur] = 1;
-                int nx = nodes.get(cur).next;
-                if (nx != -1 && nx >= 0 && nx < n) parent[nx] = cur;
-                cur = nx;
-            }
-
-            if (cur != -1 && cur >= 0 && cur < n && state[cur] == 1) {
-                ArrayList<Integer> cyc = new ArrayList<>();
-                cyc.add(cur);
-                int p = parent[cur];
-                while (p != -1 && p != cur) {
-                    cyc.add(p);
-                    p = parent[p];
-                }
-                Collections.reverse(cyc);
-                if (!cyc.isEmpty()) cycles.add(normalizeCycle(cyc));
-            }
-
-            int x = i, cap = 0;
-            while (x != -1 && x >= 0 && x < n && state[x] == 1 && cap < n + 5) {
-                state[x] = 2;
-                x = nodes.get(x).next;
-                cap++;
-            }
-        }
-
-        // dedupe
-        HashSet<String> seen = new HashSet<>();
-        ArrayList<List<Integer>> out = new ArrayList<>();
-        for (List<Integer> c : cycles) {
-            String k = c.toString();
-            if (seen.add(k)) out.add(c);
-        }
-        return out;
-    }
-
-    private List<Integer> normalizeCycle(List<Integer> c) {
-        int k = c.size();
-        int minPos = 0;
-        for (int i = 1; i < k; i++) if (c.get(i) < c.get(minPos)) minPos = i;
-        ArrayList<Integer> out = new ArrayList<>(k);
-        for (int i = 0; i < k; i++) out.add(c.get((minPos + i) % k));
-        return out;
-    }
-
-    @FXML
-    void findAndAnimateCycles() {
-        if (guardBusy()) return;
-        if (nodes.isEmpty()) { flashStatus("No nodes!", true); return; }
-
-        List<List<Integer>> cycles = findAllCycles();
-        if (cycles.isEmpty()) {
-            flashStatus("No cycles ✅", false);
-            showInfoPopup("Cycle Check", "No cycle found.");
+            normalizeEdgesForMode();
+            redraw();
+            setStatus("Cleared outgoing from " + u);
             return;
         }
 
-        LinkedHashSet<Integer> all = new LinkedHashSet<>();
-        for (List<Integer> c : cycles) all.addAll(c);
+        Integer v = parseInt(toField.getText());
+        if (v == null) return;
 
-        SequentialTransition seq = new SequentialTransition();
-        seq.getChildren().add(step(0.12, () -> {
-            redrawAll();
-            clearHighlights();
-            flashStatus("Found " + cycles.size() + " cycle(s).", false);
-        }));
-
-        for (int ci = 0; ci < cycles.size(); ci++) {
-            List<Integer> cycle = cycles.get(ci);
-            int cycleNo = ci + 1;
-
-            seq.getChildren().add(step(0.12, () -> {
-                redrawAll();
-                clearHighlights();
-                statusLabel.setText("Cycle " + cycleNo + "/" + cycles.size());
-            }));
-
-            for (int nodeIdx : cycle) {
-                seq.getChildren().add(step(0.18, () -> {
-                    highlightIndex(nodeIdx, "#e67e22");
-                }));
-            }
-
-            seq.getChildren().add(step(0.18, () -> clearHighlights()));
+        if (v < 0 || v >= nodes.size()) {
+            setStatus("Edge failed: to out of range");
+            return;
         }
 
-        seq.getChildren().add(step(0.20, () -> {
-            redrawAll();
-            clearHighlights();
-            for (int idx : all) highlightIndex(idx, "#2ecc71");
-            drawEdges();
-            showInfoPopup("Cycles Found", "Total cycles: " + cycles.size() + "\nNodes: " + all);
-        }));
+        if (op.equals("+")) {
+            applyAddEdge(u, v);
+            setStatus("Added edge: " + u + " -> " + v);
+        } else if (op.equals("-")) {
+            applyRemoveEdge(u, v);
+            setStatus("Removed edge: " + u + " -> " + v);
+        } else {
+            setStatus("Unknown operation");
+        }
 
-        playSeq(seq);
+        redraw();
+    }
+
+    private void applyAddEdge(int u, int v) {
+        out.putIfAbsent(u, new HashSet<>());
+
+        if (mode == Mode.MULTI) {
+            addEdge(u, v);
+            return;
+        }
+
+        // singly/doubly: only one "next"
+        if (mode == Mode.DOUBLY) {
+            Integer old = getSingleNext(u);
+            if (old != null) removeEdge(old, u); // remove old prev link
+        }
+
+        out.get(u).clear();
+        out.get(u).add(v);
+
+        if (mode == Mode.DOUBLY) addEdge(v, u);
+    }
+
+    private void applyRemoveEdge(int u, int v) {
+        removeEdge(u, v);
+        if (mode == Mode.DOUBLY) removeEdge(v, u);
+        normalizeEdgesForMode();
+    }
+
+    private void addEdge(int u, int v) {
+        out.putIfAbsent(u, new HashSet<>());
+        out.get(u).add(v);
+    }
+
+    private void removeEdge(int u, int v) {
+        if (!out.containsKey(u)) return;
+        out.get(u).remove(v);
+    }
+
+    // ================= DRAWING =================
+    private void redraw() {
+        canvas.getChildren().clear();
+
+        // Draw nodes
+        for (int i = 0; i < nodes.size(); i++) {
+            double x = startX + i * gap;
+            double y = startY;
+
+            Rectangle box = new Rectangle(x, y, boxW, boxH);
+            box.setArcWidth(16);
+            box.setArcHeight(16);
+
+            Text val = new Text(x + 28, y + 32, String.valueOf(nodes.get(i).value));
+
+            // small index label (remove if you want)
+            Text idx = new Text(x + 4, y - 8, String.valueOf(i));
+            idx.setOpacity(0.45);
+
+            canvas.getChildren().addAll(box, val, idx);
+        }
+
+        // Draw edges
+        for (int u = 0; u < nodes.size(); u++) {
+            HashSet<Integer> tos = out.get(u);
+            if (tos == null) continue;
+            for (int v : tos) {
+                if (v < 0 || v >= nodes.size()) continue;
+                drawArrow(u, v);
+            }
+        }
+
+        if (nodes.isEmpty()) setStatus("Empty. Insert nodes to start.");
+    }
+
+    private void drawArrow(int u, int v) {
+        double fromX = startX + u * gap + boxW;
+        double fromY = startY + boxH / 2.0;
+
+        double toX = startX + v * gap;
+        double toY = startY + boxH / 2.0;
+
+        boolean adjacent = (Math.abs(v - u) == 1);
+
+        if (adjacent) {
+            Line line = new Line(fromX, fromY, toX, toY);
+            Polygon head = arrowHead(fromX, fromY, toX, toY);
+            canvas.getChildren().addAll(line, head);
+        } else {
+            QuadCurve curve = new QuadCurve();
+            curve.setStartX(fromX);
+            curve.setStartY(fromY);
+            curve.setEndX(toX);
+            curve.setEndY(toY);
+
+            double midX = (fromX + toX) / 2.0;
+            double lift = (v > u) ? -95 : 95; // forward up, backward down
+            curve.setControlX(midX);
+            curve.setControlY(fromY + lift);
+
+            curve.setFill(null);
+
+            Polygon head = arrowHead(curve.getControlX(), curve.getControlY(), toX, toY);
+            canvas.getChildren().addAll(curve, head);
+        }
+    }
+
+    private Polygon arrowHead(double x1, double y1, double x2, double y2) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double len = Math.sqrt(dx * dx + dy * dy);
+        if (len == 0) len = 1;
+
+        dx /= len;
+        dy /= len;
+
+        double size = 10;
+        double px = -dy;
+        double py = dx;
+
+        double ax = x2;
+        double ay = y2;
+
+        double bx = x2 - dx * size + px * (size / 2.0);
+        double by = y2 - dy * size + py * (size / 2.0);
+
+        double cx = x2 - dx * size - px * (size / 2.0);
+        double cy = y2 - dy * size - py * (size / 2.0);
+
+        Polygon p = new Polygon();
+        p.getPoints().addAll(ax, ay, bx, by, cx, cy);
+        return p;
+    }
+
+    // ================= HELPERS =================
+    private Integer parseInt(String s) {
+        try {
+            if (s == null) return null;
+            s = s.trim();
+            if (s.isEmpty()) {
+                setStatus("Input empty");
+                return null;
+            }
+            return Integer.parseInt(s);
+        } catch (Exception e) {
+            setStatus("Invalid number: " + s);
+            return null;
+        }
+    }
+
+    private void setStatus(String msg) {
+        if (statusLabel != null) statusLabel.setText(msg);
+        if (headerStatusLabel != null) headerStatusLabel.setText(msg);
     }
 }

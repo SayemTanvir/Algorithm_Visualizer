@@ -50,12 +50,14 @@ public class HelloController {
         switchScene("/org/example/VisuAlgorithm/multi-linked-list-view.fxml", click);
     }
     @FXML
-    void gotoStack(MouseEvent click){
+    void gotoStack(MouseEvent click) throws IOException {
         System.out.println("stack_window");
+        switchScene("/org/example/VisuAlgorithm/stack-view.fxml", click);
     }
     @FXML
-    void gotoQueue(MouseEvent click){
+    void gotoQueue(MouseEvent click) throws IOException {
         System.out.println("queue_window");
+        switchScene("/org/example/VisuAlgorithm/queue-view.fxml", click);
     }
     @FXML
     void gotoGraph(MouseEvent click) throws IOException {

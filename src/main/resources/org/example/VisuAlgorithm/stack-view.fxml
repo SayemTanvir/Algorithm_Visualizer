@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.VisuAlgorithm.StackController">
+
+    <top>
+        <VBox>
+            <HBox alignment="CENTER_LEFT" spacing="12"
+                  style="-fx-background-color: #0f172a;">
+                <padding>
+                    <Insets top="10" right="12" bottom="10" left="12"/>
+                </padding>
+
+                <Button fx:id="backBtn"
+                        text="← Back"
+                        onAction="#onBack"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;"/>
+
+                <Label text="Stack"
+                       style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Label fx:id="headerStatusLabel"
+                       text=""
+                       style="-fx-text-fill: #cbd5e1; -fx-font-size: 12px;"/>
+            </HBox>
+
+            <VBox spacing="10"
+                  style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0;">
+                <padding>
+                    <Insets top="12" right="12" bottom="12" left="12"/>
+                </padding>
+
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="Value:" style="-fx-font-weight: bold;"/>
+                    <TextField fx:id="valueField" promptText="int" prefWidth="100"/>
+
+                    <Button text="Push" onAction="#onPush"/>
+                    <Button text="Pop" onAction="#onPop"/>
+                    <Button text="Peek" onAction="#onPeek"/>
+                    <Button text="Clear"
+                            onAction="#onClear"
+                            style="-fx-background-color: #fee2e2; -fx-text-fill: #991b1b; -fx-font-weight: bold;"/>
+
+                    <Region HBox.hgrow="ALWAYS"/>
+
+                    <Label text="Top index:" style="-fx-font-weight: bold;"/>
+                    <Label fx:id="topLabel" text="-1"/>
+                </HBox>
+
+                <Label fx:id="statusLabel" text="" opacity="0.85"/>
+            </VBox>
+        </VBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true"
+                    fitToHeight="true"
+                    pannable="true"
+                    hbarPolicy="AS_NEEDED"
+                    vbarPolicy="AS_NEEDED"
+                    style="-fx-background: white;">
+            <content>
+                <Pane fx:id="canvas"
+                      prefWidth="800"
+                      prefHeight="900"
+                      style="-fx-background-color: white;"/>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>
