@@ -126,7 +126,26 @@ public class QueueController {
         else if (rbPriority.isSelected()) setMode(Mode.PRIORITY_QUEUE);
         else setMode(Mode.CIRCULAR_QUEUE);
     }
+    private void updateCanvasSize() {
+        if (mode == Mode.CIRCULAR_QUEUE) {
+            canvas.setPrefWidth(1400);
+            canvas.setPrefHeight(900);
+            return;
+        }
 
+        int count;
+        if (mode == Mode.PRIORITY_QUEUE) {
+            count = priorityData.size();
+        } else {
+            count = dequeData.size();
+        }
+
+        double neededWidth = Math.max(1400, startX + count * gap + 300);
+        double neededHeight = 900;
+
+        canvas.setPrefWidth(neededWidth);
+        canvas.setPrefHeight(neededHeight);
+    }
     private void setMode(Mode m) {
         mode = m;
 
@@ -432,6 +451,7 @@ public class QueueController {
 
     // ================= DRAW =================
     private void redraw() {
+        updateCanvasSize();
         canvas.getChildren().clear();
 
         if (mode == Mode.PRIORITY_QUEUE) {
