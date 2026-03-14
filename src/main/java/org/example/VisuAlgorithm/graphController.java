@@ -68,7 +68,7 @@ public class graphController {
             }
         });
 
-        // Setup Algorithm Dropdown
+        // Setup Algorithm Dropdown with Custom CellFactory
         if (algoComboBox != null) {
             algoComboBox.getItems().addAll(
                     "BFS (Breadth-First Search)",
@@ -77,6 +77,37 @@ public class graphController {
                     "Prim's MST",
                     "Kruskal's MST"
             );
+
+            // This factory controls how each item in the dropdown list looks and behaves
+            algoComboBox.setCellFactory(listView -> new ListCell<String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setDisable(false);
+                        setStyle("");
+                    } else {
+                        setText(item);
+
+                        // Define which algorithms require fully weighted graphs
+                        boolean requiresWeight = item.contains("Dijkstra") ||
+                                item.contains("Prim") ||
+                                item.contains("Kruskal");
+
+                        boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
+
+                        // Disable and grey out if it's a weighted algo and the graph has unweighted edges
+                        if (requiresWeight && hasUnweightedEdges) {
+                            setDisable(true);
+                            setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
+                        } else {
+                            setDisable(false);
+                            setStyle("-fx-text-fill: black;");
+                        }
+                    }
+                }
+            });
         }
     }
 
@@ -147,6 +178,7 @@ public class graphController {
         Text label;
         double offsetX, offsetY;
         List<GraphEdge> connectedEdges = new ArrayList<>(); // Track only connected edges for performance
+        Text distLabel;
 
         GraphNode(double x, double y, String value) {
             circle = new Circle(x, y, 20, Color.LIGHTBLUE);
@@ -156,8 +188,16 @@ public class graphController {
             label = new Text(value);
             label.setMouseTransparent(true);
 
+            distLabel = new Text("∞");
+            distLabel.setFill(Color.DARKRED);
+            distLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
+            distLabel.setMouseTransparent(true);
+            distLabel.setVisible(false);
+
             // Use JavaFX bindings to keep label centered automatically (eliminates drag lag)
             Platform.runLater(() -> {
+                distLabel.xProperty().bind(circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
+                distLabel.yProperty().bind(circle.centerYProperty().subtract(circle.getRadius() + 5));
                 label.xProperty().bind(circle.centerXProperty().subtract(label.getLayoutBounds().getWidth() / 2));
                 label.yProperty().bind(circle.centerYProperty().add(label.getLayoutBounds().getHeight() / 4));
             });
@@ -352,13 +392,13 @@ public class graphController {
 
     private void removeNodeInternal(GraphNode node) {
         nodes.remove(node);
-        canvasPane.getChildren().removeAll(node.circle, node.label);
+        canvasPane.getChildren().removeAll(node.circle, node.label, node.distLabel); // + distLabel
     }
 
     private void restoreNodeInternal(GraphNode node) {
         if (!nodes.contains(node)) nodes.add(node);
         if (!canvasPane.getChildren().contains(node.circle)) {
-            canvasPane.getChildren().addAll(node.circle, node.label);
+            canvasPane.getChildren().addAll(node.circle, node.label, node.distLabel); // + distLabel
         }
     }
 
@@ -514,6 +554,21 @@ public class graphController {
         isAlgorithmMode = true;
         clearSelection();
 
+        boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
+
+        // --- NEW: Force the ComboBox to refresh its cells ---
+        // This makes JavaFX re-evaluate the graph's edges and update the greyed-out text
+        List<String> currentItems = new ArrayList<>(algoComboBox.getItems());
+        algoComboBox.getItems().clear();
+        algoComboBox.getItems().addAll(currentItems);
+
+        // Safety Check: Clear selection if an invalid algorithm was previously selected
+        String currentSelection = algoComboBox.getValue();
+        if (currentSelection != null && hasUnweightedEdges &&
+                (currentSelection.contains("Dijkstra") || currentSelection.contains("Prim") || currentSelection.contains("Kruskal"))) {
+            algoComboBox.setValue(null);
+        }
+
         // Hide Build tools
         buildToolbar.setVisible(false);
 
@@ -544,10 +599,13 @@ public class graphController {
         for (GraphNode n : nodes) {
             n.circle.setFill(Color.LIGHTBLUE);
             n.circle.setStroke(Color.BLACK);
+            n.distLabel.setText("∞");
+            n.distLabel.setFill(Color.DARKRED);
+            n.distLabel.setVisible(false);
         }
         for (GraphEdge e : edges) {
             e.line.setStroke(Color.BLACK);
-            // If you added color to arrowheads, reset them here too
+            e.line.setStrokeWidth(3);
         }
     }
 
@@ -587,6 +645,7 @@ public class graphController {
 
         GraphNode startNode = findNodeByValue(startNodeField.getText());
         if (startNode == null) startNode = nodes.get(0);
+        GraphNode endNode = findNodeByValue(endNodeField.getText());
 
         String selectedAlgo = algoComboBox.getValue();
         if (selectedAlgo != null) {
@@ -595,6 +654,27 @@ public class graphController {
             }
             else if (selectedAlgo.startsWith("DFS")) {
                 recordDFS(startNode);
+            }
+            else if (selectedAlgo.startsWith("Prim")) {
+                if (edges.stream().anyMatch(e -> !e.isWeighted)) {
+                    resultLabel.setText("Error: Prim's MST requires a fully weighted graph!");
+                    return;
+                }
+                recordPrim(startNode);
+            }
+            else if (selectedAlgo.startsWith("Kruskal")) {
+                if (edges.stream().anyMatch(e -> !e.isWeighted)) {
+                    resultLabel.setText("Error: Kruskal's MST requires a fully weighted graph!");
+                    return;
+                }
+                recordKruskal();
+            }
+            else if (selectedAlgo.startsWith("Dijkstra")) { // Hooked up Dijkstra here!
+                if (edges.stream().anyMatch(e -> !e.isWeighted)) {
+                    resultLabel.setText("Error: Dijkstra requires a fully weighted graph!");
+                    return;
+                }
+                recordDijkstra(startNode, endNode);
             }
         }
     }
@@ -801,5 +881,306 @@ public class graphController {
 
         // Step 4: All neighbors checked. Mark this node as completely Done (Green)
         algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
+    }
+
+    // --- Prim's MST Logic ---
+    private void recordPrim(GraphNode startNode) {
+        Set<GraphNode> visited = new HashSet<>();
+
+        // Priority Queue comparing edges by their parsed weight
+        PriorityQueue<GraphEdge> pq = new PriorityQueue<>(Comparator.comparingInt(e -> {
+            if (!e.isWeighted) return 1; // Default weight if unweighted
+            try {
+                return Integer.parseInt(e.weightText.getText());
+            } catch (NumberFormatException ex) {
+                return 1;
+            }
+        }));
+
+        // Step 1: Start at the selected node
+        visited.add(startNode);
+        algorithmSteps.add(() -> {
+            startNode.circle.setFill(Color.YELLOW);
+            resultLabel.setText("Prim's MST: Started at " + startNode.label.getText() + " (Weight: 0)");
+        });
+
+        // Add all edges from the starting node to the PQ
+        for (GraphEdge edge : startNode.connectedEdges) {
+            pq.add(edge);
+        }
+
+        // Use an array to keep a mutable total weight for the lambda closures
+        int[] totalWeight = {0};
+
+        while (!pq.isEmpty() && visited.size() < nodes.size()) {
+            GraphEdge minEdge = pq.poll();
+
+            // Find the unvisited end of this edge
+            GraphNode unvisitedNode = null;
+            if (visited.contains(minEdge.from) && !visited.contains(minEdge.to)) {
+                unvisitedNode = minEdge.to;
+            } else if (!minEdge.isDirected && visited.contains(minEdge.to) && !visited.contains(minEdge.from)) {
+                unvisitedNode = minEdge.from;
+            }
+
+            // If we found a valid unvisited node, it becomes part of the MST
+            if (unvisitedNode != null) {
+                visited.add(unvisitedNode);
+
+                int edgeWeight = minEdge.isWeighted ? Integer.parseInt(minEdge.weightText.getText()) : 1;
+                totalWeight[0] += edgeWeight;
+
+                final GraphNode nextNode = unvisitedNode;
+                final GraphEdge mstEdge = minEdge;
+                final int currentTotal = totalWeight[0];
+
+                // Step 2: Animate adding the edge and node to the MST
+                algorithmSteps.add(() -> {
+                    mstEdge.line.setStroke(Color.ORANGE);
+                    mstEdge.line.setStrokeWidth(5); // Make the MST edge thicker so it stands out
+                    nextNode.circle.setFill(Color.YELLOW);
+                    resultLabel.setText("Prim's MST Total Weight: " + currentTotal);
+                });
+
+                // Add the new node's edges to the PQ
+                for (GraphEdge edge : nextNode.connectedEdges) {
+                    GraphNode neighbor = (edge.from == nextNode) ? edge.to : (!edge.isDirected && edge.to == nextNode) ? edge.from : null;
+                    if (neighbor != null && !visited.contains(neighbor)) {
+                        pq.add(edge);
+                    }
+                }
+            }
+        }
+
+        // Step 3: Algorithm complete, turn everything Green
+        algorithmSteps.add(() -> {
+            for (GraphNode node : visited) {
+                node.circle.setFill(Color.GREEN);
+            }
+            resultLabel.setText(resultLabel.getText() + " (Complete)");
+        });
+    }
+
+    // --- Kruskal's MST Logic ---
+    private void recordKruskal() {
+        // 1. Setup Disjoint Set (Union-Find) to detect cycles
+        Map<GraphNode, GraphNode> parent = new HashMap<>();
+        for (GraphNode node : nodes) {
+            parent.put(node, node);
+        }
+
+        // Helper function for Union-Find: 'Find' with path compression
+        java.util.function.Function<GraphNode, GraphNode> find = new java.util.function.Function<>() {
+            @Override
+            public GraphNode apply(GraphNode node) {
+                if (parent.get(node) == node) {
+                    return node;
+                }
+                GraphNode root = apply(parent.get(node));
+                parent.put(node, root);
+                return root;
+            }
+        };
+
+        // 2. Get all edges and sort them globally by weight
+        List<GraphEdge> sortedEdges = new ArrayList<>(edges);
+        sortedEdges.sort(Comparator.comparingInt(e -> {
+            if (!e.isWeighted) return 1;
+            try {
+                return Integer.parseInt(e.weightText.getText());
+            } catch (NumberFormatException ex) {
+                return 1;
+            }
+        }));
+
+        algorithmSteps.add(() -> {
+            resultLabel.setText("Kruskal's MST: Sorting all edges by weight...");
+        });
+
+        int[] totalWeight = {0};
+        Set<GraphNode> mstNodes = new HashSet<>();
+        int edgesAdded = 0;
+
+        // 3. Iterate through the sorted edges
+        for (GraphEdge edge : sortedEdges) {
+            if (edgesAdded >= nodes.size() - 1) break; // MST is complete when we have V-1 edges
+
+            GraphNode root1 = find.apply(edge.from);
+            GraphNode root2 = find.apply(edge.to);
+
+            // If the roots are different, adding this edge won't form a cycle (Union)
+            if (root1 != root2) {
+                parent.put(root1, root2);
+                edgesAdded++;
+
+                mstNodes.add(edge.from);
+                mstNodes.add(edge.to);
+
+                int edgeWeight = edge.isWeighted ? Integer.parseInt(edge.weightText.getText()) : 1;
+                totalWeight[0] += edgeWeight;
+
+                final int currentTotal = totalWeight[0];
+                final GraphEdge mstEdge = edge;
+                final GraphNode u = edge.from;
+                final GraphNode v = edge.to;
+
+                // Animate adding the edge to the MST
+                algorithmSteps.add(() -> {
+                    mstEdge.line.setStroke(Color.ORANGE);
+                    mstEdge.line.setStrokeWidth(5); // Make it thick like Prim's
+                    u.circle.setFill(Color.YELLOW);
+                    v.circle.setFill(Color.YELLOW);
+                    resultLabel.setText("Kruskal's MST Total Weight: " + currentTotal);
+                });
+            }
+        }
+
+        // 4. Algorithm complete, turn all included nodes Green
+        algorithmSteps.add(() -> {
+            for (GraphNode node : mstNodes) {
+                node.circle.setFill(Color.GREEN);
+            }
+            resultLabel.setText(resultLabel.getText() + " (Complete)");
+        });
+    }
+
+    // --- Dijkstra's Shortest Path Logic ---
+    private void recordDijkstra(GraphNode startNode, GraphNode endNode) {
+        Map<GraphNode, Integer> distances = new HashMap<>();
+        Map<GraphNode, GraphEdge> edgeTo = new HashMap<>();
+        Set<GraphNode> settled = new HashSet<>();
+
+        class NodeDist implements Comparable<NodeDist> {
+            GraphNode node; int dist;
+            NodeDist(GraphNode n, int d) { node = n; dist = d; }
+            public int compareTo(NodeDist o) { return Integer.compare(this.dist, o.dist); }
+        }
+
+        PriorityQueue<NodeDist> pq = new PriorityQueue<>();
+
+        // Initialize distances
+        for (GraphNode node : nodes) {
+            distances.put(node, Integer.MAX_VALUE);
+        }
+        distances.put(startNode, 0);
+        pq.add(new NodeDist(startNode, 0));
+
+        // Show all dist labels now that Dijkstra is running
+        for (GraphNode node : nodes) {
+            node.distLabel.setVisible(true);
+        }
+
+        // Step 1: Animate start node
+        algorithmSteps.add(() -> {
+            startNode.circle.setFill(Color.YELLOW);
+            startNode.distLabel.setText("0");
+            startNode.distLabel.setFill(Color.GREEN);
+            resultLabel.setText("Dijkstra: Starting at " + startNode.label.getText());
+        });
+
+        while (!pq.isEmpty()) {
+            NodeDist current = pq.poll();
+            GraphNode u = current.node;
+
+            if (settled.contains(u)) continue;
+            settled.add(u);
+
+            final GraphNode exploringNode = u;
+            final int currentDist = current.dist;
+
+            // Step 2: Animate actively exploring this node (Magenta)
+            algorithmSteps.add(() -> {
+                if (exploringNode != startNode) exploringNode.circle.setFill(Color.MAGENTA);
+                exploringNode.distLabel.setFill(Color.DARKBLUE);
+                resultLabel.setText("Dijkstra: Exploring " + exploringNode.label.getText()
+                        + " (dist: " + currentDist + ")");
+            });
+
+            // Stop early if we reached the requested end node
+            if (endNode != null && u == endNode) break;
+
+            // Step 3: Check all neighbors
+            for (GraphEdge edge : u.connectedEdges) {
+                GraphNode v = null;
+                if (edge.from == u) v = edge.to;
+                else if (!edge.isDirected && edge.to == u) v = edge.from;
+
+                if (v != null && !settled.contains(v)) {
+                    int weight = edge.isWeighted ? Integer.parseInt(edge.weightText.getText()) : 1;
+                    int newDist = current.dist + weight;
+
+                    if (newDist < distances.get(v)) {
+                        distances.put(v, newDist);
+                        edgeTo.put(v, edge);
+                        pq.add(new NodeDist(v, newDist));
+
+                        final GraphNode neighbor = v;
+                        final GraphEdge traversedEdge = edge;
+                        final int neighborDist = newDist;
+
+                        // Animate discovering a shorter path — update the dist label live
+                        algorithmSteps.add(() -> {
+                            traversedEdge.line.setStroke(Color.ORANGE);
+                            if (neighbor != startNode) neighbor.circle.setFill(Color.YELLOW);
+                            neighbor.distLabel.setText(String.valueOf(neighborDist));
+                            neighbor.distLabel.setFill(Color.DARKRED);
+                            resultLabel.setText("Dijkstra: Updated "
+                                    + neighbor.label.getText() + " → dist " + neighborDist);
+                        });
+                    }
+                }
+            }
+
+            // Mark node as settled (Light Green), lock in dist label color
+            algorithmSteps.add(() -> {
+                if (exploringNode != startNode && exploringNode != endNode) {
+                    exploringNode.circle.setFill(Color.LIGHTGREEN);
+                    exploringNode.distLabel.setFill(Color.DARKGREEN);
+                }
+            });
+        }
+
+        // Step 4: Reconstruct and animate the final shortest path
+        if (endNode != null) {
+            if (distances.get(endNode) == Integer.MAX_VALUE) {
+                algorithmSteps.add(() -> resultLabel.setText(
+                        "Dijkstra: No reachable path to " + endNode.label.getText() + "!"));
+            } else {
+                algorithmSteps.add(() -> resultLabel.setText(
+                        "Dijkstra: Shortest path found! Total Dist: " + distances.get(endNode)));
+
+                // Trace back the path from end to start
+                GraphNode curr = endNode;
+                List<Runnable> pathAnimations = new ArrayList<>();
+
+                while (curr != startNode && edgeTo.containsKey(curr)) {
+                    GraphEdge e = edgeTo.get(curr);
+                    final GraphEdge pathEdge = e;
+                    final GraphNode pathNode = curr;
+
+                    pathAnimations.add(() -> {
+                        pathEdge.line.setStroke(Color.GREEN);
+                        pathEdge.line.setStrokeWidth(5);
+                        pathNode.circle.setFill(Color.GREEN);
+                        pathNode.distLabel.setFill(Color.WHITE);
+                    });
+
+                    curr = (e.from == curr) ? e.to : e.from;
+                }
+
+                // Reverse so it draws Start → End
+                Collections.reverse(pathAnimations);
+                algorithmSteps.addAll(pathAnimations);
+
+                // Make sure start node is green too
+                algorithmSteps.add(() -> {
+                    startNode.circle.setFill(Color.GREEN);
+                    startNode.distLabel.setFill(Color.WHITE);
+                });
+            }
+        } else {
+            algorithmSteps.add(() -> resultLabel.setText(
+                    "Dijkstra: All reachable nodes processed. (No end node specified)"));
+        }
     }
 }
