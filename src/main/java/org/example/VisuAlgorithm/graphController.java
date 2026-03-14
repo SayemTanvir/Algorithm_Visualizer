@@ -53,7 +53,6 @@ public class graphController {
     public void initialize() {
         nodeTool.setSelected(true);
 
-        // Clear selections whenever the user switches between tools
         nodeTool.setOnAction(e -> clearSelection());
         edgeTool.setOnAction(e -> clearSelection());
 
@@ -68,7 +67,6 @@ public class graphController {
             }
         });
 
-        // Setup Algorithm Dropdown with Custom CellFactory
         if (algoComboBox != null) {
             algoComboBox.getItems().addAll(
                     "BFS (Breadth-First Search)",
@@ -78,7 +76,6 @@ public class graphController {
                     "Kruskal's MST"
             );
 
-            // This factory controls how each item in the dropdown list looks and behaves
             algoComboBox.setCellFactory(listView -> new ListCell<String>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
@@ -89,15 +86,10 @@ public class graphController {
                         setStyle("");
                     } else {
                         setText(item);
-
-                        // Define which algorithms require fully weighted graphs
                         boolean requiresWeight = item.contains("Dijkstra") ||
                                 item.contains("Prim") ||
                                 item.contains("Kruskal");
-
                         boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
-
-                        // Disable and grey out if it's a weighted algo and the graph has unweighted edges
                         if (requiresWeight && hasUnweightedEdges) {
                             setDisable(true);
                             setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
@@ -109,6 +101,7 @@ public class graphController {
                 }
             });
         }
+        if (resultLabel != null) resultLabel.setText("");
     }
 
     // ===============================
@@ -177,7 +170,7 @@ public class graphController {
         Circle circle;
         Text label;
         double offsetX, offsetY;
-        List<GraphEdge> connectedEdges = new ArrayList<>(); // Track only connected edges for performance
+        List<GraphEdge> connectedEdges = new ArrayList<>();
         Text distLabel;
 
         GraphNode(double x, double y, String value) {
@@ -194,12 +187,25 @@ public class graphController {
             distLabel.setMouseTransparent(true);
             distLabel.setVisible(false);
 
-            // Use JavaFX bindings to keep label centered automatically (eliminates drag lag)
+            // FIX 4: Use a ChangeListener so the offset is recalculated after the
+            // label is laid out and has a real, non-zero width.
             Platform.runLater(() -> {
-                distLabel.xProperty().bind(circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
-                distLabel.yProperty().bind(circle.centerYProperty().subtract(circle.getRadius() + 5));
-                label.xProperty().bind(circle.centerXProperty().subtract(label.getLayoutBounds().getWidth() / 2));
-                label.yProperty().bind(circle.centerYProperty().add(label.getLayoutBounds().getHeight() / 4));
+                label.xProperty().bind(
+                        circle.centerXProperty().subtract(label.getLayoutBounds().getWidth() / 2));
+                label.yProperty().bind(
+                        circle.centerYProperty().add(label.getLayoutBounds().getHeight() / 4));
+
+                // distLabel: recompute offset whenever its text (and thus width) changes
+                distLabel.textProperty().addListener((obs, oldVal, newVal) -> {
+                    distLabel.xProperty().unbind();
+                    distLabel.xProperty().bind(
+                            circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
+                });
+                // Initial bind after first layout pass
+                distLabel.xProperty().bind(
+                        circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
+                distLabel.yProperty().bind(
+                        circle.centerYProperty().subtract(circle.getRadius() + 5));
             });
 
             enableDrag();
@@ -207,11 +213,11 @@ public class graphController {
 
         void enableDrag() {
             circle.setOnMousePressed(e -> {
+                // FIX 2: Block all interaction while an algorithm is running/paused.
+                if (isAlgorithmMode) return;
+
                 offsetX = circle.getCenterX() - e.getSceneX();
                 offsetY = circle.getCenterY() - e.getSceneY();
-
-                // FIX: Do not trigger standard selection/clearing if trying to draw an edge.
-                // This prevents the first node from being wiped from memory.
                 if (!edgeTool.isSelected()) {
                     selectNode(this);
                 }
@@ -219,8 +225,9 @@ public class graphController {
             });
 
             circle.setOnMouseDragged(e -> {
-                // Optional: You can wrap this in `if (!edgeTool.isSelected())` if you
-                // want to disable dragging nodes while the edge tool is active.
+                // FIX 3: Prevent dragging nodes while algorithm mode is active.
+                if (isAlgorithmMode) return;
+
                 circle.setCenterX(e.getSceneX() + offsetX);
                 circle.setCenterY(e.getSceneY() + offsetY);
                 updateConnectedEdges();
@@ -325,6 +332,9 @@ public class graphController {
     }
 
     private void handleNodeClick(GraphNode node) {
+        // Guard: never let a click affect graph state while an algorithm is playing
+        if (isAlgorithmMode) return;
+
         if (edgeTool.isSelected()) {
             if (firstEdgeNode == null) {
                 firstEdgeNode = node;
@@ -364,7 +374,6 @@ public class graphController {
 
     @FXML
     private void deleteSelected() {
-        // Target either the fully selected node (red) or the active edge-starting node (orange)
         GraphNode nodeToDelete = selectedNode != null ? selectedNode : firstEdgeNode;
 
         if (nodeToDelete != null) {
@@ -372,8 +381,6 @@ public class graphController {
             undoStack.push(new DeleteCommand(nodeToDelete, new ArrayList<>(toRemove)));
             toRemove.forEach(this::removeEdgeInternal);
             removeNodeInternal(nodeToDelete);
-
-            // Clear both selection states so we don't accidentally draw from a ghost node
             selectedNode = null;
             firstEdgeNode = null;
         } else if (selectedEdge != null) {
@@ -392,13 +399,13 @@ public class graphController {
 
     private void removeNodeInternal(GraphNode node) {
         nodes.remove(node);
-        canvasPane.getChildren().removeAll(node.circle, node.label, node.distLabel); // + distLabel
+        canvasPane.getChildren().removeAll(node.circle, node.label, node.distLabel);
     }
 
     private void restoreNodeInternal(GraphNode node) {
         if (!nodes.contains(node)) nodes.add(node);
         if (!canvasPane.getChildren().contains(node.circle)) {
-            canvasPane.getChildren().addAll(node.circle, node.label, node.distLabel); // + distLabel
+            canvasPane.getChildren().addAll(node.circle, node.label, node.distLabel);
         }
     }
 
@@ -415,7 +422,6 @@ public class graphController {
         if (!edge.to.connectedEdges.contains(edge)) edge.to.connectedEdges.add(edge);
 
         if (!canvasPane.getChildren().contains(edge.line)) {
-            // Insert edges at index 0 so they dynamically stay behind nodes
             int index = 0;
             canvasPane.getChildren().add(index++, edge.line);
             if (edge.isDirected) canvasPane.getChildren().add(index++, edge.arrowHead);
@@ -427,67 +433,48 @@ public class graphController {
 
     @FXML
     public void generateRandomGraph() {
-        // 1. Clear the canvas for a clean slate
         clearGraph();
 
         Random random = new Random();
-
-        // Use canvas dimensions, or fall back to defaults
         double width = canvasPane.getWidth() > 0 ? canvasPane.getWidth() : 600;
         double height = canvasPane.getHeight() > 0 ? canvasPane.getHeight() : 400;
-
-        // 2. Generate a clean number of nodes (e.g., 5 to 8)
         int numNodes = random.nextInt(4) + 5;
-
-        // --- NEW: Circular Layout Math ---
         double centerX = width / 2;
         double centerY = height / 2;
-        // Radius leaves a 50px margin from the edges
         double radius = Math.min(centerX, centerY) - 50;
         double angleStep = 2 * Math.PI / numNodes;
 
         for (int i = 0; i < numNodes; i++) {
-            // Distribute nodes evenly around the circle
             double x = centerX + radius * Math.cos(i * angleStep);
             double y = centerY + radius * Math.sin(i * angleStep);
-
             GraphNode node = new GraphNode(x, y, String.valueOf(nodeCounter++));
             restoreNodeInternal(node);
         }
 
-        // 3. Generate Edges (Spanning tree to ensure it's fully connected)
         boolean isDirected = directedCheck.isSelected();
         boolean isWeighted = weightedCheck.isSelected();
 
         List<GraphNode> connected = new ArrayList<>();
         List<GraphNode> unconnected = new ArrayList<>(nodes);
-
-        // Start the tree with a random node
         connected.add(unconnected.remove(random.nextInt(unconnected.size())));
 
         while (!unconnected.isEmpty()) {
             GraphNode from = connected.get(random.nextInt(connected.size()));
             GraphNode to = unconnected.remove(random.nextInt(unconnected.size()));
-
             int weight = isWeighted ? random.nextInt(20) + 1 : 1;
             GraphEdge edge = new GraphEdge(from, to, weight, isDirected, isWeighted);
             restoreEdgeInternal(edge);
             connected.add(to);
         }
 
-        // 4. Add a VERY small number of extra edges to keep it clean
-        // Max 2 extra edges to prevent the "messy" look
         int extraEdges = random.nextInt(3);
         for (int i = 0; i < extraEdges; i++) {
             GraphNode from = nodes.get(random.nextInt(nodes.size()));
             GraphNode to = nodes.get(random.nextInt(nodes.size()));
-
             if (from != to) {
                 boolean exists = edges.stream().anyMatch(e ->
                         (e.from == from && e.to == to) ||
-                                (!isDirected && e.from == to && e.to == from)
-                );
-
+                                (!isDirected && e.from == to && e.to == from));
                 if (!exists) {
                     int weight = isWeighted ? random.nextInt(20) + 1 : 1;
                     GraphEdge edge = new GraphEdge(from, to, weight, isDirected, isWeighted);
@@ -502,7 +489,7 @@ public class graphController {
         nodes.clear();
         edges.clear();
         canvasPane.getChildren().clear();
-        undoStack.clear(); // Reset undo history for the new graph
+        undoStack.clear();
         nodeCounter = 1;
         clearSelection();
     }
@@ -511,37 +498,32 @@ public class graphController {
 
     @FXML
     private void handleBackButton(ActionEvent event) throws IOException {
-        stopAll(); // Stop any running algorithms or animations before switching scenes
+        // FIX 1: Actually stop the running timeline before leaving the scene.
+        stopAll();
 
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
         Parent root = fxmlLoader.load();
-
-        // Get the current stage from the button click event
         Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
         stage.getScene().setRoot(root);
     }
 
     private void stopAll() {
-        // TODO: Add your cleanup logic here.
-        // For example: stop timeline animations, cancel background threads, or clear data.
+        // FIX 1: Was an empty stub — must stop the animation timeline.
+        resetAlgorithmState();
         clearSelection();
     }
 
-    //Algorithms
     // --- UI Mode Panels ---
     @FXML private ToolBar buildToolbar;
     @FXML private ToolBar algoToolbar;
     @FXML private ToolBar playbackToolbar;
 
-    // --- Algorithm Controls ---
-    // --- Algorithm Controls ---
     @FXML private ComboBox<String> algoComboBox;
     @FXML private TextField startNodeField;
     @FXML private TextField endNodeField;
     @FXML private Slider speedSlider;
     @FXML private Button playPauseButton;
 
-    // A flag to prevent drawing/dragging while algorithms run
     private boolean isAlgorithmMode = false;
 
     @FXML
@@ -554,25 +536,26 @@ public class graphController {
         isAlgorithmMode = true;
         clearSelection();
 
+        // --- NEW: Give the user a prompt when entering Algo Mode ---
+        resultLabel.setText("Select an algorithm and press Play!");
+
         boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
 
-        // --- NEW: Force the ComboBox to refresh its cells ---
-        // This makes JavaFX re-evaluate the graph's edges and update the greyed-out text
+        String savedSelection = algoComboBox.getValue();
         List<String> currentItems = new ArrayList<>(algoComboBox.getItems());
         algoComboBox.getItems().clear();
         algoComboBox.getItems().addAll(currentItems);
 
-        // Safety Check: Clear selection if an invalid algorithm was previously selected
-        String currentSelection = algoComboBox.getValue();
-        if (currentSelection != null && hasUnweightedEdges &&
-                (currentSelection.contains("Dijkstra") || currentSelection.contains("Prim") || currentSelection.contains("Kruskal"))) {
+        if (savedSelection != null && hasUnweightedEdges &&
+                (savedSelection.contains("Dijkstra") ||
+                        savedSelection.contains("Prim") ||
+                        savedSelection.contains("Kruskal"))) {
             algoComboBox.setValue(null);
+        } else {
+            algoComboBox.setValue(savedSelection);
         }
 
-        // Hide Build tools
         buildToolbar.setVisible(false);
-
-        // Show Top Algo Setup & Bottom Playback Controls
         algoToolbar.setVisible(true);
         playbackToolbar.setVisible(true);
         playbackToolbar.setManaged(true);
@@ -581,21 +564,15 @@ public class graphController {
     @FXML
     private void switchToBuildMode() {
         isAlgorithmMode = false;
-
-        resetAlgorithmState(); // Stop animations and clear colors
-
-        // Hide Top Algo Setup & Bottom Playback Controls
+        resetAlgorithmState();
         algoToolbar.setVisible(false);
         playbackToolbar.setVisible(false);
         playbackToolbar.setManaged(false);
-
-        // Show Build tools
         buildToolbar.setVisible(true);
     }
 
     @FXML
     private void resetGraphColors() {
-        // Restores all nodes and edges to black/lightblue
         for (GraphNode n : nodes) {
             n.circle.setFill(Color.LIGHTBLUE);
             n.circle.setStroke(Color.BLACK);
@@ -609,37 +586,30 @@ public class graphController {
         }
     }
 
-    //BFS
     @FXML private Label resultLabel;
 
-    // --- Animation State ---
     private Timeline timeline;
     private final List<Runnable> algorithmSteps = new ArrayList<>();
     private int currentStep = 0;
 
-    // ===============================
-    // ALGORITHMS & ANIMATION
-    // ===============================
-
     private GraphNode findNodeByValue(String value) {
         if (value == null || value.isEmpty()) return null;
         for (GraphNode node : nodes) {
-            if (node.label.getText().equals(value)) {
-                return node;
-            }
+            if (node.label.getText().equals(value)) return node;
         }
-        return null; // Not found
+        return null;
     }
 
-    // ===============================
-    // ALGORITHMS & ANIMATION
-    // ===============================
-
     private void initializeAlgorithm() {
-        // Stops animation, resets colors, and calculates the whole algorithm in the background
-        if (timeline != null) timeline.stop();
+        if (timeline != null) {
+            timeline.stop();
+            // FIX 6: Null out the old timeline so setupTimeline() always creates a
+            // fresh one with a current rate-binding. Without this the binding to the
+            // speed slider is established only once and then lost on replays.
+            timeline = null;
+        }
         resetGraphColors();
-        resultLabel.setText("Traversal Order: ");
+        resultLabel.setText("Starting Algorithm...");
         algorithmSteps.clear();
         currentStep = 0;
 
@@ -651,25 +621,21 @@ public class graphController {
         if (selectedAlgo != null) {
             if (selectedAlgo.startsWith("BFS")) {
                 recordBFS(startNode);
-            }
-            else if (selectedAlgo.startsWith("DFS")) {
+            } else if (selectedAlgo.startsWith("DFS")) {
                 recordDFS(startNode);
-            }
-            else if (selectedAlgo.startsWith("Prim")) {
+            } else if (selectedAlgo.startsWith("Prim")) {
                 if (edges.stream().anyMatch(e -> !e.isWeighted)) {
                     resultLabel.setText("Error: Prim's MST requires a fully weighted graph!");
                     return;
                 }
                 recordPrim(startNode);
-            }
-            else if (selectedAlgo.startsWith("Kruskal")) {
+            } else if (selectedAlgo.startsWith("Kruskal")) {
                 if (edges.stream().anyMatch(e -> !e.isWeighted)) {
                     resultLabel.setText("Error: Kruskal's MST requires a fully weighted graph!");
                     return;
                 }
                 recordKruskal();
-            }
-            else if (selectedAlgo.startsWith("Dijkstra")) { // Hooked up Dijkstra here!
+            } else if (selectedAlgo.startsWith("Dijkstra")) {
                 if (edges.stream().anyMatch(e -> !e.isWeighted)) {
                     resultLabel.setText("Error: Dijkstra requires a fully weighted graph!");
                     return;
@@ -685,7 +651,6 @@ public class graphController {
                 algorithmSteps.get(currentStep).run();
                 currentStep++;
             } else {
-                // Algorithm finished
                 timeline.stop();
                 playPauseButton.setText("↺ Restart");
             }
@@ -698,23 +663,22 @@ public class graphController {
     private void togglePlayPause() {
         if (nodes.isEmpty() || algoComboBox.getValue() == null) return;
 
-        // If it's currently running, PAUSE it
         if (timeline != null && timeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
             timeline.pause();
             playPauseButton.setText("▶ Play");
             return;
         }
 
-        // If it was finished or hasn't started, initialize it
         if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
             initializeAlgorithm();
         }
 
+        // FIX 6 (continued): Always create a fresh timeline after initializeAlgorithm()
+        // nulls the old one, ensuring the speed-slider binding is always live.
         if (timeline == null) {
             setupTimeline();
         }
 
-        // PLAY it
         timeline.play();
         playPauseButton.setText("⏸ Pause");
     }
@@ -723,7 +687,6 @@ public class graphController {
     private void stepForward() {
         if (nodes.isEmpty() || algoComboBox.getValue() == null) return;
 
-        // Pause automatic playback if user decides to manually step
         if (timeline != null) {
             timeline.pause();
             playPauseButton.setText("▶ Play");
@@ -731,6 +694,8 @@ public class graphController {
 
         if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
             initializeAlgorithm();
+            // Also set up a timeline here so Play still works after manual stepping
+            if (timeline == null) setupTimeline();
         }
 
         if (currentStep < algorithmSteps.size()) {
@@ -743,17 +708,12 @@ public class graphController {
     private void stepBackward() {
         if (algorithmSteps.isEmpty() || currentStep <= 0) return;
 
-        // Pause automatic playback
         if (timeline != null) {
             timeline.pause();
             playPauseButton.setText("▶ Play");
         }
 
-        // Move the step counter back by one
         currentStep--;
-
-        // The "Scrubbing" Trick:
-        // Reset the graph instantly, then fast-forward a loop to the exact previous step
         resetGraphColors();
         resultLabel.setText("Traversal Order: ");
         for (int i = 0; i < currentStep; i++) {
@@ -763,16 +723,25 @@ public class graphController {
 
     @FXML
     private void resetAlgorithmState() {
-        if (timeline != null) timeline.stop();
+        if (timeline != null) {
+            timeline.stop();
+            timeline = null; // FIX 6: null out so next play gets a fresh binding
+        }
         if (playPauseButton != null) playPauseButton.setText("▶ Play");
         resetGraphColors();
-        resultLabel.setText("Traversal Order: ");
+
+        // --- NEW: Conditionally set the text based on the mode ---
+        if (isAlgorithmMode) {
+            resultLabel.setText("Select an algorithm and press Play!");
+        } else {
+            resultLabel.setText(""); // Clear it for Build Mode
+        }
+
         algorithmSteps.clear();
         currentStep = 0;
     }
 
-    // --- The BFS Logic ---
-    // --- The Updated BFS Logic ---
+    // --- BFS ---
     private void recordBFS(GraphNode startNode) {
         Set<GraphNode> visited = new HashSet<>();
         Queue<GraphNode> queue = new LinkedList<>();
@@ -781,13 +750,10 @@ public class graphController {
         queue.add(startNode);
         visited.add(startNode);
 
-        // Step 1: Mark Start Node as Discovered/Waiting (Yellow)
         algorithmSteps.add(() -> startNode.circle.setFill(Color.YELLOW));
 
         while (!queue.isEmpty()) {
             GraphNode current = queue.poll();
-
-            // Step 2: Mark current node as Actively Exploring (Magenta) and update text
             visitedOrder.add(current.label.getText());
             final String currentPath = "Traversal Order: " + String.join(" ➔ ", visitedOrder);
             final GraphNode exploringNode = current;
@@ -798,7 +764,6 @@ public class graphController {
             });
 
             for (GraphEdge edge : current.connectedEdges) {
-                // Determine the neighbor based on directed/undirected rules
                 GraphNode neighbor = null;
                 if (edge.from == current) {
                     neighbor = edge.to;
@@ -813,7 +778,6 @@ public class graphController {
                     final GraphEdge traversedEdge = edge;
                     final GraphNode nextNode = neighbor;
 
-                    // Step 3: Animate Traversing the Edge (Orange) and Discovered Node (Yellow)
                     algorithmSteps.add(() -> {
                         traversedEdge.line.setStroke(Color.ORANGE);
                         nextNode.circle.setFill(Color.YELLOW);
@@ -821,27 +785,22 @@ public class graphController {
                 }
             }
 
-            // Step 4: Mark the current node as Done (Green) AFTER all neighbors are checked
             algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
         }
     }
 
-    // --- The True Recursive DFS Logic ---
+    // --- DFS ---
     private void recordDFS(GraphNode startNode) {
         Set<GraphNode> visited = new HashSet<>();
         List<String> visitedOrder = new ArrayList<>();
-
-        // Start the recursive recording
         dfsHelper(startNode, null, visited, visitedOrder);
     }
 
-    private void dfsHelper(GraphNode current, GraphEdge edgeToReach, Set<GraphNode> visited, List<String> visitedOrder) {
-        // Mark as visited the moment we enter the node
+    private void dfsHelper(GraphNode current, GraphEdge edgeToReach,
+                           Set<GraphNode> visited, List<String> visitedOrder) {
         visited.add(current);
 
-        // Step 1: Animate the arrival
         if (edgeToReach != null) {
-            // If we traveled an edge to get here, turn the edge Orange and the node Yellow
             final GraphEdge traversedEdge = edgeToReach;
             final GraphNode nextNode = current;
             algorithmSteps.add(() -> {
@@ -849,11 +808,9 @@ public class graphController {
                 nextNode.circle.setFill(Color.YELLOW);
             });
         } else {
-            // If it's the very first starting node, just turn it Yellow
             algorithmSteps.add(() -> current.circle.setFill(Color.YELLOW));
         }
 
-        // Step 2: Mark current node as Actively Exploring (Magenta) and update the text
         visitedOrder.add(current.label.getText());
         final String currentPath = "Traversal Order: " + String.join(" ➔ ", visitedOrder);
         final GraphNode exploringNode = current;
@@ -863,9 +820,7 @@ public class graphController {
             resultLabel.setText(currentPath);
         });
 
-        // Step 3: Check neighbors and DIVE DEEP immediately
         for (GraphEdge edge : current.connectedEdges) {
-            // Determine the neighbor based on directed/undirected rules
             GraphNode neighbor = null;
             if (edge.from == current) {
                 neighbor = edge.to;
@@ -873,49 +828,36 @@ public class graphController {
                 neighbor = edge.from;
             }
 
-            // If the neighbor is unvisited, immediately pause this node and dive into the neighbor
             if (neighbor != null && !visited.contains(neighbor)) {
                 dfsHelper(neighbor, edge, visited, visitedOrder);
             }
         }
 
-        // Step 4: All neighbors checked. Mark this node as completely Done (Green)
         algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
     }
 
-    // --- Prim's MST Logic ---
+    // --- Prim's MST ---
     private void recordPrim(GraphNode startNode) {
         Set<GraphNode> visited = new HashSet<>();
-
-        // Priority Queue comparing edges by their parsed weight
         PriorityQueue<GraphEdge> pq = new PriorityQueue<>(Comparator.comparingInt(e -> {
-            if (!e.isWeighted) return 1; // Default weight if unweighted
-            try {
-                return Integer.parseInt(e.weightText.getText());
-            } catch (NumberFormatException ex) {
-                return 1;
-            }
+            if (!e.isWeighted) return 1;
+            try { return Integer.parseInt(e.weightText.getText()); }
+            catch (NumberFormatException ex) { return 1; }
         }));
 
-        // Step 1: Start at the selected node
         visited.add(startNode);
         algorithmSteps.add(() -> {
             startNode.circle.setFill(Color.YELLOW);
             resultLabel.setText("Prim's MST: Started at " + startNode.label.getText() + " (Weight: 0)");
         });
 
-        // Add all edges from the starting node to the PQ
-        for (GraphEdge edge : startNode.connectedEdges) {
-            pq.add(edge);
-        }
+        for (GraphEdge edge : startNode.connectedEdges) pq.add(edge);
 
-        // Use an array to keep a mutable total weight for the lambda closures
         int[] totalWeight = {0};
 
         while (!pq.isEmpty() && visited.size() < nodes.size()) {
             GraphEdge minEdge = pq.poll();
 
-            // Find the unvisited end of this edge
             GraphNode unvisitedNode = null;
             if (visited.contains(minEdge.from) && !visited.contains(minEdge.to)) {
                 unvisitedNode = minEdge.to;
@@ -923,10 +865,8 @@ public class graphController {
                 unvisitedNode = minEdge.from;
             }
 
-            // If we found a valid unvisited node, it becomes part of the MST
             if (unvisitedNode != null) {
                 visited.add(unvisitedNode);
-
                 int edgeWeight = minEdge.isWeighted ? Integer.parseInt(minEdge.weightText.getText()) : 1;
                 totalWeight[0] += edgeWeight;
 
@@ -934,85 +874,64 @@ public class graphController {
                 final GraphEdge mstEdge = minEdge;
                 final int currentTotal = totalWeight[0];
 
-                // Step 2: Animate adding the edge and node to the MST
                 algorithmSteps.add(() -> {
                     mstEdge.line.setStroke(Color.ORANGE);
-                    mstEdge.line.setStrokeWidth(5); // Make the MST edge thicker so it stands out
+                    mstEdge.line.setStrokeWidth(5);
                     nextNode.circle.setFill(Color.YELLOW);
                     resultLabel.setText("Prim's MST Total Weight: " + currentTotal);
                 });
 
-                // Add the new node's edges to the PQ
                 for (GraphEdge edge : nextNode.connectedEdges) {
-                    GraphNode neighbor = (edge.from == nextNode) ? edge.to : (!edge.isDirected && edge.to == nextNode) ? edge.from : null;
-                    if (neighbor != null && !visited.contains(neighbor)) {
-                        pq.add(edge);
-                    }
+                    GraphNode neighbor = (edge.from == nextNode) ? edge.to
+                            : (!edge.isDirected && edge.to == nextNode) ? edge.from : null;
+                    if (neighbor != null && !visited.contains(neighbor)) pq.add(edge);
                 }
             }
         }
 
-        // Step 3: Algorithm complete, turn everything Green
         algorithmSteps.add(() -> {
-            for (GraphNode node : visited) {
-                node.circle.setFill(Color.GREEN);
-            }
+            for (GraphNode node : visited) node.circle.setFill(Color.GREEN);
             resultLabel.setText(resultLabel.getText() + " (Complete)");
         });
     }
 
-    // --- Kruskal's MST Logic ---
+    // --- Kruskal's MST ---
     private void recordKruskal() {
-        // 1. Setup Disjoint Set (Union-Find) to detect cycles
         Map<GraphNode, GraphNode> parent = new HashMap<>();
-        for (GraphNode node : nodes) {
-            parent.put(node, node);
-        }
+        for (GraphNode node : nodes) parent.put(node, node);
 
-        // Helper function for Union-Find: 'Find' with path compression
         java.util.function.Function<GraphNode, GraphNode> find = new java.util.function.Function<>() {
             @Override
             public GraphNode apply(GraphNode node) {
-                if (parent.get(node) == node) {
-                    return node;
-                }
+                if (parent.get(node) == node) return node;
                 GraphNode root = apply(parent.get(node));
                 parent.put(node, root);
                 return root;
             }
         };
 
-        // 2. Get all edges and sort them globally by weight
         List<GraphEdge> sortedEdges = new ArrayList<>(edges);
         sortedEdges.sort(Comparator.comparingInt(e -> {
             if (!e.isWeighted) return 1;
-            try {
-                return Integer.parseInt(e.weightText.getText());
-            } catch (NumberFormatException ex) {
-                return 1;
-            }
+            try { return Integer.parseInt(e.weightText.getText()); }
+            catch (NumberFormatException ex) { return 1; }
         }));
 
-        algorithmSteps.add(() -> {
-            resultLabel.setText("Kruskal's MST: Sorting all edges by weight...");
-        });
+        algorithmSteps.add(() -> resultLabel.setText("Kruskal's MST: Sorting all edges by weight..."));
 
         int[] totalWeight = {0};
         Set<GraphNode> mstNodes = new HashSet<>();
         int edgesAdded = 0;
 
-        // 3. Iterate through the sorted edges
         for (GraphEdge edge : sortedEdges) {
-            if (edgesAdded >= nodes.size() - 1) break; // MST is complete when we have V-1 edges
+            if (edgesAdded >= nodes.size() - 1) break;
 
             GraphNode root1 = find.apply(edge.from);
             GraphNode root2 = find.apply(edge.to);
 
-            // If the roots are different, adding this edge won't form a cycle (Union)
             if (root1 != root2) {
                 parent.put(root1, root2);
                 edgesAdded++;
-
                 mstNodes.add(edge.from);
                 mstNodes.add(edge.to);
 
@@ -1024,10 +943,9 @@ public class graphController {
                 final GraphNode u = edge.from;
                 final GraphNode v = edge.to;
 
-                // Animate adding the edge to the MST
                 algorithmSteps.add(() -> {
                     mstEdge.line.setStroke(Color.ORANGE);
-                    mstEdge.line.setStrokeWidth(5); // Make it thick like Prim's
+                    mstEdge.line.setStrokeWidth(5);
                     u.circle.setFill(Color.YELLOW);
                     v.circle.setFill(Color.YELLOW);
                     resultLabel.setText("Kruskal's MST Total Weight: " + currentTotal);
@@ -1035,16 +953,13 @@ public class graphController {
             }
         }
 
-        // 4. Algorithm complete, turn all included nodes Green
         algorithmSteps.add(() -> {
-            for (GraphNode node : mstNodes) {
-                node.circle.setFill(Color.GREEN);
-            }
+            for (GraphNode node : mstNodes) node.circle.setFill(Color.GREEN);
             resultLabel.setText(resultLabel.getText() + " (Complete)");
         });
     }
 
-    // --- Dijkstra's Shortest Path Logic ---
+    // --- Dijkstra's Shortest Path ---
     private void recordDijkstra(GraphNode startNode, GraphNode endNode) {
         Map<GraphNode, Integer> distances = new HashMap<>();
         Map<GraphNode, GraphEdge> edgeTo = new HashMap<>();
@@ -1058,20 +973,12 @@ public class graphController {
 
         PriorityQueue<NodeDist> pq = new PriorityQueue<>();
 
-        // Initialize distances
-        for (GraphNode node : nodes) {
-            distances.put(node, Integer.MAX_VALUE);
-        }
+        for (GraphNode node : nodes) distances.put(node, Integer.MAX_VALUE);
         distances.put(startNode, 0);
         pq.add(new NodeDist(startNode, 0));
 
-        // Show all dist labels now that Dijkstra is running
-        for (GraphNode node : nodes) {
-            node.distLabel.setVisible(true);
-        }
-
-        // Step 1: Animate start node
         algorithmSteps.add(() -> {
+            for (GraphNode node : nodes) node.distLabel.setVisible(true);
             startNode.circle.setFill(Color.YELLOW);
             startNode.distLabel.setText("0");
             startNode.distLabel.setFill(Color.GREEN);
@@ -1088,7 +995,6 @@ public class graphController {
             final GraphNode exploringNode = u;
             final int currentDist = current.dist;
 
-            // Step 2: Animate actively exploring this node (Magenta)
             algorithmSteps.add(() -> {
                 if (exploringNode != startNode) exploringNode.circle.setFill(Color.MAGENTA);
                 exploringNode.distLabel.setFill(Color.DARKBLUE);
@@ -1096,10 +1002,8 @@ public class graphController {
                         + " (dist: " + currentDist + ")");
             });
 
-            // Stop early if we reached the requested end node
             if (endNode != null && u == endNode) break;
 
-            // Step 3: Check all neighbors
             for (GraphEdge edge : u.connectedEdges) {
                 GraphNode v = null;
                 if (edge.from == u) v = edge.to;
@@ -1118,7 +1022,6 @@ public class graphController {
                         final GraphEdge traversedEdge = edge;
                         final int neighborDist = newDist;
 
-                        // Animate discovering a shorter path — update the dist label live
                         algorithmSteps.add(() -> {
                             traversedEdge.line.setStroke(Color.ORANGE);
                             if (neighbor != startNode) neighbor.circle.setFill(Color.YELLOW);
@@ -1131,7 +1034,6 @@ public class graphController {
                 }
             }
 
-            // Mark node as settled (Light Green), lock in dist label color
             algorithmSteps.add(() -> {
                 if (exploringNode != startNode && exploringNode != endNode) {
                     exploringNode.circle.setFill(Color.LIGHTGREEN);
@@ -1140,7 +1042,6 @@ public class graphController {
             });
         }
 
-        // Step 4: Reconstruct and animate the final shortest path
         if (endNode != null) {
             if (distances.get(endNode) == Integer.MAX_VALUE) {
                 algorithmSteps.add(() -> resultLabel.setText(
@@ -1149,7 +1050,6 @@ public class graphController {
                 algorithmSteps.add(() -> resultLabel.setText(
                         "Dijkstra: Shortest path found! Total Dist: " + distances.get(endNode)));
 
-                // Trace back the path from end to start
                 GraphNode curr = endNode;
                 List<Runnable> pathAnimations = new ArrayList<>();
 
@@ -1165,14 +1065,16 @@ public class graphController {
                         pathNode.distLabel.setFill(Color.WHITE);
                     });
 
-                    curr = (e.from == curr) ? e.to : e.from;
+                    // FIX 7: Determine the predecessor correctly.
+                    // edgeTo.put(v, edge) always stores the edge that was used to
+                    // *reach* v. Therefore the predecessor of curr is whichever
+                    // endpoint of the edge is NOT curr.
+                    curr = (e.to == curr) ? e.from : e.to;
                 }
 
-                // Reverse so it draws Start → End
                 Collections.reverse(pathAnimations);
                 algorithmSteps.addAll(pathAnimations);
 
-                // Make sure start node is green too
                 algorithmSteps.add(() -> {
                     startNode.circle.setFill(Color.GREEN);
                     startNode.distLabel.setFill(Color.WHITE);
