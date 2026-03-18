@@ -1,132 +1,163 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.VisuAlgorithm.LinkedListController">
+<VBox alignment="TOP_CENTER"
+      prefHeight="700.0"
+      prefWidth="1100.0"
+      spacing="20.0"
+      style="-fx-background-color: #090247;"
+      xmlns="http://javafx.com/javafx/25"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.example.VisuAlgorithm.LinkedListController">
 
-    <!-- Non-visual objects MUST be in fx:define -->
-    <fx:define>
-        <ToggleGroup fx:id="modeGroup"/>
-    </fx:define>
+    <padding>
+        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0"/>
+    </padding>
 
-    <!-- ===== TOP (Header + Toolbar) ===== -->
-    <top>
-        <VBox>
+    <!-- Top bar -->
+    <HBox alignment="CENTER_LEFT" prefWidth="1000.0" spacing="12.0">
+        <Button text="← Back"
+                onAction="#onBack"
+                style="-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 8 16 8 16;"/>
 
-            <!-- Header Bar (match your other modules by changing these colors) -->
-            <HBox alignment="CENTER_LEFT" spacing="12"
-                  style="-fx-background-color: #0f172a;">
-                <padding>
-                    <Insets top="10" right="12" bottom="10" left="12"/>
-                </padding>
+        <Label text="Linked List"
+               textFill="WHITE">
+            <font>
+                <Font name="System Bold" size="28.0"/>
+            </font>
+        </Label>
 
-                <Button fx:id="backBtn"
-                        text="← Back"
-                        onAction="#onBack"
-                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
 
-                <Label text="Linked List"
-                       style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+        <Label fx:id="statusLabel"
+               text="Choose a linked list type"
+               textFill="#cbd5e1">
+            <font>
+                <Font size="14.0"/>
+            </font>
+        </Label>
+    </HBox>
 
-                <Region HBox.hgrow="ALWAYS"/>
+    <!-- Subtitle -->
+    <Label text="Choose the linked list visualizer you want"
+           textFill="#93c5fd">
+        <font>
+            <Font size="18.0"/>
+        </font>
+    </Label>
 
-                <Label fx:id="headerStatusLabel"
-                       text=""
-                       style="-fx-text-fill: #cbd5e1; -fx-font-size: 12px;"/>
-            </HBox>
+    <!-- Cards -->
+    <FlowPane alignment="CENTER"
+              hgap="30.0"
+              vgap="30.0"
+              prefWrapLength="950.0">
 
-            <!-- Toolbar Panel -->
-            <VBox spacing="10"
-                  style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0; -fx-border-width: 0 0 1 0;">
-                <padding>
-                    <Insets top="12" right="12" bottom="12" left="12"/>
-                </padding>
+        <!-- Singly -->
+        <VBox onMouseClicked="#gotoSinglyLinkedList"
+              alignment="CENTER"
+              prefHeight="240.0"
+              prefWidth="280.0"
+              spacing="12.0"
+              style="-fx-background-color: #1a1460; -fx-background-radius: 18; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.35), 12, 0, 0, 0); -fx-cursor: hand;">
+            <children>
+                <ImageView fitHeight="150.0" fitWidth="240.0" pickOnBounds="true" preserveRatio="true">
+                    <image>
+                        <Image url="@../../../Images/linked_list.png"/>
+                    </image>
+                </ImageView>
 
-                <!-- Row 1: Mode + Node ops -->
-                <HBox alignment="CENTER_LEFT" spacing="12">
-                    <Label text="Mode:" style="-fx-font-weight: bold;"/>
+                <Label text="Singly Linked List" textFill="#51c4d3">
+                    <font>
+                        <Font name="System Bold" size="20.0"/>
+                    </font>
+                </Label>
 
-                    <RadioButton fx:id="rbSingly"
-                                 text="Singly"
-                                 toggleGroup="$modeGroup"
-                                 selected="true"
-                                 onAction="#onModeChanged"/>
-
-                    <RadioButton fx:id="rbDoubly"
-                                 text="Doubly"
-                                 toggleGroup="$modeGroup"
-                                 onAction="#onModeChanged"/>
-
-                    <RadioButton fx:id="rbMulti"
-                                 text="Multi"
-                                 toggleGroup="$modeGroup"
-                                 onAction="#onModeChanged"/>
-
-                    <Separator prefWidth="18"/>
-
-                    <Label text="Value:"/>
-                    <TextField fx:id="valueField" promptText="int" prefWidth="90"/>
-
-                    <Button text="Insert Head" onAction="#onInsertHead"/>
-                    <Button text="Insert Tail" onAction="#onInsertTail"/>
-
-                    <Separator prefWidth="18"/>
-
-                    <Label text="Delete idx:"/>
-                    <TextField fx:id="deleteIndexField" promptText="index" prefWidth="80"/>
-                    <Button text="Delete" onAction="#onDeleteIndex"/>
-
-                    <Button text="Clear All"
-                            onAction="#onClearAll"
-                            style="-fx-background-color: #fee2e2; -fx-text-fill: #991b1b; -fx-font-weight: bold;"/>
-                </HBox>
-
-                <!-- Row 2: Edge builder -->
-                <HBox alignment="CENTER_LEFT" spacing="12">
-                    <Label text="Edge Builder:" style="-fx-font-weight: bold;"/>
-
-                    <Label text="from"/>
-                    <TextField fx:id="fromField" promptText="idx" prefWidth="70"/>
-
-                    <Label text="to"/>
-                    <TextField fx:id="toField" promptText="idx" prefWidth="70"/>
-
-                    <Label text="op"/>
-                    <ChoiceBox fx:id="edgeOpChoice" prefWidth="90"/>
-
-                    <Button text="Apply" onAction="#onApplyEdge"/>
-
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <Label fx:id="modeHintLabel" text="" opacity="0.8"/>
-                </HBox>
-
-                <Label fx:id="statusLabel" text="" opacity="0.85"/>
-            </VBox>
-
+                <Label text="One-way traversal"
+                       textFill="#cbd5e1">
+                    <font>
+                        <Font size="14.0"/>
+                    </font>
+                </Label>
+            </children>
+            <padding>
+                <Insets top="14.0" right="14.0" bottom="14.0" left="14.0"/>
+            </padding>
         </VBox>
-    </top>
 
-    <!-- ===== CENTER (Scrollable Canvas) ===== -->
-    <center>
-        <ScrollPane fx:id="scroll"
-                    fitToWidth="true"
-                    fitToHeight="true"
-                    pannable="true"
-                    hbarPolicy="AS_NEEDED"
-                    vbarPolicy="AS_NEEDED"
-                    style="-fx-background: blue;">
-            <content>
-                <!-- Big preferred size so scrolling works for long lists -->
-                <Pane fx:id="canvas"
-                      prefWidth="2200"
-                      prefHeight="900"
-                      style="-fx-background-color: black;"/>
-            </content>
-        </ScrollPane>
-    </center>
+        <!-- Doubly -->
+        <VBox onMouseClicked="#gotoDoublyLinkedList"
+              alignment="CENTER"
+              prefHeight="240.0"
+              prefWidth="280.0"
+              spacing="12.0"
+              style="-fx-background-color: #1a1460; -fx-background-radius: 18; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.35), 12, 0, 0, 0); -fx-cursor: hand;">
+            <children>
+                <ImageView fitHeight="150.0" fitWidth="240.0" pickOnBounds="true" preserveRatio="true">
+                    <image>
+                        <Image url="@../../../Images/linked_list.png"/>
+                    </image>
+                </ImageView>
 
-</BorderPane>
+                <Label text="Doubly Linked List" textFill="#51c4d3">
+                    <font>
+                        <Font name="System Bold" size="20.0"/>
+                    </font>
+                </Label>
+
+                <Label text="Forward and backward traversal"
+                       textFill="#cbd5e1">
+                    <font>
+                        <Font size="14.0"/>
+                    </font>
+                </Label>
+            </children>
+            <padding>
+                <Insets top="14.0" right="14.0" bottom="14.0" left="14.0"/>
+            </padding>
+        </VBox>
+
+        <!-- Circular -->
+        <VBox onMouseClicked="#gotoCircularLinkedList"
+              alignment="CENTER"
+              prefHeight="240.0"
+              prefWidth="280.0"
+              spacing="12.0"
+              style="-fx-background-color: #1a1460; -fx-background-radius: 18; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.35), 12, 0, 0, 0); -fx-cursor: hand;">
+            <children>
+                <ImageView fitHeight="150.0" fitWidth="240.0" pickOnBounds="true" preserveRatio="true">
+                    <image>
+                        <Image url="@../../../Images/linked_list.png"/>
+                    </image>
+                </ImageView>
+
+                <Label text="Circular Linked List" textFill="#51c4d3">
+                    <font>
+                        <Font name="System Bold" size="20.0"/>
+                    </font>
+                </Label>
+
+                <Label text="Last node points to head"
+                       textFill="#cbd5e1">
+                    <font>
+                        <Font size="14.0"/>
+                    </font>
+                </Label>
+            </children>
+            <padding>
+                <Insets top="14.0" right="14.0" bottom="14.0" left="14.0"/>
+            </padding>
+        </VBox>
+
+    </FlowPane>
+
+</VBox>

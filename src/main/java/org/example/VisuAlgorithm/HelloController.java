@@ -4,7 +4,6 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Label;
 
 import javafx.scene.input.MouseEvent;
@@ -33,21 +32,6 @@ public class HelloController {
     void gotoLinkedList(MouseEvent click) throws IOException {
         System.out.println("linked_list_window");
         switchScene("/org/example/VisuAlgorithm/linked-list-view.fxml", click);
-    }
-    @FXML
-    void gotoSinglyLinkedList(MouseEvent click) throws IOException {
-        System.out.println("linked_list_window");
-        switchScene("/org/example/VisuAlgorithm/singly-linked-list-view.fxml", click);
-    }
-    @FXML
-    void gotoDoublyLinkedList(MouseEvent click) throws IOException {
-        System.out.println("linked_list_window");
-        switchScene("/org/example/VisuAlgorithm/doubly-linked-list-view.fxml.fxml", click);
-    }
-    @FXML
-    void gotoMultiLinkedList(MouseEvent click) throws IOException {
-        System.out.println("linked_list_window");
-        switchScene("/org/example/VisuAlgorithm/multi-linked-list-view.fxml", click);
     }
     @FXML
     void gotoStack(MouseEvent click) throws IOException {

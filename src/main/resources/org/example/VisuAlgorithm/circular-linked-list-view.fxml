@@ -13,7 +13,7 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/17"
             xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.VisuAlgorithm.DoublyLinkedListController"
+            fx:controller="org.example.VisuAlgorithm.CircularLinkedListController"
             style="-fx-background-color: #eef2ff;">
 
     <top>
