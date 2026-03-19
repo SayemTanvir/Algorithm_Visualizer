@@ -2,13 +2,6 @@ package org.example.VisuAlgorithm;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.event.ActionEvent;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Node;
-import javafx.stage.Stage;
-import java.io.IOException;
-
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -20,6 +13,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.*;
 import javafx.scene.text.Text;
@@ -31,6 +25,9 @@ import java.util.*;
 
 public class graphController {
 
+    // ===============================
+    // FXML UI COMPONENTS
+    // ===============================
     @FXML private Pane canvasPane;
     @FXML private ToggleButton nodeTool;
     @FXML private ToggleButton edgeTool;
@@ -39,16 +36,48 @@ public class graphController {
     @FXML private TextField weightField;
     @FXML private CheckBox customNodeCheck;
     @FXML private TextField nodeValueField;
+    @FXML private Button backButton;
+    @FXML private Label resultLabel;
 
+    // UI Mode Panels
+    @FXML private ToolBar buildToolbar;
+    @FXML private ToolBar algoToolbar;
+    @FXML private ToolBar playbackToolbar;
+
+    // Algorithm Controls
+    @FXML private ComboBox<String> algoComboBox;
+    @FXML private TextField startNodeField;
+    @FXML private TextField endNodeField;
+    @FXML private Slider speedSlider;
+    @FXML private Button playPauseButton;
+
+    // Data Representation Panels
+    @FXML private VBox dataPane;
+    @FXML private ToggleButton dataToggleBuild;
+    @FXML private ToggleButton dataToggleAlgo;
+    @FXML private TextArea adjListArea;
+    @FXML private TextArea adjMatrixArea;
+
+    // ===============================
+    // STATE VARIABLES
+    // ===============================
     private int nodeCounter = 1;
     private GraphNode firstEdgeNode = null;
     private GraphNode selectedNode = null;
     private GraphEdge selectedEdge = null;
+    private boolean isAlgorithmMode = false;
 
     private final List<GraphNode> nodes = new ArrayList<>();
     private final List<GraphEdge> edges = new ArrayList<>();
     private final Stack<UndoCommand> undoStack = new Stack<>();
 
+    private Timeline timeline;
+    private final List<Runnable> algorithmSteps = new ArrayList<>();
+    private int currentStep = 0;
+
+    // ===============================
+    // INITIALIZATION
+    // ===============================
     @FXML
     public void initialize() {
         nodeTool.setSelected(true);
@@ -106,6 +135,9 @@ public class graphController {
             });
         }
         if (resultLabel != null) resultLabel.setText("");
+
+        // Initial setup for the data panel
+        updateGraphRepresentations();
     }
 
     // ===============================
@@ -144,32 +176,8 @@ public class graphController {
     }
 
     // ===============================
-    // CORE LOGIC
+    // INTERNAL GRAPH CLASSES
     // ===============================
-
-    @FXML
-    private void handleCanvasClick(MouseEvent event) {
-        if (isAlgorithmMode) return;
-        if (event.getTarget() != canvasPane) return;
-
-        if (nodeTool.isSelected()) {
-            createNode(event.getX(), event.getY());
-        } else {
-            clearSelection();
-        }
-    }
-
-    private void clearSelection() {
-        if (selectedNode != null) selectedNode.circle.setStroke(Color.BLACK);
-        if (selectedEdge != null) selectedEdge.line.setStroke(Color.BLACK);
-        selectedNode = null;
-        selectedEdge = null;
-        if (firstEdgeNode != null) {
-            firstEdgeNode.circle.setStroke(Color.BLACK);
-            firstEdgeNode = null;
-        }
-    }
-
     class GraphNode {
         Circle circle;
         Text label;
@@ -191,25 +199,16 @@ public class graphController {
             distLabel.setMouseTransparent(true);
             distLabel.setVisible(false);
 
-            // FIX 4: Use a ChangeListener so the offset is recalculated after the
-            // label is laid out and has a real, non-zero width.
             Platform.runLater(() -> {
-                label.xProperty().bind(
-                        circle.centerXProperty().subtract(label.getLayoutBounds().getWidth() / 2));
-                label.yProperty().bind(
-                        circle.centerYProperty().add(label.getLayoutBounds().getHeight() / 4));
+                label.xProperty().bind(circle.centerXProperty().subtract(label.getLayoutBounds().getWidth() / 2));
+                label.yProperty().bind(circle.centerYProperty().add(label.getLayoutBounds().getHeight() / 4));
 
-                // distLabel: recompute offset whenever its text (and thus width) changes
                 distLabel.textProperty().addListener((obs, oldVal, newVal) -> {
                     distLabel.xProperty().unbind();
-                    distLabel.xProperty().bind(
-                            circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
+                    distLabel.xProperty().bind(circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
                 });
-                // Initial bind after first layout pass
-                distLabel.xProperty().bind(
-                        circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
-                distLabel.yProperty().bind(
-                        circle.centerYProperty().subtract(circle.getRadius() + 5));
+                distLabel.xProperty().bind(circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
+                distLabel.yProperty().bind(circle.centerYProperty().subtract(circle.getRadius() + 5));
             });
 
             enableDrag();
@@ -217,9 +216,7 @@ public class graphController {
 
         void enableDrag() {
             circle.setOnMousePressed(e -> {
-                // FIX 2: Block all interaction while an algorithm is running/paused.
                 if (isAlgorithmMode) return;
-
                 offsetX = circle.getCenterX() - e.getSceneX();
                 offsetY = circle.getCenterY() - e.getSceneY();
                 if (!edgeTool.isSelected()) {
@@ -229,9 +226,7 @@ public class graphController {
             });
 
             circle.setOnMouseDragged(e -> {
-                // FIX 3: Prevent dragging nodes while algorithm mode is active.
                 if (isAlgorithmMode) return;
-
                 circle.setCenterX(e.getSceneX() + offsetX);
                 circle.setCenterY(e.getSceneY() + offsetY);
                 updateConnectedEdges();
@@ -324,8 +319,30 @@ public class graphController {
     }
 
     // ===============================
-    // HELPER METHODS
+    // GRAPH BUILDING ACTIONS
     // ===============================
+    @FXML
+    private void handleCanvasClick(MouseEvent event) {
+        if (isAlgorithmMode) return;
+        if (event.getTarget() != canvasPane) return;
+
+        if (nodeTool.isSelected()) {
+            createNode(event.getX(), event.getY());
+        } else {
+            clearSelection();
+        }
+    }
+
+    private void clearSelection() {
+        if (selectedNode != null) selectedNode.circle.setStroke(Color.BLACK);
+        if (selectedEdge != null) selectedEdge.line.setStroke(Color.BLACK);
+        selectedNode = null;
+        selectedEdge = null;
+        if (firstEdgeNode != null) {
+            firstEdgeNode.circle.setStroke(Color.BLACK);
+            firstEdgeNode = null;
+        }
+    }
 
     private void createNode(double x, double y) {
         String value = (customNodeCheck.isSelected() && !nodeValueField.getText().isEmpty())
@@ -333,10 +350,11 @@ public class graphController {
         GraphNode node = new GraphNode(x, y, value);
         restoreNodeInternal(node);
         undoStack.push(new AddNodeCommand(node));
+
+        updateGraphRepresentations();
     }
 
     private void handleNodeClick(GraphNode node) {
-        // Guard: never let a click affect graph state while an algorithm is playing
         if (isAlgorithmMode) return;
 
         if (edgeTool.isSelected()) {
@@ -362,6 +380,8 @@ public class graphController {
         GraphEdge edge = new GraphEdge(from, to, weight, directedCheck.isSelected(), weightedCheck.isSelected());
         restoreEdgeInternal(edge);
         undoStack.push(new AddEdgeCommand(edge));
+
+        updateGraphRepresentations();
     }
 
     private void selectNode(GraphNode node) {
@@ -392,12 +412,15 @@ public class graphController {
             removeEdgeInternal(selectedEdge);
             selectedEdge = null;
         }
+
+        updateGraphRepresentations();
     }
 
     private void handleUndo() {
         if (!undoStack.isEmpty()) {
             undoStack.pop().undo();
             clearSelection();
+            updateGraphRepresentations();
         }
     }
 
@@ -437,7 +460,7 @@ public class graphController {
 
     @FXML
     public void generateRandomGraph() {
-        clearGraph();
+        clearGraph(); // Clears and updates representation automatically
 
         Random random = new Random();
         double width = canvasPane.getWidth() > 0 ? canvasPane.getWidth() : 600;
@@ -486,6 +509,8 @@ public class graphController {
                 }
             }
         }
+
+        updateGraphRepresentations();
     }
 
     @FXML
@@ -496,15 +521,16 @@ public class graphController {
         undoStack.clear();
         nodeCounter = 1;
         clearSelection();
+
+        updateGraphRepresentations();
     }
 
-    @FXML private Button backButton;
-
+    // ===============================
+    // NAVIGATION & VIEW TOGGLES
+    // ===============================
     @FXML
     private void handleBackButton(ActionEvent event) throws IOException {
-        // FIX 1: Actually stop the running timeline before leaving the scene.
         stopAll();
-
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
         Parent root = fxmlLoader.load();
         Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
@@ -512,23 +538,27 @@ public class graphController {
     }
 
     private void stopAll() {
-        // FIX 1: Was an empty stub — must stop the animation timeline.
         resetAlgorithmState();
         clearSelection();
     }
 
-    // --- UI Mode Panels ---
-    @FXML private ToolBar buildToolbar;
-    @FXML private ToolBar algoToolbar;
-    @FXML private ToolBar playbackToolbar;
+    @FXML
+    private void toggleDataPane(ActionEvent event) {
+        ToggleButton clickedBtn = (ToggleButton) event.getSource();
+        boolean showPane = clickedBtn.isSelected();
 
-    @FXML private ComboBox<String> algoComboBox;
-    @FXML private TextField startNodeField;
-    @FXML private TextField endNodeField;
-    @FXML private Slider speedSlider;
-    @FXML private Button playPauseButton;
+        if (dataToggleBuild != null) dataToggleBuild.setSelected(showPane);
+        if (dataToggleAlgo != null) dataToggleAlgo.setSelected(showPane);
 
-    private boolean isAlgorithmMode = false;
+        if (dataPane != null) {
+            dataPane.setVisible(showPane);
+            dataPane.setManaged(showPane);
+        }
+
+        if (showPane) {
+            updateGraphRepresentations();
+        }
+    }
 
     @FXML
     private void switchToAlgoMode() {
@@ -539,12 +569,9 @@ public class graphController {
 
         isAlgorithmMode = true;
         clearSelection();
-
-        // --- NEW: Give the user a prompt when entering Algo Mode ---
         resultLabel.setText("Select an algorithm and press Play!");
 
         boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
-
         String savedSelection = algoComboBox.getValue();
         List<String> currentItems = new ArrayList<>(algoComboBox.getItems());
         algoComboBox.getItems().clear();
@@ -577,6 +604,73 @@ public class graphController {
         buildToolbar.setVisible(true);
     }
 
+    // ===============================
+    // GRAPH REPRESENTATION (LIST/MATRIX)
+    // ===============================
+    private void updateGraphRepresentations() {
+        if (adjListArea == null || adjMatrixArea == null) return;
+
+        // 1. Adjacency List
+        StringBuilder listBuilder = new StringBuilder();
+        for (GraphNode node : nodes) {
+            listBuilder.append(node.label.getText()).append(" -> ");
+            List<String> neighbors = new ArrayList<>();
+            for (GraphEdge edge : edges) {
+                if (edge.from == node) {
+                    neighbors.add(edge.to.label.getText() + (edge.isWeighted ? "(" + edge.weightText.getText() + ")" : ""));
+                } else if (!edge.isDirected && edge.to == node) {
+                    neighbors.add(edge.from.label.getText() + (edge.isWeighted ? "(" + edge.weightText.getText() + ")" : ""));
+                }
+            }
+            listBuilder.append(String.join(", ", neighbors)).append("\n");
+        }
+        adjListArea.setText(listBuilder.toString());
+
+        // 2. Adjacency Matrix
+        int n = nodes.size();
+        if (n == 0) {
+            adjMatrixArea.setText("");
+            return;
+        }
+
+        String[][] matrix = new String[n][n];
+        for (int i = 0; i < n; i++) Arrays.fill(matrix[i], "0");
+
+        Map<GraphNode, Integer> indexMap = new HashMap<>();
+        for (int i = 0; i < n; i++) indexMap.put(nodes.get(i), i);
+
+        for (GraphEdge edge : edges) {
+            Integer u = indexMap.get(edge.from);
+            Integer v = indexMap.get(edge.to);
+            if (u == null || v == null) continue;
+
+            String w = edge.isWeighted ? edge.weightText.getText() : "1";
+            matrix[u][v] = w;
+            if (!edge.isDirected) {
+                matrix[v][u] = w;
+            }
+        }
+
+        StringBuilder matrixBuilder = new StringBuilder();
+        matrixBuilder.append(String.format("%-6s", ""));
+        for (GraphNode node : nodes) {
+            matrixBuilder.append(String.format("%-6s", node.label.getText()));
+        }
+        matrixBuilder.append("\n");
+
+        for (int i = 0; i < n; i++) {
+            matrixBuilder.append(String.format("%-6s", nodes.get(i).label.getText()));
+            for (int j = 0; j < n; j++) {
+                matrixBuilder.append(String.format("%-6s", matrix[i][j]));
+            }
+            matrixBuilder.append("\n");
+        }
+        adjMatrixArea.setText(matrixBuilder.toString());
+    }
+
+    // ===============================
+    // ALGORITHM CORE LOGIC
+    // ===============================
     @FXML
     private void resetGraphColors() {
         for (GraphNode n : nodes) {
@@ -592,12 +686,6 @@ public class graphController {
         }
     }
 
-    @FXML private Label resultLabel;
-
-    private Timeline timeline;
-    private final List<Runnable> algorithmSteps = new ArrayList<>();
-    private int currentStep = 0;
-
     private GraphNode findNodeByValue(String value) {
         if (value == null || value.isEmpty()) return null;
         for (GraphNode node : nodes) {
@@ -609,9 +697,6 @@ public class graphController {
     private void initializeAlgorithm() {
         if (timeline != null) {
             timeline.stop();
-            // FIX 6: Null out the old timeline so setupTimeline() always creates a
-            // fresh one with a current rate-binding. Without this the binding to the
-            // speed slider is established only once and then lost on replays.
             timeline = null;
         }
         resetGraphColors();
@@ -648,12 +733,12 @@ public class graphController {
                 }
                 recordDijkstra(startNode, endNode);
             } else if (selectedAlgo.startsWith("Topological")) {
-            if (!isDAG()) {
-                resultLabel.setText("Error: Graph must be a directed acyclic graph (DAG)!");
-                return;
+                if (!isDAG()) {
+                    resultLabel.setText("Error: Graph must be a directed acyclic graph (DAG)!");
+                    return;
+                }
+                recordTopologicalSort();
             }
-            recordTopologicalSort();
-        }
         }
     }
 
@@ -685,8 +770,6 @@ public class graphController {
             initializeAlgorithm();
         }
 
-        // FIX 6 (continued): Always create a fresh timeline after initializeAlgorithm()
-        // nulls the old one, ensuring the speed-slider binding is always live.
         if (timeline == null) {
             setupTimeline();
         }
@@ -706,7 +789,6 @@ public class graphController {
 
         if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
             initializeAlgorithm();
-            // Also set up a timeline here so Play still works after manual stepping
             if (timeline == null) setupTimeline();
         }
 
@@ -737,21 +819,24 @@ public class graphController {
     private void resetAlgorithmState() {
         if (timeline != null) {
             timeline.stop();
-            timeline = null; // FIX 6: null out so next play gets a fresh binding
+            timeline = null;
         }
         if (playPauseButton != null) playPauseButton.setText("▶ Play");
         resetGraphColors();
 
-        // --- NEW: Conditionally set the text based on the mode ---
         if (isAlgorithmMode) {
             resultLabel.setText("Select an algorithm and press Play!");
         } else {
-            resultLabel.setText(""); // Clear it for Build Mode
+            resultLabel.setText("");
         }
 
         algorithmSteps.clear();
         currentStep = 0;
     }
+
+    // ===============================
+    // ALGORITHM IMPLEMENTATIONS
+    // ===============================
 
     // --- BFS ---
     private void recordBFS(GraphNode startNode) {
@@ -796,7 +881,6 @@ public class graphController {
                     });
                 }
             }
-
             algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
         }
     }
@@ -808,8 +892,7 @@ public class graphController {
         dfsHelper(startNode, null, visited, visitedOrder);
     }
 
-    private void dfsHelper(GraphNode current, GraphEdge edgeToReach,
-                           Set<GraphNode> visited, List<String> visitedOrder) {
+    private void dfsHelper(GraphNode current, GraphEdge edgeToReach, Set<GraphNode> visited, List<String> visitedOrder) {
         visited.add(current);
 
         if (edgeToReach != null) {
@@ -844,7 +927,6 @@ public class graphController {
                 dfsHelper(neighbor, edge, visited, visitedOrder);
             }
         }
-
         algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
     }
 
@@ -1077,10 +1159,6 @@ public class graphController {
                         pathNode.distLabel.setFill(Color.WHITE);
                     });
 
-                    // FIX 7: Determine the predecessor correctly.
-                    // edgeTo.put(v, edge) always stores the edge that was used to
-                    // *reach* v. Therefore the predecessor of curr is whichever
-                    // endpoint of the edge is NOT curr.
                     curr = (e.to == curr) ? e.from : e.to;
                 }
 
@@ -1098,14 +1176,11 @@ public class graphController {
         }
     }
 
-    // --- DAG Detection ---
-
+    // --- DAG Detection & Topological Sort ---
     private boolean isDAG() {
-        // An empty graph with the directed checkbox on counts as a valid DAG
         if (edges.isEmpty()) return directedCheck.isSelected();
-        // Every edge must be directed
         if (edges.stream().anyMatch(e -> !e.isDirected)) return false;
-        // Must have no cycles
+
         Set<GraphNode> visited  = new HashSet<>();
         Set<GraphNode> recStack = new HashSet<>();
         for (GraphNode node : nodes) {
@@ -1114,29 +1189,25 @@ public class graphController {
         return true;
     }
 
-    private boolean hasCycleDFS(GraphNode node,
-                                Set<GraphNode> visited,
-                                Set<GraphNode> recStack) {
+    private boolean hasCycleDFS(GraphNode node, Set<GraphNode> visited, Set<GraphNode> recStack) {
         visited.add(node);
         recStack.add(node);
         for (GraphEdge edge : node.connectedEdges) {
-            if (edge.from != node) continue;          // follow directed edges only
+            if (edge.from != node) continue;
             GraphNode neighbor = edge.to;
             if (!visited.contains(neighbor)) {
                 if (hasCycleDFS(neighbor, visited, recStack)) return true;
             } else if (recStack.contains(neighbor)) {
-                return true;                          // back-edge → cycle
+                return true;
             }
         }
         recStack.remove(node);
         return false;
     }
 
-// --- Topological Sort (DFS) ---
-
     private void recordTopologicalSort() {
         Set<GraphNode> visited   = new HashSet<>();
-        List<GraphNode> finished = new ArrayList<>();   // finish order → reversed = topo order
+        List<GraphNode> finished = new ArrayList<>();
 
         algorithmSteps.add(() ->
                 resultLabel.setText("Topological Sort: Running DFS to determine finish order..."));
@@ -1147,13 +1218,11 @@ public class graphController {
             }
         }
 
-        // Reverse finish order → topological order
         Collections.reverse(finished);
         List<String> labels = new ArrayList<>();
         for (GraphNode n : finished) labels.add(n.label.getText());
         final String finalOrder = String.join(" → ", labels);
 
-        // Highlight nodes left-to-right in topo order
         for (int i = 0; i < finished.size(); i++) {
             final GraphNode n        = finished.get(i);
             final String   orderSoFar = String.join(" → ", labels.subList(0, i + 1));
@@ -1170,9 +1239,7 @@ public class graphController {
         });
     }
 
-    private void topoSortHelper(GraphNode node,
-                                Set<GraphNode> visited,
-                                List<GraphNode> finished) {
+    private void topoSortHelper(GraphNode node, Set<GraphNode> visited, List<GraphNode> finished) {
         visited.add(node);
 
         final GraphNode visiting = node;
@@ -1182,7 +1249,7 @@ public class graphController {
         });
 
         for (GraphEdge edge : node.connectedEdges) {
-            if (edge.from != node) continue;           // directed edges only
+            if (edge.from != node) continue;
             GraphNode neighbor = edge.to;
             if (!visited.contains(neighbor)) {
                 final GraphEdge treeEdge = edge;
@@ -1191,12 +1258,10 @@ public class graphController {
             }
         }
 
-        // Node is fully explored → push onto result stack (represented as finished list)
         finished.add(node);
         algorithmSteps.add(() -> {
             visiting.circle.setFill(Color.MAGENTA);
-            resultLabel.setText("Topological Sort: Finished " + visiting.label.getText()
-                    + " → pushed to stack");
+            resultLabel.setText("Topological Sort: Finished " + visiting.label.getText() + " → pushed to stack");
         });
     }
 }
