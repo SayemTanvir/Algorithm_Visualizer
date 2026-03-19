@@ -73,7 +73,8 @@ public class graphController {
                     "DFS (Depth-First Search)",
                     "Dijkstra's Shortest Path",
                     "Prim's MST",
-                    "Kruskal's MST"
+                    "Kruskal's MST",
+                    "Topological Sorting (DAG)"
             );
 
             algoComboBox.setCellFactory(listView -> new ListCell<String>() {
@@ -90,7 +91,10 @@ public class graphController {
                                 item.contains("Prim") ||
                                 item.contains("Kruskal");
                         boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
-                        if (requiresWeight && hasUnweightedEdges) {
+                        boolean requiresDAG = item.contains("Topological");
+                        boolean notADAG = !isDAG();
+
+                        if ((requiresWeight && hasUnweightedEdges) || (requiresDAG && notADAG)) {
                             setDisable(true);
                             setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
                         } else {
@@ -546,10 +550,12 @@ public class graphController {
         algoComboBox.getItems().clear();
         algoComboBox.getItems().addAll(currentItems);
 
-        if (savedSelection != null && hasUnweightedEdges &&
-                (savedSelection.contains("Dijkstra") ||
+        if (savedSelection != null && (
+                (hasUnweightedEdges && (savedSelection.contains("Dijkstra") ||
                         savedSelection.contains("Prim") ||
-                        savedSelection.contains("Kruskal"))) {
+                        savedSelection.contains("Kruskal")))
+                        || (savedSelection.contains("Topological") && !isDAG())
+        )) {
             algoComboBox.setValue(null);
         } else {
             algoComboBox.setValue(savedSelection);
@@ -641,7 +647,13 @@ public class graphController {
                     return;
                 }
                 recordDijkstra(startNode, endNode);
+            } else if (selectedAlgo.startsWith("Topological")) {
+            if (!isDAG()) {
+                resultLabel.setText("Error: Graph must be a directed acyclic graph (DAG)!");
+                return;
             }
+            recordTopologicalSort();
+        }
         }
     }
 
@@ -1084,5 +1096,107 @@ public class graphController {
             algorithmSteps.add(() -> resultLabel.setText(
                     "Dijkstra: All reachable nodes processed. (No end node specified)"));
         }
+    }
+
+    // --- DAG Detection ---
+
+    private boolean isDAG() {
+        // An empty graph with the directed checkbox on counts as a valid DAG
+        if (edges.isEmpty()) return directedCheck.isSelected();
+        // Every edge must be directed
+        if (edges.stream().anyMatch(e -> !e.isDirected)) return false;
+        // Must have no cycles
+        Set<GraphNode> visited  = new HashSet<>();
+        Set<GraphNode> recStack = new HashSet<>();
+        for (GraphNode node : nodes) {
+            if (!visited.contains(node) && hasCycleDFS(node, visited, recStack)) return false;
+        }
+        return true;
+    }
+
+    private boolean hasCycleDFS(GraphNode node,
+                                Set<GraphNode> visited,
+                                Set<GraphNode> recStack) {
+        visited.add(node);
+        recStack.add(node);
+        for (GraphEdge edge : node.connectedEdges) {
+            if (edge.from != node) continue;          // follow directed edges only
+            GraphNode neighbor = edge.to;
+            if (!visited.contains(neighbor)) {
+                if (hasCycleDFS(neighbor, visited, recStack)) return true;
+            } else if (recStack.contains(neighbor)) {
+                return true;                          // back-edge → cycle
+            }
+        }
+        recStack.remove(node);
+        return false;
+    }
+
+// --- Topological Sort (DFS) ---
+
+    private void recordTopologicalSort() {
+        Set<GraphNode> visited   = new HashSet<>();
+        List<GraphNode> finished = new ArrayList<>();   // finish order → reversed = topo order
+
+        algorithmSteps.add(() ->
+                resultLabel.setText("Topological Sort: Running DFS to determine finish order..."));
+
+        for (GraphNode node : nodes) {
+            if (!visited.contains(node)) {
+                topoSortHelper(node, visited, finished);
+            }
+        }
+
+        // Reverse finish order → topological order
+        Collections.reverse(finished);
+        List<String> labels = new ArrayList<>();
+        for (GraphNode n : finished) labels.add(n.label.getText());
+        final String finalOrder = String.join(" → ", labels);
+
+        // Highlight nodes left-to-right in topo order
+        for (int i = 0; i < finished.size(); i++) {
+            final GraphNode n        = finished.get(i);
+            final String   orderSoFar = String.join(" → ", labels.subList(0, i + 1));
+            algorithmSteps.add(() -> {
+                n.circle.setFill(Color.ORANGE);
+                resultLabel.setText("Topological Order: " + orderSoFar);
+            });
+        }
+
+        algorithmSteps.add(() -> {
+            for (GraphNode n : finished) n.circle.setFill(Color.GREEN);
+            for (GraphEdge e : edges) e.line.setStroke(Color.BLACK);
+            resultLabel.setText("Topological Order: " + finalOrder + " (Complete)");
+        });
+    }
+
+    private void topoSortHelper(GraphNode node,
+                                Set<GraphNode> visited,
+                                List<GraphNode> finished) {
+        visited.add(node);
+
+        final GraphNode visiting = node;
+        algorithmSteps.add(() -> {
+            visiting.circle.setFill(Color.YELLOW);
+            resultLabel.setText("Topological Sort: Visiting " + visiting.label.getText());
+        });
+
+        for (GraphEdge edge : node.connectedEdges) {
+            if (edge.from != node) continue;           // directed edges only
+            GraphNode neighbor = edge.to;
+            if (!visited.contains(neighbor)) {
+                final GraphEdge treeEdge = edge;
+                algorithmSteps.add(() -> treeEdge.line.setStroke(Color.ORANGE));
+                topoSortHelper(neighbor, visited, finished);
+            }
+        }
+
+        // Node is fully explored → push onto result stack (represented as finished list)
+        finished.add(node);
+        algorithmSteps.add(() -> {
+            visiting.circle.setFill(Color.MAGENTA);
+            resultLabel.setText("Topological Sort: Finished " + visiting.label.getText()
+                    + " → pushed to stack");
+        });
     }
 }
