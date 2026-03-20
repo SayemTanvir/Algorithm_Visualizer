@@ -1,10 +1,6 @@
 package org.example.VisuAlgorithm;
 
-import javafx.animation.FadeTransition;
-import javafx.animation.KeyFrame;
-import javafx.animation.ParallelTransition;
-import javafx.animation.ScaleTransition;
-import javafx.animation.Timeline;
+import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -31,35 +27,30 @@ import java.util.*;
 public class BSTController {
 
     // ── FXML Bindings ──────────────────────────────────────────────────────────
-    @FXML private Pane       canvasPane;
-    @FXML private ToolBar    buildToolbar;
-    @FXML private ToolBar    algoToolbar;
-    @FXML private ToolBar    playbackToolbar;
-    @FXML private TextField  insertField;
-    @FXML private ComboBox<String> algoComboBox;
-    @FXML private TextField  startNodeField;
-    @FXML private Slider     speedSlider;
-    @FXML private Button     playPauseButton;
-    @FXML private Label      resultLabel;
-    @FXML private Button     backButton;
+    @FXML private Pane               canvasPane;
+    @FXML private ToolBar            buildToolbar;
+    @FXML private ToolBar            algoToolbar;
+    @FXML private ToolBar            playbackToolbar;
+    @FXML private TextField          insertField;
+    @FXML private ComboBox<String>   algoComboBox;
+    @FXML private TextField          startNodeField;
+    @FXML private Slider             speedSlider;
+    @FXML private Button             playPauseButton;
+    @FXML private Label              resultLabel;
+    @FXML private Button             backButton;
 
     // ── Tree state ─────────────────────────────────────────────────────────────
-    private BSTNode root         = null;
-    private BSTNode selectedNode = null;
-    private final Stack<UndoCommand> undoStack = new Stack<>();
+    private BSTNode                      root         = null;
+    private BSTNode                      selectedNode = null;
+    private final Stack<UndoCommand>     undoStack    = new Stack<>();
 
-    // ── State snapshot variables to allow backward stepping over structural changes ──
-    private class NodeState {
-        int value;
-        BSTNode left, right, parent;
-        NodeState(BSTNode n) {
-            this.value = n.value;
-            this.left = n.left;
-            this.right = n.right;
-            this.parent = n.parent;
-        }
+    // ── Snapshot (backward stepping) ───────────────────────────────────────────
+    // Static: does not need a reference to the outer controller instance.
+    private static class NodeState {
+        final int     value;
+        final BSTNode left, right, parent;
+        NodeState(BSTNode n) { value = n.value; left = n.left; right = n.right; parent = n.parent; }
     }
-
     private final Map<BSTNode, NodeState> treeSnapshot = new HashMap<>();
     private BSTNode snapshotRoot;
 
@@ -70,12 +61,18 @@ public class BSTController {
     private static final double MARGIN_LEFT = 44.0;
     private static final double MARGIN_TOP  = 48.0;
 
-    // ── Algorithm playback state ───────────────────────────────────────────────
-    private boolean isAlgorithmMode = false;
-    private Timeline timeline;
-    private final List<Runnable>  algorithmSteps    = new ArrayList<>();
-    private final Set<Integer>    nonReplayableSteps = new HashSet<>();
-    private int currentStep = 0;
+    // ── Algorithm playback ─────────────────────────────────────────────────────
+    private boolean              isAlgorithmMode    = false;
+    private Timeline             timeline;
+    private final List<Runnable> algorithmSteps     = new ArrayList<>();
+    private final Set<Integer>   nonReplayableSteps = new HashSet<>();
+    private int                  currentStep        = 0;
+
+    // ── Animation handles (tracked so they can be cancelled) ───────────────────
+    // Bug fix: previously these were never tracked, leading to multiple concurrent
+    // timers and layout animations firing on the wrong tree state.
+    private PauseTransition pendingLayoutTimer = null;
+    private AnimationTimer  activeEdgeSync     = null;
 
     // ==========================================================================
     // INNER CLASS: BSTNode
@@ -84,11 +81,12 @@ public class BSTController {
         int     value;
         BSTNode left, right, parent;
 
-        Circle circle;
-        Text   label;
-        Line   edgeToParent;
-
-        ParallelTransition exitAnimation; // Tracks active deletion animation
+        Circle     circle;
+        Text       label;
+        Line       edgeToParent;
+        // Bug fix: was ParallelTransition — changed to Transition so it can hold
+        // either a ParallelTransition or a SequentialTransition without a cast error.
+        Transition exitAnimation;
 
         BSTNode(int value) {
             this.value = value;
@@ -106,10 +104,7 @@ public class BSTController {
             edgeToParent.setStrokeWidth(2);
             edgeToParent.setMouseTransparent(true);
 
-            circle.setOnMouseClicked(e -> {
-                handleNodeClick(this);
-                e.consume();
-            });
+            circle.setOnMouseClicked(e -> { handleNodeClick(this); e.consume(); });
         }
     }
 
@@ -121,13 +116,13 @@ public class BSTController {
     private class InsertCommand implements UndoCommand {
         final int value;
         InsertCommand(int v) { this.value = v; }
-        public void undo() { deleteValue(value); }
+        @Override public void undo() { deleteValue(value); }
     }
 
     private class DeleteCommand implements UndoCommand {
         final int value;
         DeleteCommand(int v) { this.value = v; }
-        public void undo() { insertValue(value); }
+        @Override public void undo() { insertValue(value); }
     }
 
     // ==========================================================================
@@ -149,10 +144,10 @@ public class BSTController {
 
         resultLabel.setText("");
 
-        if (algoToolbar    != null) { algoToolbar.setVisible(false);    algoToolbar.setManaged(false);    }
+        if (algoToolbar    != null) { algoToolbar.setVisible(false);     algoToolbar.setManaged(false);    }
         if (playbackToolbar != null) { playbackToolbar.setVisible(false); playbackToolbar.setManaged(false); }
 
-        // Ctrl/Cmd + Z for undo
+        // Ctrl / Cmd + Z → undo
         Platform.runLater(() -> {
             if (canvasPane.getScene() != null) {
                 canvasPane.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -168,24 +163,15 @@ public class BSTController {
     // ==========================================================================
     // BST CORE LOGIC
     // ==========================================================================
-
     private BSTNode insertBST(BSTNode node, BSTNode parent, int value) {
-        if (node == null) {
-            BSTNode n = new BSTNode(value);
-            n.parent  = parent;
-            return n;
-        }
-        if (value < node.value) {
-            node.left = insertBST(node.left, node, value);
-        } else if (value > node.value) {
-            node.right = insertBST(node.right, node, value);
-        }
+        if (node == null) { BSTNode n = new BSTNode(value); n.parent = parent; return n; }
+        if      (value < node.value) node.left  = insertBST(node.left,  node, value);
+        else if (value > node.value) node.right = insertBST(node.right, node, value);
         return node;
     }
 
     private BSTNode deleteBST(BSTNode node, int value) {
         if (node == null) return null;
-
         if (value < node.value) {
             node.left = deleteBST(node.left, value);
             if (node.left != null) node.left.parent = node;
@@ -193,22 +179,15 @@ public class BSTController {
             node.right = deleteBST(node.right, value);
             if (node.right != null) node.right.parent = node;
         } else {
-            if (node.left == null && node.right == null) {
-                removeNodeFromCanvas(node);
-                return null;
-            } else if (node.left == null) {
-                removeNodeFromCanvas(node);
-                return node.right;
-            } else if (node.right == null) {
-                removeNodeFromCanvas(node);
-                return node.left;
-            } else {
+            if (node.left == null && node.right == null) { removeNodeFromCanvas(node); return null; }
+            else if (node.left  == null) { removeNodeFromCanvas(node); return node.right; }
+            else if (node.right == null) { removeNodeFromCanvas(node); return node.left;  }
+            else {
                 BSTNode successor = minNode(node.right);
                 node.value = successor.value;
                 node.label.setText(String.valueOf(node.value));
                 node.right = deleteBST(node.right, successor.value);
                 if (node.right != null) node.right.parent = node;
-                return node;
             }
         }
         return node;
@@ -222,15 +201,20 @@ public class BSTController {
     private boolean containsValue(BSTNode node, int value) {
         if (node == null) return false;
         if (value == node.value) return true;
-        return value < node.value
-                ? containsValue(node.left, value)
-                : containsValue(node.right, value);
+        return value < node.value ? containsValue(node.left, value) : containsValue(node.right, value);
+    }
+
+    private BSTNode findNode(BSTNode node, int value) {
+        if (node == null) return null;
+        if (node.value == value) return node;
+        return value < node.value ? findNode(node.left, value) : findNode(node.right, value);
     }
 
     // ==========================================================================
     // TREE LAYOUT
     // ==========================================================================
 
+    /** Instant layout — used for batch inserts, step-backward restore, and clear. */
     private void layoutTree() {
         if (root == null) return;
         int[] counter = {0};
@@ -253,6 +237,13 @@ public class BSTController {
         assignDepthY(node.right, depth + 1);
     }
 
+    /**
+     * Updates edge endpoints and label positions to match current circle centres.
+     *
+     * Bug fix: removed the Platform.runLater wrapper that was here previously.
+     * Text.getLayoutBounds() is computed from font metrics and is accurate immediately,
+     * so deferring it caused labels to lag one frame behind during the slide animation.
+     */
     private void updateEdgesAndLabels(BSTNode node) {
         if (node == null) return;
 
@@ -274,78 +265,233 @@ public class BSTController {
             canvasPane.getChildren().remove(node.edgeToParent);
         }
 
-        Platform.runLater(() -> {
-            node.label.setX(cx - node.label.getLayoutBounds().getWidth()  / 2.0);
-            node.label.setY(cy + node.label.getLayoutBounds().getHeight() / 4.0);
-        });
+        double w = node.label.getLayoutBounds().getWidth();
+        double h = node.label.getLayoutBounds().getHeight();
+        node.label.setX(cx - w / 2.0);
+        node.label.setY(cy + h / 4.0);
 
         updateEdgesAndLabels(node.left);
         updateEdgesAndLabels(node.right);
+    }
+
+    /**
+     * Animated layout — slides all surviving nodes to their new positions over 550 ms.
+     * An AnimationTimer keeps edges and labels locked to the moving circles every frame.
+     *
+     * Bug fix: the AnimationTimer was never tracked, so rapid calls stacked multiple
+     * concurrent timers. Now we stop the previous one before starting a new one.
+     */
+    private void layoutTreeAnimated() {
+        if (root == null) return;
+
+        // Stop any previous edge-sync timer before creating a new one
+        if (activeEdgeSync != null) { activeEdgeSync.stop(); activeEdgeSync = null; }
+
+        Map<BSTNode, double[]> targets = new LinkedHashMap<>();
+        int[] counter = {0};
+        collectInorderX(root, counter, targets);
+        collectDepthY(root, 0, targets);
+
+        Timeline moveTl  = new Timeline();
+        Duration dur     = Duration.millis(550);
+
+        for (Map.Entry<BSTNode, double[]> entry : targets.entrySet()) {
+            BSTNode n  = entry.getKey();
+            double  tx = entry.getValue()[0];
+            double  ty = entry.getValue()[1];
+            moveTl.getKeyFrames().add(new KeyFrame(dur,
+                    new KeyValue(n.circle.centerXProperty(), tx, Interpolator.EASE_BOTH),
+                    new KeyValue(n.circle.centerYProperty(), ty, Interpolator.EASE_BOTH)
+            ));
+        }
+
+        AnimationTimer sync = new AnimationTimer() {
+            @Override public void handle(long now) { updateEdgesAndLabels(root); }
+        };
+        activeEdgeSync = sync;
+        sync.start();
+
+        moveTl.setOnFinished(e -> {
+            sync.stop();
+            if (activeEdgeSync == sync) activeEdgeSync = null;
+            updateEdgesAndLabels(root);
+        });
+        moveTl.play();
+    }
+
+    private void collectInorderX(BSTNode node, int[] counter, Map<BSTNode, double[]> out) {
+        if (node == null) return;
+        collectInorderX(node.left, counter, out);
+        out.computeIfAbsent(node, k -> new double[2])[0] = MARGIN_LEFT + counter[0]++ * H_SPACING;
+        collectInorderX(node.right, counter, out);
+    }
+
+    private void collectDepthY(BSTNode node, int depth, Map<BSTNode, double[]> out) {
+        if (node == null) return;
+        out.computeIfAbsent(node, k -> new double[2])[1] = MARGIN_TOP + depth * V_SPACING;
+        collectDepthY(node.left,  depth + 1, out);
+        collectDepthY(node.right, depth + 1, out);
     }
 
     // ==========================================================================
     // CANVAS MANAGEMENT & ANIMATION
     // ==========================================================================
 
+    /**
+     * Resets all JavaFX transform and opacity properties on a node's visual elements
+     * to their clean default values.
+     *
+     * Bug fix: this was duplicated inline across multiple methods; now a single helper.
+     */
+    private void resetNodeVisuals(BSTNode node) {
+        node.circle.setTranslateX(0); node.circle.setTranslateY(0);
+        node.circle.setScaleX(1.0);   node.circle.setScaleY(1.0);
+        node.circle.setOpacity(1.0);
+        node.label.setTranslateX(0);  node.label.setTranslateY(0);
+        node.label.setScaleX(1.0);    node.label.setScaleY(1.0);
+        node.label.setOpacity(1.0);
+        node.edgeToParent.setOpacity(1.0);
+    }
+
+    /**
+     * Adds a subtree to the canvas with a pop-in animation for new nodes.
+     *
+     * Bug fix: previously, transforms were reset on ALL nodes in the subtree, including
+     * ones already on canvas. This interrupted active algorithm colour animations on
+     * existing nodes. Now resets and animations only run for genuinely new nodes.
+     */
     private void addSubtreeToCanvas(BSTNode node) {
         if (node == null) return;
 
-        // Cancel any pending exit animation if a node is quickly restored via undo/step backward
-        if (node.exitAnimation != null) {
-            node.exitAnimation.stop();
-            node.exitAnimation = null;
-        }
-
-        // Ensure scale and opacity are reset in case it was previously animating out
-        node.circle.setScaleX(1.0);
-        node.circle.setScaleY(1.0);
-        node.label.setScaleX(1.0);
-        node.label.setScaleY(1.0);
-        node.edgeToParent.setOpacity(1.0);
+        if (node.exitAnimation != null) { node.exitAnimation.stop(); node.exitAnimation = null; }
         node.circle.setMouseTransparent(false);
 
         if (!canvasPane.getChildren().contains(node.circle)) {
-            if (node.parent != null
-                    && !canvasPane.getChildren().contains(node.edgeToParent)) {
+            // Only reset and animate nodes that are not already on the canvas
+            resetNodeVisuals(node);
+
+            if (node.parent != null && !canvasPane.getChildren().contains(node.edgeToParent)) {
                 canvasPane.getChildren().add(0, node.edgeToParent);
+                node.edgeToParent.setOpacity(0);
             }
             canvasPane.getChildren().addAll(node.circle, node.label);
+
+            node.circle.setScaleX(0); node.circle.setScaleY(0);
+            node.circle.setOpacity(0);
+            node.label.setOpacity(0);
+
+            ScaleTransition stIn = new ScaleTransition(Duration.millis(420), node.circle);
+            stIn.setToX(1); stIn.setToY(1);
+            stIn.setInterpolator(Interpolator.EASE_OUT);
+
+            FadeTransition ftCircle = new FadeTransition(Duration.millis(320), node.circle);
+            ftCircle.setToValue(1);
+
+            // Label fades in slightly after the circle so text appears once the shape is visible
+            FadeTransition ftLabel = new FadeTransition(Duration.millis(380), node.label);
+            ftLabel.setToValue(1);
+            ftLabel.setDelay(Duration.millis(120));
+
+            // Edge fades in between circle and label
+            FadeTransition ftEdge = new FadeTransition(Duration.millis(360), node.edgeToParent);
+            ftEdge.setToValue(1);
+            ftEdge.setDelay(Duration.millis(60));
+
+            new ParallelTransition(stIn, ftCircle, ftLabel, ftEdge).play();
         }
+
         addSubtreeToCanvas(node.left);
         addSubtreeToCanvas(node.right);
     }
 
+    /**
+     * Adds a subtree to the canvas instantly with no animation.
+     *
+     * Bug fix: step-backward was using the animated addSubtreeToCanvas, causing every
+     * node to pop-in simultaneously — creating an obvious flash on every backward step.
+     * This method is used exclusively by restoreTreeState().
+     */
+    private void addSubtreeToCanvasInstant(BSTNode node) {
+        if (node == null) return;
+
+        if (node.exitAnimation != null) { node.exitAnimation.stop(); node.exitAnimation = null; }
+        resetNodeVisuals(node);
+        node.circle.setMouseTransparent(false);
+
+        if (!canvasPane.getChildren().contains(node.circle)) {
+            if (node.parent != null && !canvasPane.getChildren().contains(node.edgeToParent)) {
+                canvasPane.getChildren().add(0, node.edgeToParent);
+            }
+            canvasPane.getChildren().addAll(node.circle, node.label);
+        }
+
+        addSubtreeToCanvasInstant(node.left);
+        addSubtreeToCanvasInstant(node.right);
+    }
+
+    /**
+     * Animates a node leaving the canvas: red pulse → float up + shrink + fade.
+     * The edge severs first so the tree visually "releases" the node before it disappears.
+     *
+     * Full reset is applied in the onFinished callback so that undo / step-backward
+     * can restore the node in a clean visual state.
+     */
     private void removeNodeFromCanvas(BSTNode node) {
-        // Prevent interactions while dying
         node.circle.setMouseTransparent(true);
 
-        // Shrink the circle
-        ScaleTransition stCircle = new ScaleTransition(Duration.seconds(0.4), node.circle);
-        stCircle.setToX(0);
-        stCircle.setToY(0);
+        // Brief red pulse — confirms to the eye that this node is selected for removal
+        FadeTransition pulse = new FadeTransition(Duration.millis(120), node.circle);
+        pulse.setFromValue(1.0);
+        pulse.setToValue(0.55);
+        pulse.setCycleCount(2);
+        pulse.setAutoReverse(true);
 
-        // Shrink the text label
-        ScaleTransition stLabel = new ScaleTransition(Duration.seconds(0.4), node.label);
-        stLabel.setToX(0);
-        stLabel.setToY(0);
+        // Float circle and label upward together
+        TranslateTransition ttCircle = new TranslateTransition(Duration.millis(860), node.circle);
+        ttCircle.setByY(-22);
+        ttCircle.setInterpolator(Interpolator.EASE_OUT);
 
-        // Fade out the connecting edge
-        FadeTransition ftEdge = new FadeTransition(Duration.seconds(0.4), node.edgeToParent);
+        TranslateTransition ttLabel = new TranslateTransition(Duration.millis(860), node.label);
+        ttLabel.setByY(-22);
+        ttLabel.setInterpolator(Interpolator.EASE_OUT);
+
+        // Shrink the circle toward its own centre
+        ScaleTransition stCircle = new ScaleTransition(Duration.millis(860), node.circle);
+        stCircle.setToX(0); stCircle.setToY(0);
+        stCircle.setInterpolator(Interpolator.EASE_IN);
+
+        // Ghost out — delayed so the value is readable before the node vanishes
+        FadeTransition ftCircle = new FadeTransition(Duration.millis(680), node.circle);
+        ftCircle.setDelay(Duration.millis(180));
+        ftCircle.setToValue(0);
+        ftCircle.setInterpolator(Interpolator.EASE_IN);
+
+        // Label fades out slightly ahead of the circle
+        FadeTransition ftLabel = new FadeTransition(Duration.millis(520), node.label);
+        ftLabel.setDelay(Duration.millis(120));
+        ftLabel.setToValue(0);
+        ftLabel.setInterpolator(Interpolator.EASE_IN);
+
+        // Edge severs first — the connection breaks before the node itself leaves
+        FadeTransition ftEdge = new FadeTransition(Duration.millis(380), node.edgeToParent);
         ftEdge.setToValue(0);
+        ftEdge.setInterpolator(Interpolator.EASE_IN);
 
-        // Play them all at once, then physically remove them from the canvas
-        node.exitAnimation = new ParallelTransition(stCircle, stLabel, ftEdge);
+        node.exitAnimation = new SequentialTransition(
+                pulse,
+                new ParallelTransition(ttCircle, ttLabel, stCircle, ftCircle, ftLabel, ftEdge)
+        );
         node.exitAnimation.setOnFinished(e -> {
             canvasPane.getChildren().removeAll(node.circle, node.label, node.edgeToParent);
+            resetNodeVisuals(node);   // clean state for undo / step-backward
             node.exitAnimation = null;
         });
         node.exitAnimation.play();
     }
 
     // ==========================================================================
-    // SNAPSHOT SYSTEM FOR BACKWARD ANIMATION
+    // SNAPSHOT SYSTEM
     // ==========================================================================
-
     private void takeSnapshot(BSTNode node) {
         if (node == null) return;
         treeSnapshot.put(node, new NodeState(node));
@@ -359,21 +505,39 @@ public class BSTController {
         takeSnapshot(root);
     }
 
+    /**
+     * Restores the tree to its snapshot state for step-backward.
+     *
+     * Bug fixes applied here:
+     *  1. Cancel the pending layout timer so it cannot fire on the restored tree.
+     *  2. Stop all exit animations and clear their transform residue before rebuilding,
+     *     so nodes don't appear mid-animation when re-added.
+     *  3. Use addSubtreeToCanvasInstant (no pop-in animation) to avoid the flash.
+     *  4. Use instant layoutTree (not animated) so the backward step snaps cleanly.
+     */
     private void restoreTreeState() {
+        cancelPendingLayout();
+
+        // Wipe animation residue from every snapshotted node before rebuilding the canvas
+        for (BSTNode n : treeSnapshot.keySet()) {
+            if (n.exitAnimation != null) { n.exitAnimation.stop(); n.exitAnimation = null; }
+            resetNodeVisuals(n);
+        }
+
         root = snapshotRoot;
         for (Map.Entry<BSTNode, NodeState> entry : treeSnapshot.entrySet()) {
-            BSTNode n = entry.getKey();
+            BSTNode   n = entry.getKey();
             NodeState s = entry.getValue();
             n.value = s.value;
             n.label.setText(String.valueOf(n.value));
-            n.left = s.left;
-            n.right = s.right;
+            n.left   = s.left;
+            n.right  = s.right;
             n.parent = s.parent;
         }
 
         canvasPane.getChildren().clear();
         if (root != null) {
-            addSubtreeToCanvas(root);
+            addSubtreeToCanvasInstant(root);
             layoutTree();
         }
     }
@@ -382,24 +546,51 @@ public class BSTController {
     // INSERT / DELETE
     // ==========================================================================
 
+    /** Single animated insert — used for user-triggered inserts and undo. */
     private void insertValue(int value) {
         root = insertBST(root, null, value);
         addSubtreeToCanvas(root);
-        Platform.runLater(this::layoutTree);
+        // Bug fix: was layoutTree (instant). Now uses animated layout for single inserts.
+        Platform.runLater(this::layoutTreeAnimated);
     }
 
+    /**
+     * Silent insert with no animation — used exclusively by generateRandomTree()
+     * so that batch inserts don't trigger N overlapping layout animations.
+     */
+    private void insertValueSilent(int value) {
+        root = insertBST(root, null, value);
+        addSubtreeToCanvasInstant(root);
+    }
+
+    /**
+     * Deletes a value and schedules a re-layout after the exit animation completes.
+     *
+     * Bug fix: the PauseTransition was never stored, so it could not be cancelled.
+     * If the user stepped backward before 980 ms elapsed, the delayed layoutTreeAnimated()
+     * would fire on the already-restored tree, causing a jarring spurious re-layout.
+     */
     private void deleteValue(int value) {
         if (root == null) return;
         clearSelection();
         root = deleteBST(root, value);
         if (root != null) root.parent = null;
-        Platform.runLater(this::layoutTree);
+
+        cancelPendingLayout();
+        // 980 ms = 860 ms exit animation + 120 ms buffer; survivors slide only after node is gone.
+        pendingLayoutTimer = new PauseTransition(Duration.millis(980));
+        pendingLayoutTimer.setOnFinished(e -> { pendingLayoutTimer = null; layoutTreeAnimated(); });
+        pendingLayoutTimer.play();
+    }
+
+    /** Cancels any in-flight delayed layout call. */
+    private void cancelPendingLayout() {
+        if (pendingLayoutTimer != null) { pendingLayoutTimer.stop(); pendingLayoutTimer = null; }
     }
 
     // ==========================================================================
     // NODE SELECTION
     // ==========================================================================
-
     private void handleNodeClick(BSTNode node) {
         if (isAlgorithmMode) return;
         clearSelection();
@@ -420,7 +611,6 @@ public class BSTController {
     // ==========================================================================
     // FXML HANDLERS — BUILD MODE
     // ==========================================================================
-
     @FXML
     private void handleCanvasClick(MouseEvent event) {
         if (isAlgorithmMode) return;
@@ -465,19 +655,30 @@ public class BSTController {
         }
     }
 
+    /**
+     * Generates a random tree of 7–11 nodes.
+     *
+     * Bug fix: previously called insertValue() N times, triggering N pop-in animations
+     * and N overlapping layoutTreeAnimated() calls fighting each other.
+     * Now uses insertValueSilent() for each node and a single layoutTree() at the end.
+     */
     @FXML
     public void generateRandomTree() {
         clearTree();
-        Random rng   = new Random();
-        int    count = rng.nextInt(5) + 7;
-        Set<Integer> used = new LinkedHashSet<>();
+        Random       rng   = new Random();
+        int          count = rng.nextInt(5) + 7;
+        Set<Integer> used  = new LinkedHashSet<>();
         while (used.size() < count) used.add(rng.nextInt(90) + 10);
-        for (int v : used) insertValue(v);
+        for (int v : used) insertValueSilent(v);
+        layoutTree();
         resultLabel.setText("Random tree generated (" + count + " nodes).");
     }
 
     @FXML
     public void clearTree() {
+        cancelPendingLayout();
+        if (activeEdgeSync != null) { activeEdgeSync.stop(); activeEdgeSync = null; }
+
         root         = null;
         selectedNode = null;
         canvasPane.getChildren().clear();
@@ -497,8 +698,8 @@ public class BSTController {
     private void handleBackButton(ActionEvent event) throws IOException {
         stopAll();
         FXMLLoader loader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
-        Parent root = loader.load();
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+        Parent     root   = loader.load();
+        Stage      stage  = (Stage) ((Node) event.getSource()).getScene().getWindow();
         stage.getScene().setRoot(root);
     }
 
@@ -510,40 +711,29 @@ public class BSTController {
     // ==========================================================================
     // MODE SWITCHING
     // ==========================================================================
-
     @FXML
     private void switchToAlgoMode() {
-        if (root == null) {
-            resultLabel.setText("Tree is empty — build a tree first.");
-            return;
-        }
+        if (root == null) { resultLabel.setText("Tree is empty — build a tree first."); return; }
         isAlgorithmMode = true;
         clearSelection();
         resultLabel.setText("Select an algorithm and press Play!");
-        buildToolbar.setVisible(false);
-        buildToolbar.setManaged(false);
-        algoToolbar.setVisible(true);
-        algoToolbar.setManaged(true);
-        playbackToolbar.setVisible(true);
-        playbackToolbar.setManaged(true);
+        buildToolbar.setVisible(false);   buildToolbar.setManaged(false);
+        algoToolbar.setVisible(true);     algoToolbar.setManaged(true);
+        playbackToolbar.setVisible(true); playbackToolbar.setManaged(true);
     }
 
     @FXML
     private void switchToBuildMode() {
         isAlgorithmMode = false;
         resetAlgorithmState();
-        algoToolbar.setVisible(false);
-        algoToolbar.setManaged(false);
-        playbackToolbar.setVisible(false);
-        playbackToolbar.setManaged(false);
-        buildToolbar.setVisible(true);
-        buildToolbar.setManaged(true);
+        algoToolbar.setVisible(false);     algoToolbar.setManaged(false);
+        playbackToolbar.setVisible(false); playbackToolbar.setManaged(false);
+        buildToolbar.setVisible(true);     buildToolbar.setManaged(true);
     }
 
     // ==========================================================================
     // COLOR RESET HELPERS
     // ==========================================================================
-
     private void resetAllColors() {
         resetNodeColors(root);
         resetEdgeColors(root);
@@ -571,7 +761,6 @@ public class BSTController {
     // ==========================================================================
     // ALGORITHM PLAYBACK ENGINE
     // ==========================================================================
-
     private void initializeAlgorithm() {
         if (timeline != null) { timeline.stop(); timeline = null; }
         resetAllColors();
@@ -585,43 +774,40 @@ public class BSTController {
         if (root == null || algoComboBox.getValue() == null) return;
 
         String algo = algoComboBox.getValue();
-        if (algo.startsWith("Inorder")) {
+
+        if      (algo.startsWith("Inorder"))  {
             List<String> visited = new ArrayList<>();
             recordInorder(root, visited);
-            String finalOrder = String.join(" → ", visited);
-            algorithmSteps.add(() -> resultLabel.setText("Inorder Complete: " + finalOrder));
+            String fin = String.join(" → ", visited);
+            algorithmSteps.add(() -> resultLabel.setText("Inorder Complete: " + fin));
 
         } else if (algo.startsWith("Preorder")) {
             List<String> visited = new ArrayList<>();
             recordPreorder(root, visited);
-            String finalOrder = String.join(" → ", visited);
-            algorithmSteps.add(() -> resultLabel.setText("Preorder Complete: " + finalOrder));
+            String fin = String.join(" → ", visited);
+            algorithmSteps.add(() -> resultLabel.setText("Preorder Complete: " + fin));
 
         } else if (algo.startsWith("Postorder")) {
             List<String> visited = new ArrayList<>();
             recordPostorder(root, visited);
-            String finalOrder = String.join(" → ", visited);
-            algorithmSteps.add(() -> resultLabel.setText("Postorder Complete: " + finalOrder));
+            String fin = String.join(" → ", visited);
+            algorithmSteps.add(() -> resultLabel.setText("Postorder Complete: " + fin));
 
         } else if (algo.startsWith("Level Order")) {
             recordLevelOrder();
 
         } else if (algo.startsWith("Search")) {
             String text = startNodeField.getText().trim();
-            try {
-                recordSearch(root, Integer.parseInt(text), new ArrayList<>());
-            } catch (NumberFormatException e) {
+            try   { recordSearch(root, Integer.parseInt(text), new ArrayList<>()); }
+            catch (NumberFormatException e) {
                 resultLabel.setText("Search: please enter a valid integer in the Value field.");
             }
         } else if (algo.startsWith("Find Predecessor")) {
             recordFindPredecessor();
-
         } else if (algo.startsWith("Find Successor")) {
             recordFindSuccessor();
-
         } else if (algo.startsWith("Delete (Visualized)")) {
             recordDeletion();
-
         } else if (algo.startsWith("Insert (Visualized)")) {
             recordInsertion();
         }
@@ -644,16 +830,13 @@ public class BSTController {
     private void togglePlayPause() {
         if (root == null || algoComboBox.getValue() == null) return;
 
-        if (timeline != null
-                && timeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
+        if (timeline != null && timeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
             timeline.pause();
             playPauseButton.setText("▶ Play");
             return;
         }
 
-        if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
-            initializeAlgorithm();
-        }
+        if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) initializeAlgorithm();
         if (timeline == null) setupTimeline();
 
         timeline.play();
@@ -669,11 +852,18 @@ public class BSTController {
             initializeAlgorithm();
             if (timeline == null) setupTimeline();
         }
-        if (currentStep < algorithmSteps.size()) {
-            algorithmSteps.get(currentStep++).run();
-        }
+        if (currentStep < algorithmSteps.size()) algorithmSteps.get(currentStep++).run();
     }
 
+    /**
+     * Steps backward by one algorithm step.
+     *
+     * Bug fixes:
+     *  1. cancelPendingLayout() is called inside restoreTreeState(), preventing any
+     *     in-flight deleteValue() timer from firing on the restored tree.
+     *  2. restoreTreeState() uses addSubtreeToCanvasInstant (no pop-in flash).
+     *  3. Only nonReplayable steps are skipped during the replay; safe colour steps run.
+     */
     @FXML
     private void stepBackward() {
         if (algorithmSteps.isEmpty() || currentStep <= 0) return;
@@ -681,26 +871,30 @@ public class BSTController {
 
         currentStep--;
 
-        if (nonReplayableSteps.contains(currentStep)) {
-            if (!undoStack.isEmpty()) {
-                undoStack.pop();
-            }
+        // Discard the matching undo entry for any structural change we're unwinding
+        if (nonReplayableSteps.contains(currentStep) && !undoStack.isEmpty()) {
+            undoStack.pop();
         }
 
         restoreTreeState();
-
         resetAllColors();
         resultLabel.setText("");
 
+        // Replay colour-only steps up to (but not including) currentStep
         for (int i = 0; i < currentStep; i++) {
-            if (!nonReplayableSteps.contains(i)) {
-                algorithmSteps.get(i).run();
-            }
+            if (!nonReplayableSteps.contains(i)) algorithmSteps.get(i).run();
         }
     }
 
+    /**
+     * Resets algorithm state without touching the tree structure.
+     *
+     * Bug fix: cancelPendingLayout() added so that any in-flight layout timer from a
+     * previous algorithm run cannot fire after the state has been reset.
+     */
     @FXML
     private void resetAlgorithmState() {
+        cancelPendingLayout();
         if (timeline != null) { timeline.stop(); timeline = null; }
         if (playPauseButton != null) playPauseButton.setText("▶ Play");
         resetAllColors();
@@ -711,14 +905,12 @@ public class BSTController {
     }
 
     // ==========================================================================
-    // ALGORITHM RECORDING
+    // ALGORITHM RECORDING — TRAVERSALS
     // ==========================================================================
-
     private void recordInorder(BSTNode node, List<String> visited) {
         if (node == null) return;
         final BSTNode cur = node;
 
-        // 1. Arrive and Traverse Left
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.GOLD);
             if (cur.parent != null) cur.edgeToParent.setStroke(Color.GOLD);
@@ -727,7 +919,6 @@ public class BSTController {
 
         recordInorder(node.left, visited);
 
-        // 2. VISIT the node (N)
         visited.add(String.valueOf(node.value));
         final String order = "Inorder: " + String.join(" → ", visited);
         algorithmSteps.add(() -> {
@@ -737,7 +928,6 @@ public class BSTController {
             resultLabel.setText(order + "  (Visited " + cur.value + ")");
         });
 
-        // 3. Traverse Right
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.ORANGE);
             cur.circle.setStroke(Color.BLACK);
@@ -747,7 +937,6 @@ public class BSTController {
 
         recordInorder(node.right, visited);
 
-        // 4. Completed
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.LIGHTGRAY);
             if (cur.parent != null) cur.edgeToParent.setStroke(Color.LIGHTGRAY);
@@ -758,7 +947,6 @@ public class BSTController {
         if (node == null) return;
         final BSTNode cur = node;
 
-        // 1. VISIT the node immediately (N)
         visited.add(String.valueOf(node.value));
         final String order = "Preorder: " + String.join(" → ", visited);
         algorithmSteps.add(() -> {
@@ -769,7 +957,6 @@ public class BSTController {
             resultLabel.setText(order + "  (Visited " + cur.value + ")");
         });
 
-        // 2. Traverse Left
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.GOLD);
             cur.circle.setStroke(Color.BLACK);
@@ -779,7 +966,6 @@ public class BSTController {
 
         recordPreorder(node.left, visited);
 
-        // 3. Traverse Right
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.ORANGE);
             resultLabel.setText("Preorder: Descending RIGHT from " + cur.value);
@@ -787,7 +973,6 @@ public class BSTController {
 
         recordPreorder(node.right, visited);
 
-        // 4. Completed
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.LIGHTGRAY);
             if (cur.parent != null) cur.edgeToParent.setStroke(Color.LIGHTGRAY);
@@ -798,7 +983,6 @@ public class BSTController {
         if (node == null) return;
         final BSTNode cur = node;
 
-        // 1. Arrive and Traverse Left
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.GOLD);
             if (cur.parent != null) cur.edgeToParent.setStroke(Color.GOLD);
@@ -807,7 +991,6 @@ public class BSTController {
 
         recordPostorder(node.left, visited);
 
-        // 2. Traverse Right
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.ORANGE);
             resultLabel.setText("Postorder: At " + cur.value + " — descending RIGHT");
@@ -815,7 +998,6 @@ public class BSTController {
 
         recordPostorder(node.right, visited);
 
-        // 3. VISIT the node last (N)
         visited.add(String.valueOf(node.value));
         final String order = "Postorder: " + String.join(" → ", visited);
         algorithmSteps.add(() -> {
@@ -825,7 +1007,6 @@ public class BSTController {
             resultLabel.setText(order + "  (Visited " + cur.value + ")");
         });
 
-        // 4. Completed
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.LIGHTGRAY);
             cur.circle.setStroke(Color.BLACK);
@@ -835,8 +1016,8 @@ public class BSTController {
     }
 
     private void recordLevelOrder() {
-        Queue<BSTNode>  queue   = new LinkedList<>();
-        List<String>    visited = new ArrayList<>();
+        Queue<BSTNode> queue   = new LinkedList<>();
+        List<String>   visited = new ArrayList<>();
         queue.add(root);
 
         algorithmSteps.add(() -> {
@@ -852,11 +1033,9 @@ public class BSTController {
 
             algorithmSteps.add(() -> {
                 processing.circle.setFill(Color.MAGENTA);
-                if (processing.parent != null)
-                    processing.edgeToParent.setStroke(Color.ORANGE);
+                if (processing.parent != null) processing.edgeToParent.setStroke(Color.ORANGE);
                 resultLabel.setText(order);
             });
-
             if (cur.left != null) {
                 queue.add(cur.left);
                 final BSTNode lc = cur.left;
@@ -873,15 +1052,16 @@ public class BSTController {
                     resultLabel.setText("Level Order: enqueue right child " + rc.value);
                 });
             }
-
             algorithmSteps.add(() -> processing.circle.setFill(Color.GREEN));
         }
 
-        final String finalOrder = String.join(" → ", visited);
-        algorithmSteps.add(() ->
-                resultLabel.setText("Level Order complete: " + finalOrder));
+        final String fin = String.join(" → ", visited);
+        algorithmSteps.add(() -> resultLabel.setText("Level Order complete: " + fin));
     }
 
+    // ==========================================================================
+    // ALGORITHM RECORDING — SEARCH / NAVIGATE HELPERS
+    // ==========================================================================
     private void recordSearch(BSTNode node, int target, List<String> path) {
         if (node == null) {
             final String pathStr = String.join(" → ", path);
@@ -901,7 +1081,6 @@ public class BSTController {
                 if (cur.parent != null) cur.edgeToParent.setStroke(Color.LIMEGREEN);
                 resultLabel.setText("✔ Found " + target + "!  Path: " + pathSoFar);
             });
-
         } else if (target < node.value) {
             algorithmSteps.add(() -> {
                 cur.circle.setFill(Color.YELLOW);
@@ -911,7 +1090,6 @@ public class BSTController {
             });
             algorithmSteps.add(() -> cur.circle.setFill(Color.LIGHTGRAY));
             recordSearch(node.left, target, path);
-
         } else {
             algorithmSteps.add(() -> {
                 cur.circle.setFill(Color.YELLOW);
@@ -936,21 +1114,18 @@ public class BSTController {
     }
 
     private void recordNavigateTo(List<BSTNode> path, int target, String action) {
-        for (int i = 0; i < path.size(); i++) {
-            final BSTNode node     = path.get(i);
-            final boolean isTarget = (node.value == target);
+        for (BSTNode node : path) {
+            final BSTNode n        = node;
+            final boolean isTarget = (n.value == target);
             algorithmSteps.add(() -> {
-                node.circle.setFill(isTarget ? Color.CYAN : Color.YELLOW);
-                if (node.parent != null) node.edgeToParent.setStroke(Color.ORANGE);
+                n.circle.setFill(isTarget ? Color.CYAN : Color.YELLOW);
+                if (n.parent != null) n.edgeToParent.setStroke(Color.ORANGE);
                 resultLabel.setText(isTarget
                         ? action + " " + target + ": node found!"
-                        : action + " " + target + ": at " + node.value
-                        + (target < node.value ? "  →  go LEFT" : "  →  go RIGHT"));
+                        : action + " " + target + ": at " + n.value
+                        + (target < n.value ? "  →  go LEFT" : "  →  go RIGHT"));
             });
-            if (!isTarget) {
-                final BSTNode n = node;
-                algorithmSteps.add(() -> n.circle.setFill(Color.LIGHTGRAY));
-            }
+            if (!isTarget) algorithmSteps.add(() -> n.circle.setFill(Color.LIGHTGRAY));
         }
     }
 
@@ -962,13 +1137,15 @@ public class BSTController {
                 if (n.parent != null) n.edgeToParent.setStroke(Color.ORANGE);
                 resultLabel.setText(algo + ": searching for " + target + " — at " + n.value);
             });
-            final BSTNode dim = node;
-            algorithmSteps.add(() -> dim.circle.setFill(Color.LIGHTGRAY));
+            algorithmSteps.add(() -> n.circle.setFill(Color.LIGHTGRAY));
         }
         algorithmSteps.add(() ->
                 resultLabel.setText("✘ " + target + " not found — cannot compute " + algo + "."));
     }
 
+    // ==========================================================================
+    // ALGORITHM RECORDING — PREDECESSOR / SUCCESSOR
+    // ==========================================================================
     private void recordFindPredecessor() {
         String text = startNodeField.getText().trim();
         int target;
@@ -1010,7 +1187,6 @@ public class BSTController {
                 pred.circle.setStrokeWidth(4);
                 resultLabel.setText("✔  Predecessor of " + target + "  is  " + pred.value);
             });
-
         } else {
             algorithmSteps.add(() ->
                     resultLabel.setText("No left subtree → walk up ancestors until we arrive from the RIGHT"));
@@ -1085,7 +1261,6 @@ public class BSTController {
                 succ.circle.setStrokeWidth(4);
                 resultLabel.setText("✔  Successor of " + target + "  is  " + succ.value);
             });
-
         } else {
             algorithmSteps.add(() ->
                     resultLabel.setText("No right subtree → walk up ancestors until we arrive from the LEFT"));
@@ -1119,6 +1294,9 @@ public class BSTController {
         }
     }
 
+    // ==========================================================================
+    // ALGORITHM RECORDING — DELETION
+    // ==========================================================================
     private void recordDeletion() {
         String text = startNodeField.getText().trim();
         int target;
@@ -1134,102 +1312,186 @@ public class BSTController {
             return;
         }
 
-        recordNavigateTo(path, target, "Deleting");
-        BSTNode targetNode = path.get(path.size() - 1);
+        // ── Phase 1: Navigate to target ───────────────────────────────────────
+        for (int i = 0; i < path.size() - 1; i++) {
+            final BSTNode node = path.get(i);
+            final int     next = path.get(i + 1).value;
+            final String  cmp  = (next < node.value)
+                    ? next + " < " + node.value + "  →  go LEFT"
+                    : next + " > " + node.value + "  →  go RIGHT";
 
-        boolean hasLeft  = targetNode.left  != null;
-        boolean hasRight = targetNode.right != null;
+            algorithmSteps.add(() -> {
+                node.circle.setFill(Color.GOLD);
+                node.circle.setStrokeWidth(2);
+                if (node.parent != null) node.edgeToParent.setStroke(Color.GOLD);
+                resultLabel.setText("Searching: at " + node.value + "   ( " + cmp + " )");
+            });
+            algorithmSteps.add(() -> {
+                node.circle.setFill(Color.LIGHTGRAY);
+                if (node.parent != null) node.edgeToParent.setStroke(Color.LIGHTGRAY);
+            });
+        }
 
+        // ── Phase 2: Spotlight target node ───────────────────────────────────
+        final BSTNode t = path.get(path.size() - 1);
+        algorithmSteps.add(() -> {
+            t.circle.setFill(Color.ORANGERED);
+            t.circle.setStroke(Color.DARKRED);
+            t.circle.setStrokeWidth(4);
+            if (t.parent != null) t.edgeToParent.setStroke(Color.ORANGERED);
+            resultLabel.setText("Found node " + t.value + "!  Checking children to determine deletion case…");
+        });
+
+        boolean hasLeft  = t.left  != null;
+        boolean hasRight = t.right != null;
+
+        // ══════════════════════════════════════════════════════════════════════
+        // CASE 1 — Leaf node
+        // ══════════════════════════════════════════════════════════════════════
         if (!hasLeft && !hasRight) {
-            final BSTNode t = targetNode;
-            algorithmSteps.add(() -> {
-                t.circle.setFill(Color.ORANGERED);
-                resultLabel.setText("Case 1 — Leaf node: no children → simply remove " + t.value);
-            });
-            final int capturedVal = target;
+            algorithmSteps.add(() ->
+                    resultLabel.setText("CASE 1 — Leaf node: " + t.value + " has no children."));
+            algorithmSteps.add(() ->
+                    resultLabel.setText("No replacement needed — simply unlink "
+                            + t.value + " from its parent."));
+
+            final int val = target;
             nonReplayableSteps.add(algorithmSteps.size());
             algorithmSteps.add(() -> {
-                if (containsValue(root, capturedVal)) {
-                    deleteValue(capturedVal);
-                    undoStack.push(new DeleteCommand(capturedVal));
+                if (containsValue(root, val)) {
+                    deleteValue(val);
+                    undoStack.push(new DeleteCommand(val));
                 }
-                resultLabel.setText("✔  Deleted " + capturedVal + "  (leaf removed)");
+                resultLabel.setText("Done!  Node " + val + " removed (leaf deleted).");
             });
 
+            // ══════════════════════════════════════════════════════════════════════
+            // CASE 2 — One child
+            // ══════════════════════════════════════════════════════════════════════
         } else if (!hasLeft || !hasRight) {
-            final BSTNode t     = targetNode;
-            final BSTNode child = hasLeft ? targetNode.left : targetNode.right;
-            final String  side  = hasLeft ? "left" : "right";
+            final BSTNode child = hasLeft ? t.left : t.right;
+            final String  side  = hasLeft ? "left"  : "right";
+
+            algorithmSteps.add(() ->
+                    resultLabel.setText("CASE 2 — One child: " + t.value
+                            + " has only a " + side + " subtree."));
+            algorithmSteps.add(() -> {
+                child.circle.setFill(Color.LIMEGREEN);
+                child.circle.setStrokeWidth(3);
+                child.edgeToParent.setStroke(Color.LIMEGREEN);
+                resultLabel.setText("Child " + child.value
+                        + " (green) will be promoted to replace " + t.value + ".");
+            });
+            algorithmSteps.add(() ->
+                    resultLabel.setText("Re-linking parent of " + t.value
+                            + " directly to child " + child.value + "."));
             algorithmSteps.add(() -> {
                 t.circle.setFill(Color.ORANGERED);
-                child.circle.setFill(Color.LIMEGREEN);
-                child.edgeToParent.setStroke(Color.LIMEGREEN);
-                resultLabel.setText("Case 2 — One child: bypass " + t.value
-                        + " and promote its " + side + " child (" + child.value + ")");
+                t.circle.setStrokeWidth(4);
+                resultLabel.setText("Ready — removing " + t.value
+                        + " and promoting " + child.value + ".");
             });
-            final int capturedVal = target;
+
+            final int val = target;
             nonReplayableSteps.add(algorithmSteps.size());
             algorithmSteps.add(() -> {
-                if (containsValue(root, capturedVal)) {
-                    deleteValue(capturedVal);
-                    undoStack.push(new DeleteCommand(capturedVal));
+                if (containsValue(root, val)) {
+                    deleteValue(val);
+                    undoStack.push(new DeleteCommand(val));
                 }
-                resultLabel.setText("✔  Deleted " + capturedVal + " — child " + child.value + " promoted");
+                resultLabel.setText("Done!  Node " + val
+                        + " removed — child " + child.value + " promoted.");
             });
 
+            // ══════════════════════════════════════════════════════════════════════
+            // CASE 3 — Two children (inorder successor swap)
+            // ══════════════════════════════════════════════════════════════════════
         } else {
-            final BSTNode t = targetNode;
-            algorithmSteps.add(() -> {
-                t.circle.setFill(Color.ORANGERED);
-                resultLabel.setText("Case 3 — Two children: find inorder successor (min of right subtree)");
-            });
+            algorithmSteps.add(() ->
+                    resultLabel.setText("CASE 3 — Two children: " + t.value
+                            + " has both left and right subtrees."));
+            algorithmSteps.add(() ->
+                    resultLabel.setText("Strategy: find the INORDER SUCCESSOR "
+                            + "(min of right subtree), copy its value here, "
+                            + "then delete the now-duplicate successor."));
 
-            final BSTNode rc = targetNode.right;
+            final BSTNode rc = t.right;
             algorithmSteps.add(() -> {
-                rc.circle.setFill(Color.YELLOW);
+                rc.circle.setFill(Color.ORANGE);
+                rc.circle.setStrokeWidth(2);
                 rc.edgeToParent.setStroke(Color.ORANGE);
-                resultLabel.setText("Step into right subtree → " + rc.value);
+                resultLabel.setText("Step into RIGHT subtree → "
+                        + rc.value + "  (searching for leftmost node)");
             });
 
-            BSTNode cur = targetNode.right;
-            while (cur.left != null) {
-                final BSTNode next = cur.left;
+            BSTNode cur = t.right;
+            if (cur.left == null) {
                 algorithmSteps.add(() -> {
-                    next.circle.setFill(Color.YELLOW);
-                    next.edgeToParent.setStroke(Color.ORANGE);
-                    resultLabel.setText("Go left to find minimum → " + next.value);
+                    rc.circle.setFill(Color.LIMEGREEN);
+                    rc.circle.setStrokeWidth(4);
+                    resultLabel.setText("No left child — " + rc.value
+                            + " is already the minimum → inorder successor found!");
                 });
-                cur = cur.left;
+            } else {
+                algorithmSteps.add(() ->
+                        resultLabel.setText("Go LEFT repeatedly to find the minimum…"));
+                while (cur.left != null) {
+                    final BSTNode stepping = cur;
+                    final BSTNode next     = cur.left;
+                    algorithmSteps.add(() -> {
+                        stepping.circle.setFill(Color.LIGHTGRAY);
+                        next.circle.setFill(Color.GOLD);
+                        next.edgeToParent.setStroke(Color.ORANGE);
+                        resultLabel.setText("Go left: " + stepping.value
+                                + " → " + next.value + "  (looking for minimum)");
+                    });
+                    cur = cur.left;
+                }
+                final BSTNode minFound = cur;
+                algorithmSteps.add(() -> {
+                    minFound.circle.setFill(Color.LIMEGREEN);
+                    minFound.circle.setStrokeWidth(4);
+                    resultLabel.setText("No left child — " + minFound.value
+                            + " is the minimum → INORDER SUCCESSOR found!");
+                });
             }
 
-            final BSTNode succ        = cur;
-            final int     succValue   = succ.value;
-            final int     capturedVal = target;
+            final BSTNode succ          = cur;
+            final int     succValue     = succ.value;
+            final int     capturedTarget = target;
 
             algorithmSteps.add(() -> {
-                succ.circle.setFill(Color.LIMEGREEN);
-                succ.circle.setStrokeWidth(4);
-                resultLabel.setText("Inorder successor found: " + succValue
-                        + "  →  copy it into " + t.value + "'s slot");
+                t.circle.setFill(Color.CYAN);
+                t.circle.setStrokeWidth(4);
+                resultLabel.setText("Copy successor value " + succValue
+                        + " into node " + capturedTarget + "'s slot — "
+                        + capturedTarget + " becomes " + succValue + ".");
             });
             algorithmSteps.add(() -> {
                 t.circle.setFill(Color.LIMEGREEN);
                 t.circle.setStrokeWidth(4);
+                t.label.setText(String.valueOf(succValue));   // visual preview
                 succ.circle.setFill(Color.ORANGERED);
-                resultLabel.setText("Copied " + succValue + " → now delete the successor node "
-                        + succValue + " (it has at most one child)");
+                succ.circle.setStrokeWidth(4);
+                resultLabel.setText("Value copied!  Successor " + succValue
+                        + " (red) is now a duplicate — delete it (≤ one child).");
             });
+
             nonReplayableSteps.add(algorithmSteps.size());
             algorithmSteps.add(() -> {
-                if (containsValue(root, capturedVal)) {
-                    deleteValue(capturedVal);
-                    undoStack.push(new DeleteCommand(capturedVal));
+                if (containsValue(root, capturedTarget)) {
+                    deleteValue(capturedTarget);
+                    undoStack.push(new DeleteCommand(capturedTarget));
                 }
-                resultLabel.setText("✔  Deleted " + capturedVal + " via successor swap with " + succValue);
+                resultLabel.setText("Done!  Deleted " + capturedTarget
+                        + " via successor swap with " + succValue + ".");
             });
         }
     }
 
+    // ==========================================================================
+    // ALGORITHM RECORDING — INSERTION
+    // ==========================================================================
     private void recordInsertion() {
         String text = startNodeField.getText().trim();
         int target;
@@ -1273,7 +1535,7 @@ public class BSTController {
         while (cur != null) {
             path.add(cur);
             if (target < cur.value) {
-                if (cur.left == null)  { insParent = cur; insDir = "left";  break; }
+                if (cur.left  == null) { insParent = cur; insDir = "left";  break; }
                 cur = cur.left;
             } else {
                 if (cur.right == null) { insParent = cur; insDir = "right"; break; }
@@ -1282,8 +1544,8 @@ public class BSTController {
         }
 
         for (int i = 0; i < path.size(); i++) {
-            final BSTNode node   = path.get(i);
-            final boolean isLast = (i == path.size() - 1);
+            final BSTNode node    = path.get(i);
+            final boolean isLast  = (i == path.size() - 1);
             final String  goLabel = (target < node.value)
                     ? target + " < " + node.value + "  →  go LEFT"
                     : target + " > " + node.value + "  →  go RIGHT";
@@ -1293,11 +1555,7 @@ public class BSTController {
                 if (node.parent != null) node.edgeToParent.setStroke(Color.ORANGE);
                 resultLabel.setText("Insert " + target + ": at " + node.value + "  —  " + goLabel);
             });
-
-            if (!isLast) {
-                final BSTNode n = node;
-                algorithmSteps.add(() -> n.circle.setFill(Color.LIGHTGRAY));
-            }
+            if (!isLast) algorithmSteps.add(() -> node.circle.setFill(Color.LIGHTGRAY));
         }
 
         final BSTNode parent   = insParent;
@@ -1307,8 +1565,8 @@ public class BSTController {
         algorithmSteps.add(() -> {
             if (parent != null) {
                 parent.circle.setFill(Color.CYAN);
-                resultLabel.setText("Found empty " + side + " slot under " + parent.value
-                        + "  →  insert " + finalVal + " here.");
+                resultLabel.setText("Found empty " + side + " slot under "
+                        + parent.value + "  →  insert " + finalVal + " here.");
             }
         });
 
@@ -1330,13 +1588,5 @@ public class BSTController {
             resultLabel.setText("✔  Inserted " + finalVal
                     + (parent != null ? " as " + side + " child of " + parent.value : " as root") + ".");
         });
-    }
-
-    private BSTNode findNode(BSTNode node, int value) {
-        if (node == null) return null;
-        if (node.value == value) return node;
-        return value < node.value
-                ? findNode(node.left,  value)
-                : findNode(node.right, value);
     }
 }
