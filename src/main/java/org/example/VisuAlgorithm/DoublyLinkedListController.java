@@ -1,5 +1,6 @@
 package org.example.VisuAlgorithm;
 
+import java.util.Random;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
@@ -39,7 +40,47 @@ public class DoublyLinkedListController {
     private final double startY = 250;
     private final double boxH = 50;
     private final double gap = 180;
+    private final Random random = new Random();
+    private Timeline currentTimeline;
+    private boolean isPaused = false;
+    private int currentStepIndex = 0;
+    private int getRandomValue() {
+        return random.nextInt(90) + 10; // 10–99 (clean UI numbers)
+    }
+    @FXML
+    private void onRandom() {
+        head = null; // or stack.clear()
+        int count = random.nextInt(5) + 3;
 
+        Timeline timeline = new Timeline();
+
+        for (int i = 0; i < count; i++) {
+            int value = getRandomValue();
+            int step = i;
+
+            timeline.getKeyFrames().add(
+                    new KeyFrame(Duration.seconds(step * 0.6), e -> {
+
+                        Node node = new Node(value);
+
+                        if (head == null) {
+                            head = node;
+                        } else {
+                            Node temp = head;
+                            while (temp.next != null) temp = temp.next;
+
+                            temp.next = node;
+                            node.prev = temp;
+                        }
+
+                        redraw(-1, -1);
+                        setStatus("Inserted random: " + value);
+                    })
+            );
+        }
+
+        timeline.play();
+    }
     @FXML
     public void initialize() {
         redraw(-1, -1);

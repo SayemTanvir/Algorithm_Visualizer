@@ -68,6 +68,10 @@
                             onAction="#onPeek"
                             style="-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"/>
 
+                    <Button text="Random"
+                            onAction="#onRandom"
+                            style="-fx-background-color: black; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"/>
+
                     <Button text="Search"
                             onAction="#onSearch"
                             style="-fx-background-color: #0f766e; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"/>

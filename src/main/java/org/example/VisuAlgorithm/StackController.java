@@ -1,5 +1,6 @@
 package org.example.VisuAlgorithm;
 
+import java.util.Random;
 import javafx.scene.control.Alert;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -39,7 +40,45 @@ public class StackController {
     private final double x = 320;
     private final double startY = 400;
     private final double gap = 80;
+    private Timeline currentTimeline;
+    private boolean isPaused = false;
+    private int currentStepIndex = 0;
+    private final Random random = new Random();
 
+    private int getRandomValue() {
+        return random.nextInt(90) + 10; // 10–99 (clean UI numbers)
+    }
+    @FXML
+    private void onRandom() {
+        stack.clear();
+        if (pushAnimationRunning || popAnimationRunning) return;
+
+        int space = MAX_SIZE - stack.size();
+
+        if (space <= 0) {
+            showPopup("Stack Full", "Cannot add random elements. Stack is full.");
+            return;
+        }
+
+        int count = random.nextInt(space) + 1; // 1 to remaining space
+
+        Timeline timeline = new Timeline();
+
+        for (int i = 0; i < count; i++) {
+            int value = getRandomValue();
+            int step = i;
+
+            timeline.getKeyFrames().add(
+                    new KeyFrame(Duration.seconds(step * 0.7), e -> {
+                        stack.add(value);
+                        redraw(stack.size() - 1, -1);
+                        setStatus("Random push: " + value);
+                    })
+            );
+        }
+
+        timeline.play();
+    }
     private void showPopup(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);

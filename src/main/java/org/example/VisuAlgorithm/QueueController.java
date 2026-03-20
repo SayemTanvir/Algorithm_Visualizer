@@ -1,5 +1,6 @@
 package org.example.VisuAlgorithm;
 
+import java.util.Random;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -94,6 +95,79 @@ public class QueueController {
     private final double boxH = 64;
     private final double gap = 150;
 
+    private final Random random = new Random();
+
+    private int getRandomValue() {
+        return random.nextInt(90) + 10; // 10–99 (clean UI numbers)
+    }
+    @FXML
+    private void onRandom() {
+
+        int count = random.nextInt(5) + 3; // 3–7 elements
+
+        // ===== NORMAL QUEUE & DEQUE =====
+        if (mode == Mode.QUEUE || mode == Mode.DEQUE) {
+
+            dequeData.clear(); // optional (fresh random every time)
+
+            for (int i = 0; i < count; i++) {
+                dequeData.add(getRandomValue());
+            }
+
+            redraw();
+            setStatus("Random " + modeToText() + " generated");
+        }
+
+        // ===== PRIORITY QUEUE =====
+        else if (mode == Mode.PRIORITY_QUEUE) {
+
+            priorityData.clear();
+
+            for (int i = 0; i < count; i++) {
+                int value = getRandomValue();
+                int priority = random.nextInt(10) + 1; // 1–10 priority
+
+                priorityData.add(new PQNode(value, priority));
+            }
+
+            sortPriorityQueue();
+            redraw();
+            setStatus("Random Priority Queue generated");
+        }
+
+        // ===== CIRCULAR QUEUE =====
+        else if (mode == Mode.CIRCULAR_QUEUE) {
+
+            if (circularCapacity == 0) {
+                setStatus("Set capacity first.");
+                return;
+            }
+
+            // reset circular queue
+            front = -1;
+            rear = -1;
+            circularSize = 0;
+
+            int limit = Math.min(count, circularCapacity);
+
+            for (int i = 0; i < limit; i++) {
+                int value = getRandomValue();
+
+                if (circularSize == 0) {
+                    front = 0;
+                    rear = 0;
+                } else {
+                    rear = (rear + 1) % circularCapacity;
+                }
+
+                circularArray[rear] = value;
+                circularSize++;
+            }
+
+            redraw();
+            setStatus("Random Circular Queue generated");
+        }
+    }
     @FXML
     public void initialize() {
         setMode(Mode.QUEUE);

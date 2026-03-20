@@ -82,6 +82,8 @@
 
                     <Button fx:id="dequeueBtn" onAction="#onDequeue" style="-fx-background-color: #0f766e;                                    -fx-text-fill: white;                                    -fx-background-radius: 12;                                    -fx-font-weight: bold;" text="Dequeue" />
 
+                    <Button fx:id="randomBtn" onAction="#onRandom" style="-fx-background-color: black; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Random"/>
+
                     <Button fx:id="pushFrontBtn" managed="false" onAction="#onPushFront" style="-fx-background-color: #7c3aed;                                    -fx-text-fill: white;                                    -fx-background-radius: 12;                                    -fx-font-weight: bold;" text="Push Front" visible="false" />
 
                     <Button fx:id="pushRearBtn" managed="false" onAction="#onPushRear" style="-fx-background-color: #6366f1;                                    -fx-text-fill: white;                                    -fx-background-radius: 12;                                    -fx-font-weight: bold;" text="Push Rear" visible="false" />

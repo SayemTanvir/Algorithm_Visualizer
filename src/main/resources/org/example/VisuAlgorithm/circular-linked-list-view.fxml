@@ -53,6 +53,7 @@
                     <Button text="Insert Head" onAction="#onInsertHead"/>
                     <Button text="Insert Tail" onAction="#onInsertTail"/>
                     <Button text="Insert At" onAction="#onInsertAt"/>
+                    <Button text="Random" onAction="#onRandom"/>
                     <Button text="Delete Head" onAction="#onDeleteHead"/>
                     <Button text="Delete Tail" onAction="#onDeleteTail"/>
                     <Button text="Delete At" onAction="#onDeleteAt"/>
