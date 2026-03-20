@@ -718,74 +718,120 @@ public class BSTController {
         if (node == null) return;
         final BSTNode cur = node;
 
+        // 1. Arrive and Traverse Left
         algorithmSteps.add(() -> {
-            cur.circle.setFill(Color.YELLOW);
-            resultLabel.setText("Inorder: at " + cur.value + " — descending LEFT");
+            cur.circle.setFill(Color.GOLD);
+            if (cur.parent != null) cur.edgeToParent.setStroke(Color.GOLD);
+            resultLabel.setText("Inorder: At " + cur.value + " — descending LEFT");
         });
 
         recordInorder(node.left, visited);
 
+        // 2. VISIT the node (N)
         visited.add(String.valueOf(node.value));
         final String order = "Inorder: " + String.join(" → ", visited);
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.MAGENTA);
-            if (cur.parent != null) cur.edgeToParent.setStroke(Color.ORANGE);
-            resultLabel.setText(order);
+            cur.circle.setStroke(Color.WHITE);
+            cur.circle.setStrokeWidth(3);
+            resultLabel.setText(order + "  (Visited " + cur.value + ")");
+        });
+
+        // 3. Traverse Right
+        algorithmSteps.add(() -> {
+            cur.circle.setFill(Color.ORANGE);
+            cur.circle.setStroke(Color.BLACK);
+            cur.circle.setStrokeWidth(2);
+            resultLabel.setText("Inorder: " + cur.value + " visited — descending RIGHT");
         });
 
         recordInorder(node.right, visited);
 
-        algorithmSteps.add(() -> cur.circle.setFill(Color.GREEN));
+        // 4. Completed
+        algorithmSteps.add(() -> {
+            cur.circle.setFill(Color.LIGHTGRAY);
+            if (cur.parent != null) cur.edgeToParent.setStroke(Color.LIGHTGRAY);
+        });
     }
 
     private void recordPreorder(BSTNode node, List<String> visited) {
         if (node == null) return;
         final BSTNode cur = node;
 
+        // 1. VISIT the node immediately (N)
         visited.add(String.valueOf(node.value));
         final String order = "Preorder: " + String.join(" → ", visited);
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.MAGENTA);
-            if (cur.parent != null) cur.edgeToParent.setStroke(Color.ORANGE);
-            resultLabel.setText(order);
+            cur.circle.setStroke(Color.WHITE);
+            cur.circle.setStrokeWidth(3);
+            if (cur.parent != null) cur.edgeToParent.setStroke(Color.MAGENTA);
+            resultLabel.setText(order + "  (Visited " + cur.value + ")");
         });
 
+        // 2. Traverse Left
         algorithmSteps.add(() -> {
-            cur.circle.setFill(Color.YELLOW);
-            resultLabel.setText("Preorder: descending LEFT of " + cur.value);
+            cur.circle.setFill(Color.GOLD);
+            cur.circle.setStroke(Color.BLACK);
+            cur.circle.setStrokeWidth(2);
+            resultLabel.setText("Preorder: Descending LEFT from " + cur.value);
         });
+
         recordPreorder(node.left, visited);
 
+        // 3. Traverse Right
         algorithmSteps.add(() -> {
-            cur.circle.setFill(Color.YELLOW);
-            resultLabel.setText("Preorder: descending RIGHT of " + cur.value);
+            cur.circle.setFill(Color.ORANGE);
+            resultLabel.setText("Preorder: Descending RIGHT from " + cur.value);
         });
+
         recordPreorder(node.right, visited);
 
-        algorithmSteps.add(() -> cur.circle.setFill(Color.GREEN));
+        // 4. Completed
+        algorithmSteps.add(() -> {
+            cur.circle.setFill(Color.LIGHTGRAY);
+            if (cur.parent != null) cur.edgeToParent.setStroke(Color.LIGHTGRAY);
+        });
     }
 
     private void recordPostorder(BSTNode node, List<String> visited) {
         if (node == null) return;
         final BSTNode cur = node;
 
+        // 1. Arrive and Traverse Left
         algorithmSteps.add(() -> {
-            cur.circle.setFill(Color.YELLOW);
-            resultLabel.setText("Postorder: processing children of " + cur.value + " first");
+            cur.circle.setFill(Color.GOLD);
+            if (cur.parent != null) cur.edgeToParent.setStroke(Color.GOLD);
+            resultLabel.setText("Postorder: At " + cur.value + " — descending LEFT");
         });
 
-        recordPostorder(node.left,  visited);
+        recordPostorder(node.left, visited);
+
+        // 2. Traverse Right
+        algorithmSteps.add(() -> {
+            cur.circle.setFill(Color.ORANGE);
+            resultLabel.setText("Postorder: At " + cur.value + " — descending RIGHT");
+        });
+
         recordPostorder(node.right, visited);
 
+        // 3. VISIT the node last (N)
         visited.add(String.valueOf(node.value));
         final String order = "Postorder: " + String.join(" → ", visited);
         algorithmSteps.add(() -> {
             cur.circle.setFill(Color.MAGENTA);
-            if (cur.parent != null) cur.edgeToParent.setStroke(Color.ORANGE);
-            resultLabel.setText(order);
+            cur.circle.setStroke(Color.WHITE);
+            cur.circle.setStrokeWidth(3);
+            resultLabel.setText(order + "  (Visited " + cur.value + ")");
         });
 
-        algorithmSteps.add(() -> cur.circle.setFill(Color.GREEN));
+        // 4. Completed
+        algorithmSteps.add(() -> {
+            cur.circle.setFill(Color.LIGHTGRAY);
+            cur.circle.setStroke(Color.BLACK);
+            cur.circle.setStrokeWidth(2);
+            if (cur.parent != null) cur.edgeToParent.setStroke(Color.LIGHTGRAY);
+        });
     }
 
     private void recordLevelOrder() {
