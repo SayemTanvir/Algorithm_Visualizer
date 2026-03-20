@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="650.0" prefWidth="950.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.VisuAlgorithm.BSTController">
+
+    <top>
+        <StackPane>
+            <ToolBar fx:id="buildToolbar">
+                <Button fx:id="backButton" onAction="#handleBackButton" text="← Back" />
+                <Separator />
+                <Label text="Value:" />
+                <TextField fx:id="insertField" onAction="#handleInsert" prefWidth="80" promptText="e.g. 42" />
+                <Button onAction="#handleInsert" text="Insert" />
+                <Button onAction="#deleteSelected" text="Delete Selected" />
+                <Separator />
+                <Button onAction="#generateRandomTree" text="Random Tree" />
+                <Button onAction="#clearTree" text="Clear" />
+                <Separator />
+                <Button onAction="#switchToAlgoMode" text="Algo Mode →" />
+            </ToolBar>
+
+            <ToolBar fx:id="algoToolbar" visible="false">
+                <Button onAction="#handleBackButton" text="← Back" />
+                <Separator />
+                <ComboBox fx:id="algoComboBox" prefWidth="230" promptText="Select Algorithm" />
+                <Label text="Value:" />
+                <TextField fx:id="startNodeField" onAction="#togglePlayPause" prefWidth="90" promptText="search value" />
+                <Button onAction="#switchToBuildMode" text="← Build Mode" />
+            </ToolBar>
+        </StackPane>
+    </top>
+
+    <center>
+        <ScrollPane fitToHeight="true" fitToWidth="true" pannable="true" style="-fx-background-color: transparent;">
+            <Pane fx:id="canvasPane" onMouseClicked="#handleCanvasClick" prefHeight="560" prefWidth="950" style="-fx-background-color: #f9f9f9;" />
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <VBox>
+            <Label fx:id="resultLabel" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 6 12 6 12;" text="" />
+            <ToolBar fx:id="playbackToolbar" managed="false" visible="false">
+                <Button fx:id="playPauseButton" onAction="#togglePlayPause" prefWidth="95" text="▶ Play" />
+                <Button onAction="#stepBackward" text="⏮ Step Back" />
+                <Button onAction="#stepForward" text="⏭ Step Fwd" />
+                <Button onAction="#resetAlgorithmState" text="↺ Reset" />
+                <Separator />
+                <Label text="Speed:" />
+                <Slider fx:id="speedSlider" blockIncrement="0.25" majorTickUnit="1.0" max="4.0" min="0.25" prefWidth="120" showTickLabels="true" showTickMarks="true" value="1.0" />
+            </ToolBar>
+        </VBox>
+    </bottom>
+
+</BorderPane>

@@ -48,6 +48,11 @@ public class HelloController {
         System.out.println("graph_window");
         switchScene("/org/example/VisuAlgorithm/graph-view.fxml", click);
     }
+    @FXML
+    void gotoBST(MouseEvent click) throws IOException {
+        System.out.println("graph_window");
+        switchScene("/org/example/VisuAlgorithm/bst-view.fxml", click);
+    }
 
 
     private void switchScene(String fxml_name, MouseEvent click) throws IOException {
