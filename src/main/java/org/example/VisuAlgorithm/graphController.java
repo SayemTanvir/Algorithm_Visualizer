@@ -6,17 +6,22 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Point2D;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.*;
 import javafx.scene.text.Text;
+import javafx.scene.transform.Scale;
+import javafx.scene.transform.Translate;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -59,21 +64,42 @@ public class graphController {
     @FXML private TextArea adjMatrixArea;
 
     // ===============================
+    // LEFT SIDE: REAL-TIME STATE PANEL
+    // ===============================
+    @FXML private VBox      algoStatePane;
+    @FXML private Label     algoNameLabel;
+    @FXML private Label     currentStepLabel;
+    @FXML private Label     dsTitleLabel;
+    @FXML private TextArea  dsArea;
+    @FXML private TextArea  visitedArea;
+    @FXML private Separator extraSeparator;
+    @FXML private Label     extraTitleLabel;
+    @FXML private TextArea  extraArea;
+
+    // ===============================
     // STATE VARIABLES
     // ===============================
     private int nodeCounter = 1;
     private GraphNode firstEdgeNode = null;
-    private GraphNode selectedNode = null;
-    private GraphEdge selectedEdge = null;
+    private GraphNode selectedNode  = null;
+    private GraphEdge selectedEdge  = null;
     private boolean isAlgorithmMode = false;
 
-    private final List<GraphNode> nodes = new ArrayList<>();
-    private final List<GraphEdge> edges = new ArrayList<>();
-    private final Stack<UndoCommand> undoStack = new Stack<>();
+    private final List<GraphNode>      nodes      = new ArrayList<>();
+    private final List<GraphEdge>      edges      = new ArrayList<>();
+    private final Stack<UndoCommand>   undoStack  = new Stack<>();
 
-    private Timeline timeline;
+    private Timeline         timeline       = null;
     private final List<Runnable> algorithmSteps = new ArrayList<>();
     private int currentStep = 0;
+
+    // Canvas Pan & Zoom Sub-Container & Variables
+    private final Group graphContentGroup = new Group();
+    private final Scale scaleTransform = new Scale(1, 1);
+    private final Translate panTransform = new Translate(0, 0);
+    private double lastPanX, lastPanY;
+    private double dragStartX, dragStartY;
+    private boolean canvasDragged = false;
 
     // ===============================
     // INITIALIZATION
@@ -81,16 +107,27 @@ public class graphController {
     @FXML
     public void initialize() {
         nodeTool.setSelected(true);
-
         nodeTool.setOnAction(e -> clearSelection());
         edgeTool.setOnAction(e -> clearSelection());
 
         Platform.runLater(() -> {
             if (canvasPane.getScene() != null) {
+                // Global Keyboard Shortcuts (Undo + Zooming)
                 canvasPane.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                    if (event.isShortcutDown() && event.getCode() == KeyCode.Z) {
-                        handleUndo();
-                        event.consume();
+                    if (event.isShortcutDown()) { // isShortcutDown maps to Ctrl on Windows, Cmd on Mac
+                        if (event.getCode() == KeyCode.Z) {
+                            handleUndo();
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS || event.getCode() == KeyCode.ADD) {
+                            applyZoom(1.1, canvasPane.getWidth() / 2, canvasPane.getHeight() / 2);
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.MINUS || event.getCode() == KeyCode.SUBTRACT) {
+                            applyZoom(0.9, canvasPane.getWidth() / 2, canvasPane.getHeight() / 2);
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) {
+                            resetPanAndZoom();
+                            event.consume();
+                        }
                     }
                 });
             }
@@ -111,19 +148,14 @@ public class graphController {
                 protected void updateItem(String item, boolean empty) {
                     super.updateItem(item, empty);
                     if (empty || item == null) {
-                        setText(null);
-                        setDisable(false);
-                        setStyle("");
+                        setText(null); setDisable(false); setStyle("");
                     } else {
                         setText(item);
-                        boolean requiresWeight = item.contains("Dijkstra") ||
-                                item.contains("Prim") ||
-                                item.contains("Kruskal");
-                        boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
-                        boolean requiresDAG = item.contains("Topological");
-                        boolean notADAG = !isDAG();
-
-                        if ((requiresWeight && hasUnweightedEdges) || (requiresDAG && notADAG)) {
+                        boolean reqWeight  = item.contains("Dijkstra") || item.contains("Prim") || item.contains("Kruskal");
+                        boolean hasUnweighted = edges.stream().anyMatch(e -> !e.isWeighted);
+                        boolean reqDAG     = item.contains("Topological");
+                        boolean notDAG     = !isDAG();
+                        if ((reqWeight && hasUnweighted) || (reqDAG && notDAG)) {
                             setDisable(true);
                             setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
                         } else {
@@ -133,11 +165,182 @@ public class graphController {
                     }
                 }
             });
-        }
-        if (resultLabel != null) resultLabel.setText("");
 
-        // Initial setup for the data panel
+            algoComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null && !newVal.equals(oldVal)) {
+                    resetAlgorithmState();
+                    if (isAlgorithmMode) {
+                        resultLabel.setText("Algorithm changed. Press ▶ Play to start!");
+                    }
+                }
+            });
+        }
+
+        setupCanvasPanAndZoom();
+
+        if (resultLabel != null) resultLabel.setText("");
         updateGraphRepresentations();
+    }
+
+    // ===============================
+    // CANVAS PAN & ZOOM SETUP
+    // ===============================
+    private void setupCanvasPanAndZoom() {
+        if (canvasPane == null) return;
+
+        if (!canvasPane.getChildren().contains(graphContentGroup)) {
+            canvasPane.getChildren().add(graphContentGroup);
+        }
+
+        graphContentGroup.getTransforms().addAll(panTransform, scaleTransform);
+
+        // 1. Trackpad Two-Finger Swipe to Pan
+        canvasPane.setOnScroll(event -> {
+            panTransform.setX(panTransform.getX() + event.getDeltaX());
+            panTransform.setY(panTransform.getY() + event.getDeltaY());
+            event.consume();
+        });
+
+        // 2. Trackpad Pinch to Zoom
+        canvasPane.setOnZoom(event -> {
+            applyZoom(event.getZoomFactor(), event.getX(), event.getY());
+            event.consume();
+        });
+
+        // 3. Mouse Click & Drag to Pan (Left, Middle, or Right Click)
+        canvasPane.setOnMousePressed(event -> {
+            lastPanX = event.getSceneX();
+            lastPanY = event.getSceneY();
+            dragStartX = lastPanX;
+            dragStartY = lastPanY;
+            canvasDragged = false;
+
+            if (event.getButton() != MouseButton.PRIMARY || isAlgorithmMode) {
+                canvasPane.setCursor(javafx.scene.Cursor.CLOSED_HAND);
+            }
+        });
+
+        canvasPane.setOnMouseDragged(event -> {
+            double deltaX = event.getSceneX() - lastPanX;
+            double deltaY = event.getSceneY() - lastPanY;
+
+            panTransform.setX(panTransform.getX() + deltaX);
+            panTransform.setY(panTransform.getY() + deltaY);
+
+            lastPanX = event.getSceneX();
+            lastPanY = event.getSceneY();
+
+            // If moved more than 3 pixels, it's a drag (prevents accidental node creation when clicking)
+            if (Math.hypot(event.getSceneX() - dragStartX, event.getSceneY() - dragStartY) > 3) {
+                canvasDragged = true;
+                canvasPane.setCursor(javafx.scene.Cursor.CLOSED_HAND);
+            }
+
+            event.consume();
+        });
+
+        canvasPane.setOnMouseReleased(event -> {
+            canvasPane.setCursor(javafx.scene.Cursor.DEFAULT);
+        });
+    }
+
+    private void applyZoom(double zoomFactor, double pivotX, double pivotY) {
+        double currentScale = scaleTransform.getX();
+        double newScale = currentScale * zoomFactor;
+
+        // Clamp the scale bounds so the user doesn't zoom into infinity/microscopic
+        if (newScale < 0.2 || newScale > 5.0) return;
+
+        double f = (zoomFactor - 1);
+
+        // Calculate translation math so we zoom directly towards the pivot point
+        double dx = pivotX - panTransform.getX();
+        double dy = pivotY - panTransform.getY();
+
+        panTransform.setX(panTransform.getX() - dx * f);
+        panTransform.setY(panTransform.getY() - dy * f);
+
+        scaleTransform.setX(newScale);
+        scaleTransform.setY(newScale);
+    }
+
+    private void resetPanAndZoom() {
+        panTransform.setX(0);
+        panTransform.setY(0);
+        scaleTransform.setX(1);
+        scaleTransform.setY(1);
+    }
+
+    // ===============================
+    // REAL-TIME STATE PANEL HELPERS
+    // ===============================
+
+    private void setAlgoState(String action,
+                              String dsTitle, String ds,
+                              String visited,
+                              String extraTitle, String extra) {
+        if (currentStepLabel != null)
+            currentStepLabel.setText(action != null ? action : "—");
+        if (dsTitleLabel != null && dsTitle != null && !dsTitle.isEmpty())
+            dsTitleLabel.setText(dsTitle);
+        if (dsArea != null)
+            dsArea.setText(ds != null ? ds : "");
+        if (visitedArea != null)
+            visitedArea.setText(visited != null ? visited : "");
+
+        boolean showExtra = extra != null && !extra.isEmpty();
+        if (extraSeparator  != null) { extraSeparator.setVisible(showExtra);  extraSeparator.setManaged(showExtra);  }
+        if (extraTitleLabel != null) { extraTitleLabel.setText(extraTitle != null ? extraTitle : "");
+            extraTitleLabel.setVisible(showExtra); extraTitleLabel.setManaged(showExtra); }
+        if (extraArea       != null) { extraArea.setText(showExtra ? extra : "");
+            extraArea.setVisible(showExtra);       extraArea.setManaged(showExtra);       }
+    }
+
+    private void clearStatePanel() {
+        if (algoNameLabel    != null) algoNameLabel.setText("");
+        if (currentStepLabel != null) currentStepLabel.setText("Press ▶ Play to start");
+        if (dsTitleLabel     != null) dsTitleLabel.setText("Data Structure:");
+        if (dsArea           != null) dsArea.setText("");
+        if (visitedArea      != null) visitedArea.setText("");
+        if (extraSeparator   != null) { extraSeparator.setVisible(false);  extraSeparator.setManaged(false);  }
+        if (extraTitleLabel  != null) { extraTitleLabel.setText(""); extraTitleLabel.setVisible(false); extraTitleLabel.setManaged(false); }
+        if (extraArea        != null) { extraArea.setText(""); extraArea.setVisible(false); extraArea.setManaged(false); }
+    }
+
+    // --- Intuitive Format Helpers ---
+
+    private String formatQueue(LinkedList<GraphNode> q) {
+        if (q.isEmpty()) return "(Queue is empty)";
+        List<String> labels = q.stream().map(n -> n.label.getText()).toList();
+        return "Front ➔ [ " + String.join(" | ", labels) + " ] ➔ Back";
+    }
+
+    private String formatStack(List<String> stack) {
+        if (stack.isEmpty()) return "(Stack is empty)";
+        StringBuilder sb = new StringBuilder();
+        for (int i = stack.size() - 1; i >= 0; i--) {
+            if (i == stack.size() - 1) sb.append("  Top  ➔ [ ").append(stack.get(i)).append(" ]\n");
+            else if (i == 0)           sb.append("  Base ➔ [ ").append(stack.get(i)).append(" ]\n");
+            else                       sb.append("         [ ").append(stack.get(i)).append(" ]\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private String formatDistances(Map<GraphNode, Integer> snap) {
+        if (snap == null || snap.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder("Node | Distance\n");
+        sb.append("─────┼──────────\n");
+        for (GraphNode node : nodes) {
+            Integer d = snap.get(node);
+            String dStr = (d == null || d == Integer.MAX_VALUE) ? "∞" : String.valueOf(d);
+            sb.append(String.format("  %-2s | %s%n", node.label.getText(), dStr));
+        }
+        return sb.toString().trim();
+    }
+
+    private String formatMSTEdges(List<String> mstEdges, int total) {
+        if (mstEdges.isEmpty()) return "(None yet)";
+        return String.join("\n", mstEdges) + "\n─────────────\nTotal weight = " + total;
     }
 
     // ===============================
@@ -158,13 +361,9 @@ public class graphController {
     }
 
     private class DeleteCommand implements UndoCommand {
-        GraphNode node;
-        List<GraphEdge> associatedEdges;
-        GraphEdge singleEdge;
-
+        GraphNode node; List<GraphEdge> associatedEdges; GraphEdge singleEdge;
         DeleteCommand(GraphNode n, List<GraphEdge> e) { this.node = n; this.associatedEdges = e; }
         DeleteCommand(GraphEdge e) { this.singleEdge = e; }
-
         public void undo() {
             if (node != null) {
                 restoreNodeInternal(node);
@@ -179,30 +378,23 @@ public class graphController {
     // INTERNAL GRAPH CLASSES
     // ===============================
     class GraphNode {
-        Circle circle;
-        Text label;
-        double offsetX, offsetY;
+        Circle circle; Text label; double offsetX, offsetY;
         List<GraphEdge> connectedEdges = new ArrayList<>();
         Text distLabel;
 
         GraphNode(double x, double y, String value) {
             circle = new Circle(x, y, 20, Color.LIGHTBLUE);
-            circle.setStroke(Color.BLACK);
-            circle.setStrokeWidth(2);
-
-            label = new Text(value);
-            label.setMouseTransparent(true);
+            circle.setStroke(Color.BLACK); circle.setStrokeWidth(2);
+            label = new Text(value); label.setMouseTransparent(true);
 
             distLabel = new Text("∞");
             distLabel.setFill(Color.DARKRED);
             distLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
-            distLabel.setMouseTransparent(true);
-            distLabel.setVisible(false);
+            distLabel.setMouseTransparent(true); distLabel.setVisible(false);
 
             Platform.runLater(() -> {
                 label.xProperty().bind(circle.centerXProperty().subtract(label.getLayoutBounds().getWidth() / 2));
                 label.yProperty().bind(circle.centerYProperty().add(label.getLayoutBounds().getHeight() / 4));
-
                 distLabel.textProperty().addListener((obs, oldVal, newVal) -> {
                     distLabel.xProperty().unbind();
                     distLabel.xProperty().bind(circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
@@ -210,109 +402,74 @@ public class graphController {
                 distLabel.xProperty().bind(circle.centerXProperty().subtract(distLabel.getLayoutBounds().getWidth() / 2));
                 distLabel.yProperty().bind(circle.centerYProperty().subtract(circle.getRadius() + 5));
             });
-
             enableDrag();
         }
 
         void enableDrag() {
             circle.setOnMousePressed(e -> {
                 if (isAlgorithmMode) return;
-                offsetX = circle.getCenterX() - e.getSceneX();
-                offsetY = circle.getCenterY() - e.getSceneY();
-                if (!edgeTool.isSelected()) {
-                    selectNode(this);
+
+                Point2D localPoint = graphContentGroup.sceneToLocal(e.getSceneX(), e.getSceneY());
+                offsetX = circle.getCenterX() - localPoint.getX();
+                offsetY = circle.getCenterY() - localPoint.getY();
+
+                if (!edgeTool.isSelected()) selectNode(this);
+                e.consume(); // Prevents canvas pan drag from triggering
+            });
+            circle.setOnMouseDragged(e -> {
+                if (isAlgorithmMode) return;
+
+                Point2D localPoint = graphContentGroup.sceneToLocal(e.getSceneX(), e.getSceneY());
+                circle.setCenterX(localPoint.getX() + offsetX);
+                circle.setCenterY(localPoint.getY() + offsetY);
+                updateConnectedEdges();
+                e.consume(); // Prevents canvas pan drag from triggering
+            });
+            circle.setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.PRIMARY) {
+                    handleNodeClick(this);
                 }
                 e.consume();
             });
-
-            circle.setOnMouseDragged(e -> {
-                if (isAlgorithmMode) return;
-                circle.setCenterX(e.getSceneX() + offsetX);
-                circle.setCenterY(e.getSceneY() + offsetY);
-                updateConnectedEdges();
-                e.consume();
-            });
-
-            circle.setOnMouseClicked(e -> {
-                handleNodeClick(this);
-                e.consume();
-            });
         }
 
-        void updateConnectedEdges() {
-            for (GraphEdge edge : connectedEdges) {
-                edge.update();
-            }
-        }
+        void updateConnectedEdges() { for (GraphEdge edge : connectedEdges) edge.update(); }
     }
 
     class GraphEdge {
-        GraphNode from, to;
-        Line line;
-        Polygon arrowHead;
-        Text weightText;
-        boolean isDirected;
-        boolean isWeighted;
+        GraphNode from, to; Line line; Polygon arrowHead; Text weightText;
+        boolean isDirected, isWeighted;
 
         GraphEdge(GraphNode from, GraphNode to, int weight, boolean directed, boolean weighted) {
-            this.from = from;
-            this.to = to;
-            this.isDirected = directed;
-            this.isWeighted = weighted;
-
-            line = new Line();
-            line.setStrokeWidth(3);
-            line.setStroke(Color.BLACK);
-
-            weightText = new Text(String.valueOf(weight));
-            weightText.setMouseTransparent(true);
-
-            arrowHead = new Polygon();
-            arrowHead.setFill(Color.BLACK);
+            this.from = from; this.to = to; this.isDirected = directed; this.isWeighted = weighted;
+            line = new Line(); line.setStrokeWidth(3); line.setStroke(Color.BLACK);
+            weightText = new Text(String.valueOf(weight)); weightText.setMouseTransparent(true);
+            arrowHead  = new Polygon(); arrowHead.setFill(Color.BLACK);
 
             line.setOnMouseClicked(e -> {
-                selectEdge(this);
+                if (e.getButton() == MouseButton.PRIMARY) selectEdge(this);
                 e.consume();
             });
         }
 
         void update() {
-            double sx = from.circle.getCenterX();
-            double sy = from.circle.getCenterY();
-            double ex = to.circle.getCenterX();
-            double ey = to.circle.getCenterY();
-
-            double dx = ex - sx;
-            double dy = ey - sy;
+            double sx = from.circle.getCenterX(), sy = from.circle.getCenterY();
+            double ex = to.circle.getCenterX(),   ey = to.circle.getCenterY();
+            double dx = ex - sx, dy = ey - sy;
             double distance = Math.sqrt(dx * dx + dy * dy);
-
             if (distance < 1) return;
-
-            double radius = from.circle.getRadius();
-            double startX = sx + (dx / distance) * radius;
-            double startY = sy + (dy / distance) * radius;
-            double endX = ex - (dx / distance) * radius;
-            double endY = ey - (dy / distance) * radius;
-
-            line.setStartX(startX);
-            line.setStartY(startY);
-            line.setEndX(endX);
-            line.setEndY(endY);
-
-            if (isWeighted) {
-                weightText.setX((startX + endX) / 2 + 5);
-                weightText.setY((startY + endY) / 2 - 5);
-            }
-
+            double r = from.circle.getRadius();
+            double startX = sx + (dx / distance) * r, startY = sy + (dy / distance) * r;
+            double endX   = ex - (dx / distance) * r, endY   = ey - (dy / distance) * r;
+            line.setStartX(startX); line.setStartY(startY);
+            line.setEndX(endX);     line.setEndY(endY);
+            if (isWeighted) { weightText.setX((startX + endX) / 2 + 5); weightText.setY((startY + endY) / 2 - 5); }
             if (isDirected) {
-                double angle = Math.atan2(dy, dx);
-                double arrowLength = 12;
+                double angle = Math.atan2(dy, dx), al = 12;
                 arrowHead.getPoints().setAll(
                         endX, endY,
-                        endX - arrowLength * Math.cos(angle - Math.PI / 8),
-                        endY - arrowLength * Math.sin(angle - Math.PI / 8),
-                        endX - arrowLength * Math.cos(angle + Math.PI / 8),
-                        endY - arrowLength * Math.sin(angle + Math.PI / 8)
+                        endX - al * Math.cos(angle - Math.PI / 8), endY - al * Math.sin(angle - Math.PI / 8),
+                        endX - al * Math.cos(angle + Math.PI / 8), endY - al * Math.sin(angle + Math.PI / 8)
                 );
             }
         }
@@ -324,24 +481,26 @@ public class graphController {
     @FXML
     private void handleCanvasClick(MouseEvent event) {
         if (isAlgorithmMode) return;
+
+        // Ensure only primary clicks create nodes, and ignore if it was a drag gesture
+        if (event.getButton() != MouseButton.PRIMARY) return;
+        if (canvasDragged) return;
         if (event.getTarget() != canvasPane) return;
 
         if (nodeTool.isSelected()) {
-            createNode(event.getX(), event.getY());
+            // Apply coordinates correctly mapped into the Pan/Zoom space
+            Point2D localPoint = graphContentGroup.sceneToLocal(event.getSceneX(), event.getSceneY());
+            createNode(localPoint.getX(), localPoint.getY());
         } else {
             clearSelection();
         }
     }
 
     private void clearSelection() {
-        if (selectedNode != null) selectedNode.circle.setStroke(Color.BLACK);
-        if (selectedEdge != null) selectedEdge.line.setStroke(Color.BLACK);
-        selectedNode = null;
-        selectedEdge = null;
-        if (firstEdgeNode != null) {
-            firstEdgeNode.circle.setStroke(Color.BLACK);
-            firstEdgeNode = null;
-        }
+        if (selectedNode  != null) selectedNode.circle.setStroke(Color.BLACK);
+        if (selectedEdge  != null) selectedEdge.line.setStroke(Color.BLACK);
+        selectedNode = null; selectedEdge = null;
+        if (firstEdgeNode != null) { firstEdgeNode.circle.setStroke(Color.BLACK); firstEdgeNode = null; }
     }
 
     private void createNode(double x, double y) {
@@ -350,166 +509,115 @@ public class graphController {
         GraphNode node = new GraphNode(x, y, value);
         restoreNodeInternal(node);
         undoStack.push(new AddNodeCommand(node));
-
         updateGraphRepresentations();
     }
 
     private void handleNodeClick(GraphNode node) {
         if (isAlgorithmMode) return;
-
         if (edgeTool.isSelected()) {
-            if (firstEdgeNode == null) {
-                firstEdgeNode = node;
-                node.circle.setStroke(Color.ORANGE);
-            } else {
+            if (firstEdgeNode == null) { firstEdgeNode = node; node.circle.setStroke(Color.ORANGE); }
+            else {
                 if (firstEdgeNode != node) createEdge(firstEdgeNode, node);
-                firstEdgeNode.circle.setStroke(Color.BLACK);
-                firstEdgeNode = null;
+                firstEdgeNode.circle.setStroke(Color.BLACK); firstEdgeNode = null;
             }
-        } else {
-            selectNode(node);
-        }
+        } else { selectNode(node); }
     }
 
     private void createEdge(GraphNode from, GraphNode to) {
         if (edges.stream().anyMatch(e -> e.from == from && e.to == to)) return;
-
         int weight = 1;
         try { weight = Integer.parseInt(weightField.getText()); } catch (NumberFormatException ignored) {}
-
         GraphEdge edge = new GraphEdge(from, to, weight, directedCheck.isSelected(), weightedCheck.isSelected());
-        restoreEdgeInternal(edge);
-        undoStack.push(new AddEdgeCommand(edge));
-
+        restoreEdgeInternal(edge); undoStack.push(new AddEdgeCommand(edge));
         updateGraphRepresentations();
     }
 
-    private void selectNode(GraphNode node) {
-        clearSelection();
-        selectedNode = node;
-        node.circle.setStroke(Color.RED);
-    }
-
-    private void selectEdge(GraphEdge edge) {
-        clearSelection();
-        selectedEdge = edge;
-        edge.line.setStroke(Color.RED);
-    }
+    private void selectNode(GraphNode node) { clearSelection(); selectedNode = node; node.circle.setStroke(Color.RED); }
+    private void selectEdge(GraphEdge edge) { clearSelection(); selectedEdge = edge; edge.line.setStroke(Color.RED); }
 
     @FXML
     private void deleteSelected() {
         GraphNode nodeToDelete = selectedNode != null ? selectedNode : firstEdgeNode;
-
         if (nodeToDelete != null) {
             List<GraphEdge> toRemove = new ArrayList<>(nodeToDelete.connectedEdges);
             undoStack.push(new DeleteCommand(nodeToDelete, new ArrayList<>(toRemove)));
             toRemove.forEach(this::removeEdgeInternal);
             removeNodeInternal(nodeToDelete);
-            selectedNode = null;
-            firstEdgeNode = null;
+            selectedNode = null; firstEdgeNode = null;
         } else if (selectedEdge != null) {
             undoStack.push(new DeleteCommand(selectedEdge));
-            removeEdgeInternal(selectedEdge);
-            selectedEdge = null;
+            removeEdgeInternal(selectedEdge); selectedEdge = null;
         }
-
         updateGraphRepresentations();
     }
 
     private void handleUndo() {
-        if (!undoStack.isEmpty()) {
-            undoStack.pop().undo();
-            clearSelection();
-            updateGraphRepresentations();
-        }
+        if (!undoStack.isEmpty()) { undoStack.pop().undo(); clearSelection(); updateGraphRepresentations(); }
     }
 
     private void removeNodeInternal(GraphNode node) {
         nodes.remove(node);
-        canvasPane.getChildren().removeAll(node.circle, node.label, node.distLabel);
+        graphContentGroup.getChildren().removeAll(node.circle, node.label, node.distLabel);
     }
 
     private void restoreNodeInternal(GraphNode node) {
         if (!nodes.contains(node)) nodes.add(node);
-        if (!canvasPane.getChildren().contains(node.circle)) {
-            canvasPane.getChildren().addAll(node.circle, node.label, node.distLabel);
-        }
+        if (!graphContentGroup.getChildren().contains(node.circle))
+            graphContentGroup.getChildren().addAll(node.circle, node.label, node.distLabel);
     }
 
     private void removeEdgeInternal(GraphEdge edge) {
         edges.remove(edge);
-        edge.from.connectedEdges.remove(edge);
-        edge.to.connectedEdges.remove(edge);
-        canvasPane.getChildren().removeAll(edge.line, edge.arrowHead, edge.weightText);
+        edge.from.connectedEdges.remove(edge); edge.to.connectedEdges.remove(edge);
+        graphContentGroup.getChildren().removeAll(edge.line, edge.arrowHead, edge.weightText);
     }
 
     private void restoreEdgeInternal(GraphEdge edge) {
         if (!edges.contains(edge)) edges.add(edge);
         if (!edge.from.connectedEdges.contains(edge)) edge.from.connectedEdges.add(edge);
-        if (!edge.to.connectedEdges.contains(edge)) edge.to.connectedEdges.add(edge);
-
-        if (!canvasPane.getChildren().contains(edge.line)) {
-            int index = 0;
-            canvasPane.getChildren().add(index++, edge.line);
-            if (edge.isDirected) canvasPane.getChildren().add(index++, edge.arrowHead);
-            if (edge.isWeighted) canvasPane.getChildren().add(index, edge.weightText);
+        if (!edge.to.connectedEdges.contains(edge))   edge.to.connectedEdges.add(edge);
+        if (!graphContentGroup.getChildren().contains(edge.line)) {
+            int idx = 0;
+            graphContentGroup.getChildren().add(idx++, edge.line);
+            if (edge.isDirected) graphContentGroup.getChildren().add(idx++, edge.arrowHead);
+            if (edge.isWeighted) graphContentGroup.getChildren().add(idx,   edge.weightText);
         }
-
         edge.update();
     }
 
     @FXML
     public void generateRandomGraph() {
-        clearGraph(); // Clears and updates representation automatically
-
+        clearGraph();
         Random random = new Random();
-        double width = canvasPane.getWidth() > 0 ? canvasPane.getWidth() : 600;
+        double width  = canvasPane.getWidth()  > 0 ? canvasPane.getWidth()  : 600;
         double height = canvasPane.getHeight() > 0 ? canvasPane.getHeight() : 400;
-        int numNodes = random.nextInt(4) + 5;
-        double centerX = width / 2;
-        double centerY = height / 2;
-        double radius = Math.min(centerX, centerY) - 50;
-        double angleStep = 2 * Math.PI / numNodes;
+        int numNodes  = random.nextInt(4) + 5;
+        double cx = width / 2, cy = height / 2, r = Math.min(cx, cy) - 50;
+        double step = 2 * Math.PI / numNodes;
 
         for (int i = 0; i < numNodes; i++) {
-            double x = centerX + radius * Math.cos(i * angleStep);
-            double y = centerY + radius * Math.sin(i * angleStep);
-            GraphNode node = new GraphNode(x, y, String.valueOf(nodeCounter++));
+            GraphNode node = new GraphNode(cx + r * Math.cos(i * step), cy + r * Math.sin(i * step), String.valueOf(nodeCounter++));
             restoreNodeInternal(node);
         }
-
-        boolean isDirected = directedCheck.isSelected();
-        boolean isWeighted = weightedCheck.isSelected();
-
-        List<GraphNode> connected = new ArrayList<>();
-        List<GraphNode> unconnected = new ArrayList<>(nodes);
+        boolean directed = directedCheck.isSelected(), weighted = weightedCheck.isSelected();
+        List<GraphNode> connected = new ArrayList<>(), unconnected = new ArrayList<>(nodes);
         connected.add(unconnected.remove(random.nextInt(unconnected.size())));
-
         while (!unconnected.isEmpty()) {
             GraphNode from = connected.get(random.nextInt(connected.size()));
-            GraphNode to = unconnected.remove(random.nextInt(unconnected.size()));
-            int weight = isWeighted ? random.nextInt(20) + 1 : 1;
-            GraphEdge edge = new GraphEdge(from, to, weight, isDirected, isWeighted);
-            restoreEdgeInternal(edge);
+            GraphNode to   = unconnected.remove(random.nextInt(unconnected.size()));
+            restoreEdgeInternal(new GraphEdge(from, to, weighted ? random.nextInt(20) + 1 : 1, directed, weighted));
             connected.add(to);
         }
-
-        int extraEdges = random.nextInt(3);
-        for (int i = 0; i < extraEdges; i++) {
+        for (int i = 0; i < random.nextInt(3); i++) {
             GraphNode from = nodes.get(random.nextInt(nodes.size()));
-            GraphNode to = nodes.get(random.nextInt(nodes.size()));
+            GraphNode to   = nodes.get(random.nextInt(nodes.size()));
             if (from != to) {
                 boolean exists = edges.stream().anyMatch(e ->
-                        (e.from == from && e.to == to) ||
-                                (!isDirected && e.from == to && e.to == from));
-                if (!exists) {
-                    int weight = isWeighted ? random.nextInt(20) + 1 : 1;
-                    GraphEdge edge = new GraphEdge(from, to, weight, isDirected, isWeighted);
-                    restoreEdgeInternal(edge);
-                }
+                        (e.from == from && e.to == to) || (!directed && e.from == to && e.to == from));
+                if (!exists)
+                    restoreEdgeInternal(new GraphEdge(from, to, weighted ? random.nextInt(20) + 1 : 1, directed, weighted));
             }
         }
-
         updateGraphRepresentations();
     }
 
@@ -517,12 +625,12 @@ public class graphController {
     public void clearGraph() {
         nodes.clear();
         edges.clear();
-        canvasPane.getChildren().clear();
+        graphContentGroup.getChildren().clear();
         undoStack.clear();
         nodeCounter = 1;
         clearSelection();
-
         updateGraphRepresentations();
+        resetPanAndZoom();
     }
 
     // ===============================
@@ -537,61 +645,47 @@ public class graphController {
         stage.getScene().setRoot(root);
     }
 
-    private void stopAll() {
-        resetAlgorithmState();
-        clearSelection();
-    }
+    private void stopAll() { resetAlgorithmState(); clearSelection(); }
 
     @FXML
     private void toggleDataPane(ActionEvent event) {
         ToggleButton clickedBtn = (ToggleButton) event.getSource();
         boolean showPane = clickedBtn.isSelected();
-
         if (dataToggleBuild != null) dataToggleBuild.setSelected(showPane);
-        if (dataToggleAlgo != null) dataToggleAlgo.setSelected(showPane);
+        if (dataToggleAlgo  != null) dataToggleAlgo.setSelected(showPane);
 
         if (dataPane != null) {
             dataPane.setVisible(showPane);
             dataPane.setManaged(showPane);
         }
-
-        if (showPane) {
-            updateGraphRepresentations();
-        }
+        if (showPane) updateGraphRepresentations();
     }
 
     @FXML
     private void switchToAlgoMode() {
-        if (nodes.isEmpty()) {
-            System.out.println("Graph is empty! Build a graph first.");
-            return;
-        }
-
-        isAlgorithmMode = true;
-        clearSelection();
+        if (nodes.isEmpty()) { System.out.println("Graph is empty! Build a graph first."); return; }
+        isAlgorithmMode = true; clearSelection();
         resultLabel.setText("Select an algorithm and press Play!");
 
         boolean hasUnweightedEdges = edges.stream().anyMatch(e -> !e.isWeighted);
-        String savedSelection = algoComboBox.getValue();
-        List<String> currentItems = new ArrayList<>(algoComboBox.getItems());
-        algoComboBox.getItems().clear();
-        algoComboBox.getItems().addAll(currentItems);
-
-        if (savedSelection != null && (
-                (hasUnweightedEdges && (savedSelection.contains("Dijkstra") ||
-                        savedSelection.contains("Prim") ||
-                        savedSelection.contains("Kruskal")))
-                        || (savedSelection.contains("Topological") && !isDAG())
-        )) {
+        String savedSel = algoComboBox.getValue();
+        List<String> items = new ArrayList<>(algoComboBox.getItems());
+        algoComboBox.getItems().clear(); algoComboBox.getItems().addAll(items);
+        if (savedSel != null && (
+                (hasUnweightedEdges && (savedSel.contains("Dijkstra") || savedSel.contains("Prim") || savedSel.contains("Kruskal")))
+                        || (savedSel.contains("Topological") && !isDAG()))) {
             algoComboBox.setValue(null);
         } else {
-            algoComboBox.setValue(savedSelection);
+            algoComboBox.setValue(savedSel);
         }
 
         buildToolbar.setVisible(false);
         algoToolbar.setVisible(true);
         playbackToolbar.setVisible(true);
         playbackToolbar.setManaged(true);
+
+        if (algoStatePane != null) { algoStatePane.setVisible(true); algoStatePane.setManaged(true); }
+        clearStatePanel();
     }
 
     @FXML
@@ -602,67 +696,49 @@ public class graphController {
         playbackToolbar.setVisible(false);
         playbackToolbar.setManaged(false);
         buildToolbar.setVisible(true);
+
+        if (algoStatePane != null) { algoStatePane.setVisible(false); algoStatePane.setManaged(false); }
     }
 
     // ===============================
-    // GRAPH REPRESENTATION (LIST/MATRIX)
+    // GRAPH REPRESENTATION
     // ===============================
     private void updateGraphRepresentations() {
         if (adjListArea == null || adjMatrixArea == null) return;
-
-        // 1. Adjacency List
         StringBuilder listBuilder = new StringBuilder();
         for (GraphNode node : nodes) {
             listBuilder.append(node.label.getText()).append(" -> ");
             List<String> neighbors = new ArrayList<>();
             for (GraphEdge edge : edges) {
-                if (edge.from == node) {
+                if (edge.from == node)
                     neighbors.add(edge.to.label.getText() + (edge.isWeighted ? "(" + edge.weightText.getText() + ")" : ""));
-                } else if (!edge.isDirected && edge.to == node) {
+                else if (!edge.isDirected && edge.to == node)
                     neighbors.add(edge.from.label.getText() + (edge.isWeighted ? "(" + edge.weightText.getText() + ")" : ""));
-                }
             }
             listBuilder.append(String.join(", ", neighbors)).append("\n");
         }
         adjListArea.setText(listBuilder.toString());
 
-        // 2. Adjacency Matrix
         int n = nodes.size();
-        if (n == 0) {
-            adjMatrixArea.setText("");
-            return;
-        }
-
+        if (n == 0) { adjMatrixArea.setText(""); return; }
         String[][] matrix = new String[n][n];
         for (int i = 0; i < n; i++) Arrays.fill(matrix[i], "0");
-
         Map<GraphNode, Integer> indexMap = new HashMap<>();
         for (int i = 0; i < n; i++) indexMap.put(nodes.get(i), i);
-
         for (GraphEdge edge : edges) {
-            Integer u = indexMap.get(edge.from);
-            Integer v = indexMap.get(edge.to);
+            Integer u = indexMap.get(edge.from), v = indexMap.get(edge.to);
             if (u == null || v == null) continue;
-
             String w = edge.isWeighted ? edge.weightText.getText() : "1";
             matrix[u][v] = w;
-            if (!edge.isDirected) {
-                matrix[v][u] = w;
-            }
+            if (!edge.isDirected) matrix[v][u] = w;
         }
-
         StringBuilder matrixBuilder = new StringBuilder();
         matrixBuilder.append(String.format("%-6s", ""));
-        for (GraphNode node : nodes) {
-            matrixBuilder.append(String.format("%-6s", node.label.getText()));
-        }
+        for (GraphNode node : nodes) matrixBuilder.append(String.format("%-6s", node.label.getText()));
         matrixBuilder.append("\n");
-
         for (int i = 0; i < n; i++) {
             matrixBuilder.append(String.format("%-6s", nodes.get(i).label.getText()));
-            for (int j = 0; j < n; j++) {
-                matrixBuilder.append(String.format("%-6s", matrix[i][j]));
-            }
+            for (int j = 0; j < n; j++) matrixBuilder.append(String.format("%-6s", matrix[i][j]));
             matrixBuilder.append("\n");
         }
         adjMatrixArea.setText(matrixBuilder.toString());
@@ -674,69 +750,49 @@ public class graphController {
     @FXML
     private void resetGraphColors() {
         for (GraphNode n : nodes) {
-            n.circle.setFill(Color.LIGHTBLUE);
-            n.circle.setStroke(Color.BLACK);
-            n.distLabel.setText("∞");
-            n.distLabel.setFill(Color.DARKRED);
-            n.distLabel.setVisible(false);
+            n.circle.setFill(Color.LIGHTBLUE); n.circle.setStroke(Color.BLACK);
+            n.distLabel.setText("∞"); n.distLabel.setFill(Color.DARKRED); n.distLabel.setVisible(false);
         }
-        for (GraphEdge e : edges) {
-            e.line.setStroke(Color.BLACK);
-            e.line.setStrokeWidth(3);
-        }
+        for (GraphEdge e : edges) { e.line.setStroke(Color.BLACK); e.line.setStrokeWidth(3); }
     }
 
     private GraphNode findNodeByValue(String value) {
         if (value == null || value.isEmpty()) return null;
-        for (GraphNode node : nodes) {
-            if (node.label.getText().equals(value)) return node;
-        }
+        for (GraphNode node : nodes) if (node.label.getText().equals(value)) return node;
         return null;
     }
 
     private void initializeAlgorithm() {
-        if (timeline != null) {
-            timeline.stop();
-            timeline = null;
-        }
+        if (timeline != null) { timeline.stop(); timeline = null; }
         resetGraphColors();
         resultLabel.setText("Starting Algorithm...");
         algorithmSteps.clear();
         currentStep = 0;
 
+        String selectedAlgo = algoComboBox.getValue();
+        if (algoNameLabel != null) algoNameLabel.setText(selectedAlgo != null ? selectedAlgo : "");
+
         GraphNode startNode = findNodeByValue(startNodeField.getText());
-        if (startNode == null) startNode = nodes.get(0);
+        if (startNode == null && !nodes.isEmpty()) startNode = nodes.get(0);
         GraphNode endNode = findNodeByValue(endNodeField.getText());
 
-        String selectedAlgo = algoComboBox.getValue();
         if (selectedAlgo != null) {
-            if (selectedAlgo.startsWith("BFS")) {
-                recordBFS(startNode);
-            } else if (selectedAlgo.startsWith("DFS")) {
-                recordDFS(startNode);
-            } else if (selectedAlgo.startsWith("Prim")) {
-                if (edges.stream().anyMatch(e -> !e.isWeighted)) {
-                    resultLabel.setText("Error: Prim's MST requires a fully weighted graph!");
-                    return;
-                }
+            if      (selectedAlgo.startsWith("BFS"))         recordBFS(startNode);
+            else if (selectedAlgo.startsWith("DFS"))         recordDFS(startNode);
+            else if (selectedAlgo.startsWith("Prim")) {
+                if (edges.stream().anyMatch(e -> !e.isWeighted)) { resultLabel.setText("Error: Prim's MST requires a fully weighted graph!"); return; }
                 recordPrim(startNode);
-            } else if (selectedAlgo.startsWith("Kruskal")) {
-                if (edges.stream().anyMatch(e -> !e.isWeighted)) {
-                    resultLabel.setText("Error: Kruskal's MST requires a fully weighted graph!");
-                    return;
-                }
+            }
+            else if (selectedAlgo.startsWith("Kruskal")) {
+                if (edges.stream().anyMatch(e -> !e.isWeighted)) { resultLabel.setText("Error: Kruskal's MST requires a fully weighted graph!"); return; }
                 recordKruskal();
-            } else if (selectedAlgo.startsWith("Dijkstra")) {
-                if (edges.stream().anyMatch(e -> !e.isWeighted)) {
-                    resultLabel.setText("Error: Dijkstra requires a fully weighted graph!");
-                    return;
-                }
+            }
+            else if (selectedAlgo.startsWith("Dijkstra")) {
+                if (edges.stream().anyMatch(e -> !e.isWeighted)) { resultLabel.setText("Error: Dijkstra requires a fully weighted graph!"); return; }
                 recordDijkstra(startNode, endNode);
-            } else if (selectedAlgo.startsWith("Topological")) {
-                if (!isDAG()) {
-                    resultLabel.setText("Error: Graph must be a directed acyclic graph (DAG)!");
-                    return;
-                }
+            }
+            else if (selectedAlgo.startsWith("Topological")) {
+                if (!isDAG()) { resultLabel.setText("Error: Graph must be a directed acyclic graph (DAG)!"); return; }
                 recordTopologicalSort();
             }
         }
@@ -759,509 +815,646 @@ public class graphController {
     @FXML
     private void togglePlayPause() {
         if (nodes.isEmpty() || algoComboBox.getValue() == null) return;
-
         if (timeline != null && timeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
-            timeline.pause();
-            playPauseButton.setText("▶ Play");
-            return;
+            timeline.pause(); playPauseButton.setText("▶ Play"); return;
         }
-
-        if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
-            initializeAlgorithm();
-        }
-
-        if (timeline == null) {
-            setupTimeline();
-        }
-
-        timeline.play();
-        playPauseButton.setText("⏸ Pause");
+        if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) initializeAlgorithm();
+        if (timeline == null) setupTimeline();
+        timeline.play(); playPauseButton.setText("⏸ Pause");
     }
 
     @FXML
     private void stepForward() {
         if (nodes.isEmpty() || algoComboBox.getValue() == null) return;
-
-        if (timeline != null) {
-            timeline.pause();
-            playPauseButton.setText("▶ Play");
-        }
-
+        if (timeline != null) { timeline.pause(); playPauseButton.setText("▶ Play"); }
         if (algorithmSteps.isEmpty() || currentStep >= algorithmSteps.size()) {
             initializeAlgorithm();
             if (timeline == null) setupTimeline();
         }
-
-        if (currentStep < algorithmSteps.size()) {
-            algorithmSteps.get(currentStep).run();
-            currentStep++;
-        }
+        if (currentStep < algorithmSteps.size()) { algorithmSteps.get(currentStep).run(); currentStep++; }
     }
 
     @FXML
     private void stepBackward() {
         if (algorithmSteps.isEmpty() || currentStep <= 0) return;
-
-        if (timeline != null) {
-            timeline.pause();
-            playPauseButton.setText("▶ Play");
-        }
-
+        if (timeline != null) { timeline.pause(); playPauseButton.setText("▶ Play"); }
         currentStep--;
         resetGraphColors();
-        resultLabel.setText("Traversal Order: ");
-        for (int i = 0; i < currentStep; i++) {
-            algorithmSteps.get(i).run();
-        }
+        resultLabel.setText("");
+        clearStatePanel();
+        for (int i = 0; i < currentStep; i++) algorithmSteps.get(i).run();
     }
 
     @FXML
     private void resetAlgorithmState() {
-        if (timeline != null) {
-            timeline.stop();
-            timeline = null;
-        }
+        if (timeline != null) { timeline.stop(); timeline = null; }
         if (playPauseButton != null) playPauseButton.setText("▶ Play");
         resetGraphColors();
-
-        if (isAlgorithmMode) {
-            resultLabel.setText("Select an algorithm and press Play!");
-        } else {
-            resultLabel.setText("");
-        }
-
-        algorithmSteps.clear();
-        currentStep = 0;
+        if (isAlgorithmMode) resultLabel.setText("Select an algorithm and press Play!");
+        else                 resultLabel.setText("");
+        algorithmSteps.clear(); currentStep = 0;
+        clearStatePanel();
     }
 
     // ===============================
     // ALGORITHM IMPLEMENTATIONS
     // ===============================
 
-    // --- BFS ---
+    // ─────────────────────────────────────────────
+    // BFS
+    // ─────────────────────────────────────────────
     private void recordBFS(GraphNode startNode) {
-        Set<GraphNode> visited = new HashSet<>();
-        Queue<GraphNode> queue = new LinkedList<>();
-        List<String> visitedOrder = new ArrayList<>();
+        final String DS_TITLE = "Active Queue:";
+
+        LinkedList<GraphNode> queue = new LinkedList<>();
+        Set<GraphNode>        visited     = new LinkedHashSet<>();
+        List<String>          visitedOrder = new ArrayList<>();
 
         queue.add(startNode);
         visited.add(startNode);
 
-        algorithmSteps.add(() -> startNode.circle.setFill(Color.YELLOW));
+        final String initQ = formatQueue(queue);
+        algorithmSteps.add(() -> {
+            startNode.circle.setFill(Color.YELLOW);
+            setAlgoState("Found starting node '" + startNode.label.getText() + "' and pushed to Queue.",
+                    DS_TITLE, initQ, "(None)", null, null);
+        });
 
         while (!queue.isEmpty()) {
             GraphNode current = queue.poll();
             visitedOrder.add(current.label.getText());
-            final String currentPath = "Traversal Order: " + String.join(" ➔ ", visitedOrder);
+
             final GraphNode exploringNode = current;
+            final String visitStr   = String.join(" ➔ ", visitedOrder);
+            final String resultPath = "Traversal Order: " + visitStr;
+            final String qSnap      = formatQueue(queue);
 
             algorithmSteps.add(() -> {
                 exploringNode.circle.setFill(Color.MAGENTA);
-                resultLabel.setText(currentPath);
+                resultLabel.setText(resultPath);
+                setAlgoState("Popped '" + exploringNode.label.getText() + "' from Queue for exploration.",
+                        DS_TITLE, qSnap, visitStr, null, null);
             });
 
             for (GraphEdge edge : current.connectedEdges) {
                 GraphNode neighbor = null;
-                if (edge.from == current) {
-                    neighbor = edge.to;
-                } else if (!edge.isDirected && edge.to == current) {
-                    neighbor = edge.from;
-                }
+                if      (edge.from == current)                       neighbor = edge.to;
+                else if (!edge.isDirected && edge.to == current)     neighbor = edge.from;
 
                 if (neighbor != null && !visited.contains(neighbor)) {
                     visited.add(neighbor);
                     queue.add(neighbor);
 
-                    final GraphEdge traversedEdge = edge;
+                    final GraphEdge te       = edge;
                     final GraphNode nextNode = neighbor;
+                    final String updatedQ    = formatQueue(queue);
+                    final String vs          = String.join(" ➔ ", visitedOrder);
 
                     algorithmSteps.add(() -> {
-                        traversedEdge.line.setStroke(Color.ORANGE);
+                        te.line.setStroke(Color.ORANGE);
                         nextNode.circle.setFill(Color.YELLOW);
+                        setAlgoState("Discovered unvisited neighbor '" + nextNode.label.getText() + "' -> Enqueuing.",
+                                DS_TITLE, updatedQ, vs, null, null);
                     });
                 }
             }
-            algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
+
+            final String visitStr2 = String.join(" ➔ ", visitedOrder);
+            final String finalQSnap = formatQueue(queue);
+
+            algorithmSteps.add(() -> {
+                exploringNode.circle.setFill(Color.GREEN);
+                setAlgoState("Finished exploring '" + exploringNode.label.getText() + "'. Marked as complete.",
+                        DS_TITLE, finalQSnap, visitStr2, null, null);
+            });
         }
+
+        final String finalOrder = String.join(" ➔ ", visitedOrder);
+        algorithmSteps.add(() -> {
+            resultLabel.setText("BFS Complete! Order: " + finalOrder);
+            setAlgoState("✅ BFS Traversal Complete!", DS_TITLE, formatQueue(queue), finalOrder, null, null);
+        });
     }
 
-    // --- DFS ---
+    // ─────────────────────────────────────────────
+    // DFS
+    // ─────────────────────────────────────────────
     private void recordDFS(GraphNode startNode) {
-        Set<GraphNode> visited = new HashSet<>();
-        List<String> visitedOrder = new ArrayList<>();
-        dfsHelper(startNode, null, visited, visitedOrder);
+        final String DS_TITLE = "Recursion Call Stack:";
+        Set<GraphNode> visited     = new HashSet<>();
+        List<String>   visitedOrder = new ArrayList<>();
+        List<String>   callStack   = new ArrayList<>();
+
+        dfsHelper(startNode, null, visited, visitedOrder, callStack, DS_TITLE);
+
+        final String finalOrder = String.join(" ➔ ", visitedOrder);
+        algorithmSteps.add(() -> {
+            resultLabel.setText("DFS Complete! Order: " + finalOrder);
+            setAlgoState("✅ DFS Traversal Complete!", DS_TITLE, formatStack(new ArrayList<>()), finalOrder, null, null);
+        });
     }
 
-    private void dfsHelper(GraphNode current, GraphEdge edgeToReach, Set<GraphNode> visited, List<String> visitedOrder) {
+    private void dfsHelper(GraphNode current, GraphEdge edgeToReach,
+                           Set<GraphNode> visited, List<String> visitedOrder,
+                           List<String> callStack, String dsTitle) {
         visited.add(current);
+        callStack.add(current.label.getText());
+        visitedOrder.add(current.label.getText());
+
+        final List<String> stackSnap = new ArrayList<>(callStack);
+        final String stackStr  = formatStack(stackSnap);
+        final String visitStr  = String.join(" ➔ ", visitedOrder);
+        final String resultPath = "Traversal Order: " + visitStr;
+        final GraphNode cn = current;
 
         if (edgeToReach != null) {
-            final GraphEdge traversedEdge = edgeToReach;
-            final GraphNode nextNode = current;
+            final GraphEdge te = edgeToReach;
             algorithmSteps.add(() -> {
-                traversedEdge.line.setStroke(Color.ORANGE);
-                nextNode.circle.setFill(Color.YELLOW);
+                te.line.setStroke(Color.ORANGE);
+                cn.circle.setFill(Color.YELLOW);
+                resultLabel.setText(resultPath);
+                setAlgoState("Traversing deep into node '" + cn.label.getText() + "' (Push to Stack).",
+                        dsTitle, stackStr, visitStr, null, null);
             });
         } else {
-            algorithmSteps.add(() -> current.circle.setFill(Color.YELLOW));
+            algorithmSteps.add(() -> {
+                cn.circle.setFill(Color.YELLOW);
+                resultLabel.setText(resultPath);
+                setAlgoState("Starting DFS at node '" + cn.label.getText() + "' (Push to Stack).",
+                        dsTitle, stackStr, visitStr, null, null);
+            });
         }
 
-        visitedOrder.add(current.label.getText());
-        final String currentPath = "Traversal Order: " + String.join(" ➔ ", visitedOrder);
         final GraphNode exploringNode = current;
-
         algorithmSteps.add(() -> {
             exploringNode.circle.setFill(Color.MAGENTA);
-            resultLabel.setText(currentPath);
+            setAlgoState("Checking neighbors of '" + exploringNode.label.getText() + "'...",
+                    dsTitle, stackStr, visitStr, null, null);
         });
 
         for (GraphEdge edge : current.connectedEdges) {
             GraphNode neighbor = null;
-            if (edge.from == current) {
-                neighbor = edge.to;
-            } else if (!edge.isDirected && edge.to == current) {
-                neighbor = edge.from;
-            }
-
-            if (neighbor != null && !visited.contains(neighbor)) {
-                dfsHelper(neighbor, edge, visited, visitedOrder);
-            }
+            if      (edge.from == current)                    neighbor = edge.to;
+            else if (!edge.isDirected && edge.to == current) neighbor = edge.from;
+            if (neighbor != null && !visited.contains(neighbor))
+                dfsHelper(neighbor, edge, visited, visitedOrder, callStack, dsTitle);
         }
-        algorithmSteps.add(() -> exploringNode.circle.setFill(Color.GREEN));
+
+        callStack.remove(callStack.size() - 1);
+        final List<String> poppedStack   = new ArrayList<>(callStack);
+        final String       poppedStr     = formatStack(poppedStack);
+        final String       visitStr2     = String.join(" ➔ ", visitedOrder);
+        final GraphNode    finishedNode  = current;
+
+        algorithmSteps.add(() -> {
+            finishedNode.circle.setFill(Color.GREEN);
+            setAlgoState("No unvisited neighbors left for '" + finishedNode.label.getText() + "'. Backtracking (Pop from Stack).",
+                    dsTitle, poppedStr, visitStr2, null, null);
+        });
     }
 
-    // --- Prim's MST ---
+    // ─────────────────────────────────────────────
+    // Prim's MST
+    // ─────────────────────────────────────────────
     private void recordPrim(GraphNode startNode) {
-        Set<GraphNode> visited = new HashSet<>();
-        PriorityQueue<GraphEdge> pq = new PriorityQueue<>(Comparator.comparingInt(e -> {
-            if (!e.isWeighted) return 1;
-            try { return Integer.parseInt(e.weightText.getText()); }
-            catch (NumberFormatException ex) { return 1; }
-        }));
+        final String DS_TITLE    = "Candidate Edges (Min-Heap):";
+        final String EXTRA_TITLE = "MST Edges Chosen:";
+
+        Set<GraphNode>        visited  = new HashSet<>();
+        PriorityQueue<GraphEdge> pq    = new PriorityQueue<>(Comparator.comparingInt(this::parseWeight));
+        List<String>          mstEdges = new ArrayList<>();
+        int[]                 totalW   = {0};
 
         visited.add(startNode);
+        for (GraphEdge e : startNode.connectedEdges) pq.add(e);
+
+        final String initPQ  = formatEdgePQ(pq);
+        final String initMST = "(None)";
         algorithmSteps.add(() -> {
             startNode.circle.setFill(Color.YELLOW);
-            resultLabel.setText("Prim's MST: Started at " + startNode.label.getText() + " (Weight: 0)");
+            resultLabel.setText("Prim's MST: Started at " + startNode.label.getText());
+            setAlgoState("Initialized Prim's at '" + startNode.label.getText() + "'. Added adjacent edges to PQ.",
+                    DS_TITLE, initPQ, startNode.label.getText(), EXTRA_TITLE, initMST);
         });
-
-        for (GraphEdge edge : startNode.connectedEdges) pq.add(edge);
-
-        int[] totalWeight = {0};
 
         while (!pq.isEmpty() && visited.size() < nodes.size()) {
             GraphEdge minEdge = pq.poll();
 
-            GraphNode unvisitedNode = null;
-            if (visited.contains(minEdge.from) && !visited.contains(minEdge.to)) {
-                unvisitedNode = minEdge.to;
-            } else if (!minEdge.isDirected && visited.contains(minEdge.to) && !visited.contains(minEdge.from)) {
-                unvisitedNode = minEdge.from;
-            }
+            GraphNode unvisited = null;
+            if      (visited.contains(minEdge.from) && !visited.contains(minEdge.to))   unvisited = minEdge.to;
+            else if (!minEdge.isDirected && visited.contains(minEdge.to)
+                    && !visited.contains(minEdge.from))                                  unvisited = minEdge.from;
 
-            if (unvisitedNode != null) {
-                visited.add(unvisitedNode);
-                int edgeWeight = minEdge.isWeighted ? Integer.parseInt(minEdge.weightText.getText()) : 1;
-                totalWeight[0] += edgeWeight;
+            if (unvisited != null) {
+                visited.add(unvisited);
+                int w = parseWeight(minEdge);
+                totalW[0] += w;
+                mstEdges.add("  " + minEdge.from.label.getText() + " ─ " + minEdge.to.label.getText()
+                        + "  (Weight: " + w + ")");
 
-                final GraphNode nextNode = unvisitedNode;
-                final GraphEdge mstEdge = minEdge;
-                final int currentTotal = totalWeight[0];
+                for (GraphEdge e : unvisited.connectedEdges) {
+                    GraphNode nb = (e.from == unvisited) ? e.to
+                            : (!e.isDirected && e.to == unvisited) ? e.from : null;
+                    if (nb != null && !visited.contains(nb)) pq.add(e);
+                }
+
+                final GraphNode   nextNode    = unvisited;
+                final GraphEdge   mstEdge     = minEdge;
+                final int         currTotal   = totalW[0];
+                final String      pqSnap      = formatEdgePQ(pq);
+                final String      visitSnap   = String.join(", ", visited.stream().map(n -> n.label.getText()).toList());
+                final String      mstSnap     = formatMSTEdges(mstEdges, currTotal);
 
                 algorithmSteps.add(() -> {
-                    mstEdge.line.setStroke(Color.ORANGE);
-                    mstEdge.line.setStrokeWidth(5);
+                    mstEdge.line.setStroke(Color.ORANGE); mstEdge.line.setStrokeWidth(5);
                     nextNode.circle.setFill(Color.YELLOW);
-                    resultLabel.setText("Prim's MST Total Weight: " + currentTotal);
+                    resultLabel.setText("Prim's MST - Total Weight: " + currTotal);
+                    setAlgoState("Extracted minimum edge connecting to '" + nextNode.label.getText() + "'.",
+                            DS_TITLE, pqSnap, visitSnap, EXTRA_TITLE, mstSnap);
                 });
-
-                for (GraphEdge edge : nextNode.connectedEdges) {
-                    GraphNode neighbor = (edge.from == nextNode) ? edge.to
-                            : (!edge.isDirected && edge.to == nextNode) ? edge.from : null;
-                    if (neighbor != null && !visited.contains(neighbor)) pq.add(edge);
-                }
             }
         }
 
+        final String finalVisit = String.join(", ", visited.stream().map(n -> n.label.getText()).toList());
+        final String finalMST   = formatMSTEdges(mstEdges, totalW[0]);
         algorithmSteps.add(() -> {
             for (GraphNode node : visited) node.circle.setFill(Color.GREEN);
-            resultLabel.setText(resultLabel.getText() + " (Complete)");
+            resultLabel.setText("Prim's MST Complete! Total Weight: " + totalW[0]);
+            setAlgoState("✅ All nodes connected! Prim's MST Complete.", DS_TITLE, "(Empty)", finalVisit, EXTRA_TITLE, finalMST);
         });
     }
 
-    // --- Kruskal's MST ---
+    // ─────────────────────────────────────────────
+    // Kruskal's MST
+    // ─────────────────────────────────────────────
     private void recordKruskal() {
+        final String DS_TITLE    = "Sorted Edges Remaining:";
+        final String EXTRA_TITLE = "MST Edges Chosen:";
+
         Map<GraphNode, GraphNode> parent = new HashMap<>();
         for (GraphNode node : nodes) parent.put(node, node);
 
         java.util.function.Function<GraphNode, GraphNode> find = new java.util.function.Function<>() {
-            @Override
-            public GraphNode apply(GraphNode node) {
+            @Override public GraphNode apply(GraphNode node) {
                 if (parent.get(node) == node) return node;
-                GraphNode root = apply(parent.get(node));
-                parent.put(node, root);
-                return root;
+                GraphNode root = apply(parent.get(node)); parent.put(node, root); return root;
             }
         };
 
         List<GraphEdge> sortedEdges = new ArrayList<>(edges);
-        sortedEdges.sort(Comparator.comparingInt(e -> {
-            if (!e.isWeighted) return 1;
-            try { return Integer.parseInt(e.weightText.getText()); }
-            catch (NumberFormatException ex) { return 1; }
-        }));
+        sortedEdges.sort(Comparator.comparingInt(this::parseWeight));
 
-        algorithmSteps.add(() -> resultLabel.setText("Kruskal's MST: Sorting all edges by weight..."));
-
-        int[] totalWeight = {0};
+        List<String> mstEdges   = new ArrayList<>();
         Set<GraphNode> mstNodes = new HashSet<>();
-        int edgesAdded = 0;
+        int[] totalW = {0};
+        int[] edgesAdded = {0};
+
+        LinkedList<GraphEdge> remaining = new LinkedList<>(sortedEdges);
+
+        final String initRemaining = formatEdgeList(remaining, 6);
+        algorithmSteps.add(() -> {
+            resultLabel.setText("Kruskal's MST: Sorted all edges globally by weight.");
+            setAlgoState("Sorted all edges by weight. Ready to pick the smallest non-cycling edges.",
+                    DS_TITLE, initRemaining, "(None)", EXTRA_TITLE, "(None)");
+        });
 
         for (GraphEdge edge : sortedEdges) {
-            if (edgesAdded >= nodes.size() - 1) break;
+            if (edgesAdded[0] >= nodes.size() - 1) break;
+            remaining.remove(edge);
 
-            GraphNode root1 = find.apply(edge.from);
-            GraphNode root2 = find.apply(edge.to);
+            GraphNode root1 = find.apply(edge.from), root2 = find.apply(edge.to);
+            boolean   cycle = (root1 == root2);
 
-            if (root1 != root2) {
+            if (!cycle) {
                 parent.put(root1, root2);
-                edgesAdded++;
-                mstNodes.add(edge.from);
-                mstNodes.add(edge.to);
+                edgesAdded[0]++;
+                mstNodes.add(edge.from); mstNodes.add(edge.to);
+                int w = parseWeight(edge);
+                totalW[0] += w;
+                mstEdges.add("  ✓ " + edge.from.label.getText() + " ─ " + edge.to.label.getText() + "  (Weight: " + w + ")");
 
-                int edgeWeight = edge.isWeighted ? Integer.parseInt(edge.weightText.getText()) : 1;
-                totalWeight[0] += edgeWeight;
-
-                final int currentTotal = totalWeight[0];
-                final GraphEdge mstEdge = edge;
-                final GraphNode u = edge.from;
-                final GraphNode v = edge.to;
+                final GraphEdge mstEdge    = edge;
+                final String    remSnap    = formatEdgeList(remaining, 6);
+                final String    visitSnap  = String.join(", ", mstNodes.stream().map(n -> n.label.getText()).toList());
+                final String    mstSnap    = formatMSTEdges(mstEdges, totalW[0]);
+                final int       currTotal  = totalW[0];
 
                 algorithmSteps.add(() -> {
-                    mstEdge.line.setStroke(Color.ORANGE);
-                    mstEdge.line.setStrokeWidth(5);
-                    u.circle.setFill(Color.YELLOW);
-                    v.circle.setFill(Color.YELLOW);
-                    resultLabel.setText("Kruskal's MST Total Weight: " + currentTotal);
+                    mstEdge.line.setStroke(Color.ORANGE); mstEdge.line.setStrokeWidth(5);
+                    mstEdge.from.circle.setFill(Color.YELLOW); mstEdge.to.circle.setFill(Color.YELLOW);
+                    resultLabel.setText("Kruskal's MST - Total Weight: " + currTotal);
+                    setAlgoState("✓ Edge safely bridges components without forming a cycle.",
+                            DS_TITLE, remSnap, visitSnap, EXTRA_TITLE, mstSnap);
+                });
+            } else {
+                final GraphEdge cycleEdge = edge;
+                final String    remSnap2  = formatEdgeList(remaining, 6);
+                final String    visitSnap2= String.join(", ", mstNodes.stream().map(n -> n.label.getText()).toList());
+                final String    mstSnap2  = mstEdges.isEmpty() ? "(None)" : formatMSTEdges(mstEdges, totalW[0]);
+
+                algorithmSteps.add(() -> {
+                    cycleEdge.line.setStroke(Color.RED);
+                    setAlgoState("✗ Skipped edge: Connecting '" + cycleEdge.from.label.getText() + "' and '" + cycleEdge.to.label.getText() + "' creates a cycle.",
+                            DS_TITLE, remSnap2, visitSnap2, EXTRA_TITLE, mstSnap2);
                 });
             }
         }
 
+        final String finalVisit = String.join(", ", mstNodes.stream().map(n -> n.label.getText()).toList());
+        final String finalMST   = formatMSTEdges(mstEdges, totalW[0]);
         algorithmSteps.add(() -> {
             for (GraphNode node : mstNodes) node.circle.setFill(Color.GREEN);
-            resultLabel.setText(resultLabel.getText() + " (Complete)");
+            resultLabel.setText("Kruskal's MST Complete! Total Weight: " + totalW[0]);
+            setAlgoState("✅ Maximum edges reached. Kruskal's MST Complete!", DS_TITLE, "(Empty)", finalVisit, EXTRA_TITLE, finalMST);
         });
     }
 
-    // --- Dijkstra's Shortest Path ---
+    // ─────────────────────────────────────────────
+    // Dijkstra's Shortest Path
+    // ─────────────────────────────────────────────
     private void recordDijkstra(GraphNode startNode, GraphNode endNode) {
+        final String DS_TITLE    = "Priority Queue (Node, Dist):";
+        final String EXTRA_TITLE = "Distance Map:";
+
         Map<GraphNode, Integer> distances = new HashMap<>();
-        Map<GraphNode, GraphEdge> edgeTo = new HashMap<>();
-        Set<GraphNode> settled = new HashSet<>();
+        Map<GraphNode, GraphEdge> edgeTo  = new HashMap<>();
+        Set<GraphNode>            settled  = new HashSet<>();
+        List<String>              settledOrder = new ArrayList<>();
 
-        class NodeDist implements Comparable<NodeDist> {
+        class ND implements Comparable<ND> {
             GraphNode node; int dist;
-            NodeDist(GraphNode n, int d) { node = n; dist = d; }
-            public int compareTo(NodeDist o) { return Integer.compare(this.dist, o.dist); }
+            ND(GraphNode n, int d) { node = n; dist = d; }
+            public int compareTo(ND o) { return Integer.compare(dist, o.dist); }
         }
-
-        PriorityQueue<NodeDist> pq = new PriorityQueue<>();
-
-        for (GraphNode node : nodes) distances.put(node, Integer.MAX_VALUE);
+        PriorityQueue<ND> pq = new PriorityQueue<>();
+        for (GraphNode n : nodes) distances.put(n, Integer.MAX_VALUE);
         distances.put(startNode, 0);
-        pq.add(new NodeDist(startNode, 0));
+        pq.add(new ND(startNode, 0));
 
+        java.util.function.Supplier<String> snapPQ = () -> {
+            List<ND> list = new ArrayList<>(pq); Collections.sort(list);
+            StringBuilder sb = new StringBuilder();
+            int c = 0;
+            for (ND nd : list) {
+                if (c++ >= 7) { sb.append("  …\n"); break; }
+                sb.append(String.format("  %-4s → dist = %s%n",
+                        nd.node.label.getText(),
+                        nd.dist == Integer.MAX_VALUE ? "∞" : nd.dist));
+            }
+            return sb.length() == 0 ? "(Empty)" : sb.toString().trim();
+        };
+
+        final Map<GraphNode, Integer> distSnap0 = new HashMap<>(distances);
+        final String pqSnap0 = snapPQ.get();
         algorithmSteps.add(() -> {
-            for (GraphNode node : nodes) node.distLabel.setVisible(true);
+            for (GraphNode n : nodes) n.distLabel.setVisible(true);
             startNode.circle.setFill(Color.YELLOW);
-            startNode.distLabel.setText("0");
-            startNode.distLabel.setFill(Color.GREEN);
+            startNode.distLabel.setText("0"); startNode.distLabel.setFill(Color.GREEN);
             resultLabel.setText("Dijkstra: Starting at " + startNode.label.getText());
+            setAlgoState("Set starting node distance to 0. All other nodes are ∞.",
+                    DS_TITLE, pqSnap0, "(None settled)", EXTRA_TITLE, formatDistances(distSnap0));
         });
 
         while (!pq.isEmpty()) {
-            NodeDist current = pq.poll();
+            ND current = pq.poll();
             GraphNode u = current.node;
-
             if (settled.contains(u)) continue;
             settled.add(u);
+            settledOrder.add(u.label.getText());
 
             final GraphNode exploringNode = u;
-            final int currentDist = current.dist;
+            final int       currDist      = current.dist;
+            final String    settled0      = String.join(" ➔ ", settledOrder);
+            final String    pqSnap1       = snapPQ.get();
+            final Map<GraphNode, Integer> distSnap1 = new HashMap<>(distances);
 
             algorithmSteps.add(() -> {
                 if (exploringNode != startNode) exploringNode.circle.setFill(Color.MAGENTA);
                 exploringNode.distLabel.setFill(Color.DARKBLUE);
-                resultLabel.setText("Dijkstra: Exploring " + exploringNode.label.getText()
-                        + " (dist: " + currentDist + ")");
+                resultLabel.setText("Dijkstra: Locking in " + exploringNode.label.getText() + " at optimal distance: " + currDist);
+                setAlgoState("Locked in optimal distance for '" + exploringNode.label.getText() + "'. Evaluating neighbors...",
+                        DS_TITLE, pqSnap1, settled0, EXTRA_TITLE, formatDistances(distSnap1));
             });
 
             if (endNode != null && u == endNode) break;
 
             for (GraphEdge edge : u.connectedEdges) {
                 GraphNode v = null;
-                if (edge.from == u) v = edge.to;
-                else if (!edge.isDirected && edge.to == u) v = edge.from;
+                if      (edge.from == u)                        v = edge.to;
+                else if (!edge.isDirected && edge.to == u)     v = edge.from;
 
                 if (v != null && !settled.contains(v)) {
-                    int weight = edge.isWeighted ? Integer.parseInt(edge.weightText.getText()) : 1;
-                    int newDist = current.dist + weight;
+                    int w      = parseWeight(edge);
+                    int newDist = currDist + w;
 
                     if (newDist < distances.get(v)) {
                         distances.put(v, newDist);
                         edgeTo.put(v, edge);
-                        pq.add(new NodeDist(v, newDist));
+                        pq.add(new ND(v, newDist));
 
-                        final GraphNode neighbor = v;
-                        final GraphEdge traversedEdge = edge;
-                        final int neighborDist = newDist;
+                        final GraphNode   nb       = v;
+                        final GraphEdge   te       = edge;
+                        final int         ndist    = newDist;
+                        final String      pqSnap2  = snapPQ.get();
+                        final String      settled2 = String.join(" ➔ ", settledOrder);
+                        final Map<GraphNode, Integer> distSnap2 = new HashMap<>(distances);
 
                         algorithmSteps.add(() -> {
-                            traversedEdge.line.setStroke(Color.ORANGE);
-                            if (neighbor != startNode) neighbor.circle.setFill(Color.YELLOW);
-                            neighbor.distLabel.setText(String.valueOf(neighborDist));
-                            neighbor.distLabel.setFill(Color.DARKRED);
-                            resultLabel.setText("Dijkstra: Updated "
-                                    + neighbor.label.getText() + " → dist " + neighborDist);
+                            te.line.setStroke(Color.ORANGE);
+                            if (nb != startNode) nb.circle.setFill(Color.YELLOW);
+                            nb.distLabel.setText(String.valueOf(ndist)); nb.distLabel.setFill(Color.DARKRED);
+                            resultLabel.setText("Dijkstra: Relaxed " + nb.label.getText() + " → dist = " + ndist);
+                            setAlgoState("Relaxation Step! Found a shorter path to '" + nb.label.getText() + "' (New Dist: " + ndist + ").",
+                                    DS_TITLE, pqSnap2, settled2, EXTRA_TITLE, formatDistances(distSnap2));
                         });
                     }
                 }
             }
 
+            final String settled3 = String.join(" ➔ ", settledOrder);
+            final Map<GraphNode, Integer> distSnap3 = new HashMap<>(distances);
             algorithmSteps.add(() -> {
                 if (exploringNode != startNode && exploringNode != endNode) {
                     exploringNode.circle.setFill(Color.LIGHTGREEN);
                     exploringNode.distLabel.setFill(Color.DARKGREEN);
                 }
+                setAlgoState("✓ Fully evaluated node '" + exploringNode.label.getText() + "'.",
+                        DS_TITLE, snapPQ.get(), settled3, EXTRA_TITLE, formatDistances(distSnap3));
             });
         }
 
         if (endNode != null) {
             if (distances.get(endNode) == Integer.MAX_VALUE) {
-                algorithmSteps.add(() -> resultLabel.setText(
-                        "Dijkstra: No reachable path to " + endNode.label.getText() + "!"));
+                algorithmSteps.add(() -> {
+                    resultLabel.setText("Dijkstra: Target " + endNode.label.getText() + " is unreachable!");
+                    setAlgoState("Algorithm exhausted. Target node is completely disconnected.", DS_TITLE, "(Empty)",
+                            String.join(" ➔ ", settledOrder), null, null);
+                });
             } else {
-                algorithmSteps.add(() -> resultLabel.setText(
-                        "Dijkstra: Shortest path found! Total Dist: " + distances.get(endNode)));
-
+                final int finalDist = distances.get(endNode);
+                algorithmSteps.add(() -> {
+                    resultLabel.setText("Dijkstra: Shortest path found! Total dist = " + finalDist);
+                    setAlgoState("Target Reached! Tracing shortest path backward...",
+                            DS_TITLE, "(Empty)", String.join(" ➔ ", settledOrder),
+                            EXTRA_TITLE, formatDistances(distances));
+                });
                 GraphNode curr = endNode;
-                List<Runnable> pathAnimations = new ArrayList<>();
-
+                List<Runnable> path = new ArrayList<>();
                 while (curr != startNode && edgeTo.containsKey(curr)) {
                     GraphEdge e = edgeTo.get(curr);
-                    final GraphEdge pathEdge = e;
-                    final GraphNode pathNode = curr;
-
-                    pathAnimations.add(() -> {
-                        pathEdge.line.setStroke(Color.GREEN);
-                        pathEdge.line.setStrokeWidth(5);
-                        pathNode.circle.setFill(Color.GREEN);
-                        pathNode.distLabel.setFill(Color.WHITE);
-                    });
-
+                    final GraphEdge pe = e; final GraphNode pn = curr;
+                    path.add(() -> { pe.line.setStroke(Color.GREEN); pe.line.setStrokeWidth(5);
+                        pn.circle.setFill(Color.GREEN); pn.distLabel.setFill(Color.WHITE); });
                     curr = (e.to == curr) ? e.from : e.to;
                 }
-
-                Collections.reverse(pathAnimations);
-                algorithmSteps.addAll(pathAnimations);
-
-                algorithmSteps.add(() -> {
-                    startNode.circle.setFill(Color.GREEN);
-                    startNode.distLabel.setFill(Color.WHITE);
-                });
+                Collections.reverse(path);
+                algorithmSteps.addAll(path);
+                algorithmSteps.add(() -> { startNode.circle.setFill(Color.GREEN); startNode.distLabel.setFill(Color.WHITE); });
             }
         } else {
-            algorithmSteps.add(() -> resultLabel.setText(
-                    "Dijkstra: All reachable nodes processed. (No end node specified)"));
+            algorithmSteps.add(() -> {
+                resultLabel.setText("Dijkstra: Shortest path tree computed for all nodes.");
+                setAlgoState("All reachable nodes settled. Shortest Path Tree (SPT) generated.", DS_TITLE, "(Empty)",
+                        String.join(" ➔ ", settledOrder), EXTRA_TITLE, formatDistances(distances));
+            });
         }
     }
 
-    // --- DAG Detection & Topological Sort ---
+    // ─────────────────────────────────────────────
+    // Topological Sort
+    // ─────────────────────────────────────────────
     private boolean isDAG() {
         if (edges.isEmpty()) return directedCheck.isSelected();
         if (edges.stream().anyMatch(e -> !e.isDirected)) return false;
-
-        Set<GraphNode> visited  = new HashSet<>();
-        Set<GraphNode> recStack = new HashSet<>();
-        for (GraphNode node : nodes) {
+        Set<GraphNode> visited = new HashSet<>(), recStack = new HashSet<>();
+        for (GraphNode node : nodes)
             if (!visited.contains(node) && hasCycleDFS(node, visited, recStack)) return false;
-        }
         return true;
     }
 
     private boolean hasCycleDFS(GraphNode node, Set<GraphNode> visited, Set<GraphNode> recStack) {
-        visited.add(node);
-        recStack.add(node);
+        visited.add(node); recStack.add(node);
         for (GraphEdge edge : node.connectedEdges) {
             if (edge.from != node) continue;
-            GraphNode neighbor = edge.to;
-            if (!visited.contains(neighbor)) {
-                if (hasCycleDFS(neighbor, visited, recStack)) return true;
-            } else if (recStack.contains(neighbor)) {
-                return true;
-            }
+            GraphNode nb = edge.to;
+            if      (!visited.contains(nb) && hasCycleDFS(nb, visited, recStack)) return true;
+            else if (recStack.contains(nb))                                         return true;
         }
-        recStack.remove(node);
-        return false;
+        recStack.remove(node); return false;
     }
 
     private void recordTopologicalSort() {
-        Set<GraphNode> visited   = new HashSet<>();
-        List<GraphNode> finished = new ArrayList<>();
+        final String DS_TITLE = "Result Stack:";
 
-        algorithmSteps.add(() ->
-                resultLabel.setText("Topological Sort: Running DFS to determine finish order..."));
+        Set<GraphNode> visited    = new HashSet<>();
+        List<GraphNode> finished  = new ArrayList<>();
+        List<String>    dfsVisit  = new ArrayList<>();
+        List<String>    finishStack = new ArrayList<>();
 
-        for (GraphNode node : nodes) {
-            if (!visited.contains(node)) {
-                topoSortHelper(node, visited, finished);
-            }
-        }
+        algorithmSteps.add(() -> {
+            resultLabel.setText("Topological Sort: Searching for dependencies...");
+            setAlgoState("Running specialized DFS. Nodes will be pushed to the Result Stack upon backtracking.", DS_TITLE, "(Empty)", "(None)", null, null);
+        });
+
+        for (GraphNode node : nodes)
+            if (!visited.contains(node))
+                topoSortHelper(node, visited, finished, dfsVisit, finishStack, DS_TITLE);
 
         Collections.reverse(finished);
         List<String> labels = new ArrayList<>();
         for (GraphNode n : finished) labels.add(n.label.getText());
-        final String finalOrder = String.join(" → ", labels);
+        final String finalOrder = String.join(" ➔ ", labels);
 
         for (int i = 0; i < finished.size(); i++) {
-            final GraphNode n        = finished.get(i);
-            final String   orderSoFar = String.join(" → ", labels.subList(0, i + 1));
+            final GraphNode n         = finished.get(i);
+            final String    orderSoFar = String.join(" ➔ ", labels.subList(0, i + 1));
+            final String    fsSnap    = formatStack(finishStack);
             algorithmSteps.add(() -> {
                 n.circle.setFill(Color.ORANGE);
                 resultLabel.setText("Topological Order: " + orderSoFar);
+                setAlgoState("Popping dependencies to reveal linear Topological flow: '" + n.label.getText() + "'", DS_TITLE, fsSnap, orderSoFar, null, null);
             });
         }
 
         algorithmSteps.add(() -> {
-            for (GraphNode n : finished) n.circle.setFill(Color.GREEN);
-            for (GraphEdge e : edges) e.line.setStroke(Color.BLACK);
-            resultLabel.setText("Topological Order: " + finalOrder + " (Complete)");
+            for (GraphNode n : finished)  n.circle.setFill(Color.GREEN);
+            for (GraphEdge e : edges)     e.line.setStroke(Color.BLACK);
+            resultLabel.setText("Topological Order: " + finalOrder);
+            setAlgoState("✅ Directed Acyclic Graph sorted linearly!", DS_TITLE, "(Done)", finalOrder, null, null);
         });
     }
 
-    private void topoSortHelper(GraphNode node, Set<GraphNode> visited, List<GraphNode> finished) {
+    private void topoSortHelper(GraphNode node, Set<GraphNode> visited, List<GraphNode> finished,
+                                List<String> dfsVisit, List<String> finishStack, String dsTitle) {
         visited.add(node);
+        dfsVisit.add(node.label.getText());
 
-        final GraphNode visiting = node;
+        final GraphNode visiting  = node;
+        final String    vsSnap    = String.join(" ➔ ", dfsVisit);
+        final String    fsSnap1   = formatStack(finishStack);
+
         algorithmSteps.add(() -> {
             visiting.circle.setFill(Color.YELLOW);
             resultLabel.setText("Topological Sort: Visiting " + visiting.label.getText());
+            setAlgoState("Checking prerequisites for '" + visiting.label.getText() + "'...", dsTitle, fsSnap1, vsSnap, null, null);
         });
 
         for (GraphEdge edge : node.connectedEdges) {
             if (edge.from != node) continue;
-            GraphNode neighbor = edge.to;
-            if (!visited.contains(neighbor)) {
-                final GraphEdge treeEdge = edge;
-                algorithmSteps.add(() -> treeEdge.line.setStroke(Color.ORANGE));
-                topoSortHelper(neighbor, visited, finished);
+            GraphNode nb = edge.to;
+            if (!visited.contains(nb)) {
+                final GraphEdge te = edge;
+                algorithmSteps.add(() -> te.line.setStroke(Color.ORANGE));
+                topoSortHelper(nb, visited, finished, dfsVisit, finishStack, dsTitle);
             }
         }
 
         finished.add(node);
+        finishStack.add(node.label.getText());
+
+        final List<String> fsSnap2 = new ArrayList<>(finishStack);
+        final String       fsStr   = formatStack(fsSnap2);
+        final String       vsSnap2 = String.join(" ➔ ", dfsVisit);
+
         algorithmSteps.add(() -> {
             visiting.circle.setFill(Color.MAGENTA);
-            resultLabel.setText("Topological Sort: Finished " + visiting.label.getText() + " → pushed to stack");
+            resultLabel.setText("Topological Sort: " + visiting.label.getText() + " dependencies resolved.");
+            setAlgoState("All dependencies for '" + visiting.label.getText() + "' resolved. Pushing to Result Stack.", dsTitle, fsStr, vsSnap2, null, null);
         });
+    }
+
+    // ===============================
+    // PRIVATE UTILITY HELPERS
+    // ===============================
+
+    private int parseWeight(GraphEdge e) {
+        if (!e.isWeighted) return 1;
+        try { return Integer.parseInt(e.weightText.getText()); } catch (NumberFormatException ex) { return 1; }
+    }
+
+    private String formatEdgePQ(PriorityQueue<GraphEdge> pq) {
+        if (pq.isEmpty()) return "(Empty)";
+        List<GraphEdge> list = new ArrayList<>(pq);
+        list.sort(Comparator.comparingInt(this::parseWeight));
+        StringBuilder sb = new StringBuilder();
+        int c = 0;
+        for (GraphEdge e : list) {
+            if (c++ >= 7) { sb.append("  …\n"); break; }
+            sb.append(String.format("  %-4s ─ %-4s | Weight = %-3d%n",
+                    e.from.label.getText(), e.to.label.getText(), parseWeight(e)));
+        }
+        return sb.toString().trim();
+    }
+
+    private String formatEdgeList(LinkedList<GraphEdge> list, int max) {
+        if (list.isEmpty()) return "(Empty)";
+        StringBuilder sb = new StringBuilder();
+        int c = 0;
+        for (GraphEdge e : list) {
+            if (c++ >= max) { sb.append("  …\n"); break; }
+            sb.append(String.format("  %-4s ─ %-4s | Weight = %-3d%n",
+                    e.from.label.getText(), e.to.label.getText(), parseWeight(e)));
+        }
+        return sb.toString().trim();
     }
 }

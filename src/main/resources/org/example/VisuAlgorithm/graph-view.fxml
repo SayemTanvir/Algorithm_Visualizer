@@ -30,27 +30,95 @@
                 <Button text="Clear" onAction="#clearGraph" />
                 <Separator/>
                 <Button text="Algorithms ➔" onAction="#switchToAlgoMode" style="-fx-font-weight: bold;"/>
-
                 <Separator/>
                 <ToggleButton fx:id="dataToggleBuild" text="📊 Data" onAction="#toggleDataPane"/>
             </ToolBar>
 
-
-
             <ToolBar fx:id="algoToolbar" visible="false">
                 <Button text="⬅ Build Mode" onAction="#switchToBuildMode" style="-fx-font-weight: bold;"/>
                 <Separator/>
-
                 <ComboBox fx:id="algoComboBox" promptText="Select Algorithm"/>
-
                 <TextField fx:id="startNodeField" promptText="Start Node" prefWidth="80"/>
                 <TextField fx:id="endNodeField" promptText="End (Dijkstra)" prefWidth="100"/>
-
                 <Separator/>
                 <ToggleButton fx:id="dataToggleAlgo" text="📊 Data" onAction="#toggleDataPane"/>
             </ToolBar>
         </StackPane>
     </top>
+
+    <!-- ===== LEFT: Real-time Algorithm State Panel ===== -->
+    <left>
+        <VBox fx:id="algoStatePane"
+              prefWidth="230" minWidth="230" maxWidth="230"
+              visible="false" managed="false"
+              style="-fx-background-color: #f5f7fa;
+                     -fx-border-color: #c8cdd6;
+                     -fx-border-width: 0 1 0 0;
+                     -fx-padding: 10 8 10 8;
+                     -fx-spacing: 5;">
+
+            <!-- Algorithm Title -->
+            <Label fx:id="algoNameLabel" text=""
+                   wrapText="true"
+                   style="-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #2c3e50;"/>
+            <Separator/>
+
+            <!-- Current Step -->
+            <Label text="⚡ Current Step:"
+                   style="-fx-font-weight: bold; -fx-font-size: 10px; -fx-text-fill: #7f8c8d;"/>
+            <Label fx:id="currentStepLabel" text="—"
+                   wrapText="true"
+                   style="-fx-font-size: 11px;
+                          -fx-text-fill: #1a252f;
+                          -fx-background-color: #dce8f8;
+                          -fx-background-radius: 4;
+                          -fx-padding: 4 6 4 6;"/>
+            <Separator/>
+
+            <!-- Data Structure (Queue / Stack / Priority Queue) -->
+            <Label fx:id="dsTitleLabel" text="Queue (Front → Back):"
+                   style="-fx-font-weight: bold; -fx-font-size: 10px; -fx-text-fill: #7f8c8d;"/>
+            <TextArea fx:id="dsArea"
+                      editable="false"
+                      prefHeight="105" maxHeight="105"
+                      wrapText="true"
+                      style="-fx-font-family: monospace;
+                             -fx-font-size: 11px;
+                             -fx-background-color: #fffde7;
+                             -fx-border-color: #f0d060;
+                             -fx-border-radius: 3;"/>
+            <Separator/>
+
+            <!-- Visited / Processed -->
+            <Label text="✅ Visited / Processed:"
+                   style="-fx-font-weight: bold; -fx-font-size: 10px; -fx-text-fill: #7f8c8d;"/>
+            <TextArea fx:id="visitedArea"
+                      editable="false"
+                      prefHeight="75" maxHeight="75"
+                      wrapText="true"
+                      style="-fx-font-family: monospace;
+                             -fx-font-size: 11px;
+                             -fx-background-color: #eafaf1;
+                             -fx-border-color: #82c99a;
+                             -fx-border-radius: 3;"/>
+
+            <!-- Extra Info (Distances / MST Edges) — shown only when relevant -->
+            <Separator fx:id="extraSeparator" visible="false" managed="false"/>
+            <Label fx:id="extraTitleLabel" text=""
+                   visible="false" managed="false"
+                   style="-fx-font-weight: bold; -fx-font-size: 10px; -fx-text-fill: #7f8c8d;"/>
+            <TextArea fx:id="extraArea"
+                      editable="false"
+                      prefHeight="105" maxHeight="105"
+                      visible="false" managed="false"
+                      wrapText="true"
+                      style="-fx-font-family: monospace;
+                             -fx-font-size: 11px;
+                             -fx-background-color: #fde8f8;
+                             -fx-border-color: #d098c0;
+                             -fx-border-radius: 3;"/>
+        </VBox>
+    </left>
 
     <center>
         <Pane fx:id="canvasPane"
@@ -59,15 +127,17 @@
     </center>
 
     <right>
-        <VBox fx:id="dataPane" prefWidth="250" visible="false" managed="false" style="-fx-border-color: lightgray; -fx-border-width: 0 0 0 1;">
-            <Label text="Graph Data (Tap to Expand)" style="-fx-font-weight: bold; -fx-padding: 8;"/>
-
+        <VBox fx:id="dataPane" prefWidth="250" visible="false" managed="false"
+              style="-fx-border-color: lightgray; -fx-border-width: 0 0 0 1;">
+            <Label text="Graph Data (Tap to Expand)"
+                   style="-fx-font-weight: bold; -fx-padding: 8;"/>
             <TitledPane text="Adjacency List" expanded="false" VBox.vgrow="ALWAYS">
-                <TextArea fx:id="adjListArea" editable="false" style="-fx-font-family: monospace;" wrapText="true"/>
+                <TextArea fx:id="adjListArea" editable="false"
+                          style="-fx-font-family: monospace;" wrapText="true"/>
             </TitledPane>
-
             <TitledPane text="Adjacency Matrix" expanded="false" VBox.vgrow="ALWAYS">
-                <TextArea fx:id="adjMatrixArea" editable="false" style="-fx-font-family: monospace;"/>
+                <TextArea fx:id="adjMatrixArea" editable="false"
+                          style="-fx-font-family: monospace;"/>
             </TitledPane>
         </VBox>
     </right>
@@ -75,19 +145,19 @@
     <bottom>
         <VBox>
             <ToolBar style="-fx-alignment: center;">
-                <Label fx:id="resultLabel" text="Traversal Order: " style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                <Label fx:id="resultLabel" text=""
+                       style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
             </ToolBar>
 
             <ToolBar fx:id="playbackToolbar" visible="false" managed="false">
-                <Button fx:id="playPauseButton" text="▶ Play" onAction="#togglePlayPause" prefWidth="80"/>
-                <Button text="⏮ Back" onAction="#stepBackward"/>
-                <Button text="⏭ Step" onAction="#stepForward"/>
-
+                <Button fx:id="playPauseButton" text="▶ Play"
+                        onAction="#togglePlayPause" prefWidth="80"/>
+                <Button text="⏮ Back"  onAction="#stepBackward"/>
+                <Button text="⏭ Step"  onAction="#stepForward"/>
                 <Button text="↺ Reset Algorithm" onAction="#resetAlgorithmState"/>
-
                 <Separator/>
                 <Label text="Speed:"/>
-                <Slider fx:id="speedSlider" min="0.1" max="2.0" value="1.0" prefWidth="100"/>
+                <Slider fx:id="speedSlider" min="0.1" max="3.0" value="1.0" prefWidth="100"/>
             </ToolBar>
         </VBox>
     </bottom>
