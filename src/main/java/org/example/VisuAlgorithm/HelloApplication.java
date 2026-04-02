@@ -23,6 +23,7 @@ public class HelloApplication extends Application {
 //        scene.getStylesheets().add(
 //                getClass().getResource("style.css").toExternalForm()
 //        );
+        scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm());
 
         stage.setTitle("VisualAlgorithm");
 

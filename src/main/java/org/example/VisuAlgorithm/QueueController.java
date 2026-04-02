@@ -186,7 +186,10 @@ public class QueueController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlName));
             Parent root = loader.load();
             Stage stage = (Stage) canvas.getScene().getWindow();
-            stage.setScene(new Scene(root));
+            Scene scene = new Scene(root);
+            scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm()); // <--- ADD THIS!
+            stage.setScene(scene);
+            stage.show();
         } catch (Exception e) {
             setStatus("Navigation failed: " + e.getMessage());
         }
