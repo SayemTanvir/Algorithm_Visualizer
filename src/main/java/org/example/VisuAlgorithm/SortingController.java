@@ -12,9 +12,11 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -25,9 +27,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-
- import javafx.animation.KeyValue;
- import javafx.animation.Interpolator;
+import javafx.animation.KeyValue;
+import javafx.animation.Interpolator;
 
 public class SortingController {
 
@@ -42,9 +43,19 @@ public class SortingController {
     @FXML private Button stepBackBtn;
     @FXML private Button skipBtn;
 
+    // --- Live Status UI ---
+    @FXML private Label algoNameLabel;
+    @FXML private Label currentStepLabel;
+    @FXML private TextArea stepDescriptionArea;
+
     // Main Data -> changes as the animation goes
     private int[] array;
     private Rectangle[] bars;
+
+    // QuickSort specific visual pointer
+    private Polygon iPointerArrow;
+    private int virtualArrowIdx = -1;
+    private boolean virtualArrowShow = false;
 
     // Animation helpers
     private interface SortStep {
@@ -53,6 +64,7 @@ public class SortingController {
     }
 
     private List<SortStep> stepQueue = new ArrayList<>();               //stores thee steps
+    private List<String> stepMessages = new ArrayList<>();              //stores the live status text for each step
     private int currentStepIndex = 0;                                   //current step in animation
     private Timeline playTimeline;                                      //jfx animator
     private boolean isPlaying = false;
@@ -62,7 +74,8 @@ public class SortingController {
 
     @FXML
     public void initialize() {
-        //setting default size to 10
+        // Enforcing max limit of 25 programmatically to make space
+        sizeSlider.setMax(25);
         sizeSlider.setValue(10);
         updateSizeLabel(10);
 
@@ -104,7 +117,7 @@ public class SortingController {
 
     //animator
     private void setupTimeline() {
-        playTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> executeNextStep()));        //calls executeNextStep() every 300ms
+        playTimeline = new Timeline(new KeyFrame(Duration.millis(1000), e -> executeNextStep()));        //calls executeNextStep() every 300ms
         playTimeline.setCycleCount(Timeline.INDEFINITE);          // setting end to indefinite
         if (speedSlider != null) {
             playTimeline.rateProperty().bind(speedSlider.valueProperty());      //rate is bind to value of speed slider
@@ -133,6 +146,7 @@ public class SortingController {
             playTimeline.pause();
             isPlaying = false;
             playPauseBtn.setText("▶");
+            updateStatusLabel(currentStepIndex > 0 ? currentStepIndex - 1 : 0);
         } else {
             playTimeline.play();
             isPlaying = true;
@@ -153,6 +167,7 @@ public class SortingController {
         if (currentStepIndex > 0) {
             currentStepIndex--;
             stepQueue.get(currentStepIndex).backward();
+            updateStatusLabel(currentStepIndex - 1); // Show message for the step we reverted TO
 
             if (currentStepIndex < stepQueue.size()) {
                 setControlsDisable(true);
@@ -162,6 +177,7 @@ public class SortingController {
 
     private void executeNextStep() {
         if (currentStepIndex < stepQueue.size()) {
+            updateStatusLabel(currentStepIndex); // Show message for the current step
             stepQueue.get(currentStepIndex).forward();
             currentStepIndex++;
         } else {
@@ -169,6 +185,23 @@ public class SortingController {
             isPlaying = false;
             playPauseBtn.setText("▶");
             setControlsDisable(false);
+
+            if (algoNameLabel != null) algoNameLabel.setText("Status: Finished");
+            if (currentStepLabel != null) currentStepLabel.setText("Action: Sorted!");
+            if (stepDescriptionArea != null) stepDescriptionArea.setText("The array is fully sorted.");
+        }
+    }
+
+    private void updateStatusLabel(int index) {
+        if (index >= 0 && index < stepMessages.size()) {
+            String msg = stepMessages.get(index);
+            if (stepDescriptionArea != null && msg != null) {
+                stepDescriptionArea.setText(msg);
+                if (currentStepLabel != null) currentStepLabel.setText("Action: Executing Step " + (index + 1));
+            }
+        } else if (index < 0) {
+            if (stepDescriptionArea != null) stepDescriptionArea.setText("Ready to sort.");
+            if (currentStepLabel != null) currentStepLabel.setText("Action: Idle");
         }
     }
 
@@ -210,9 +243,18 @@ public class SortingController {
         isPlaying = false;
         if (playPauseBtn != null) playPauseBtn.setText("▶");
         stepQueue.clear();
+        stepMessages.clear();
         currentStepIndex = 0;
         setControlsDisable(false);
         setMediaControlsDisable(true);
+
+        if (algoNameLabel != null) algoNameLabel.setText("Algorithm: None");
+        if (currentStepLabel != null) currentStepLabel.setText("Action: -");
+        if (stepDescriptionArea != null) stepDescriptionArea.setText("Generate an array and select a sort.");
+
+        if (iPointerArrow != null) {
+            iPointerArrow.setVisible(false);
+        }
     }
 
     private void drawArray() {
@@ -236,7 +278,7 @@ public class SortingController {
 
         for (int i = 0; i < size; i++) {
             Rectangle bar = new Rectangle();
-            double normalizedHeight = ((double) array[i] / maxVal) * (paneH * 0.9);
+            double normalizedHeight = ((double) array[i] / maxVal) * (paneH * 0.85); // slightly smaller to give space for arrow
 
             bar.setX(i * (paneW / size));
             bar.setY(paneH - normalizedHeight);
@@ -247,16 +289,41 @@ public class SortingController {
             bars[i] = bar;
             displayPane.getChildren().add(bar);
         }
+
+        // Ensure Arrow exists and is added over the bars
+        if (iPointerArrow == null) {
+            // A bold downward pointing triangle arrow
+            iPointerArrow = new Polygon(0, 0, 24, 0, 12, 18);
+            iPointerArrow.setFill(Color.ORANGE);
+            iPointerArrow.setStroke(Color.BLACK);
+            iPointerArrow.setStrokeWidth(2);
+        }
+        displayPane.getChildren().add(iPointerArrow);
+
+        if (virtualArrowShow) {
+            updateArrow(virtualArrowIdx, true);
+        } else {
+            iPointerArrow.setVisible(false);
+        }
     }
 
 
-    private boolean prepareSort() {
+    private boolean prepareSort(String algoName) {
         if (array == null || array.length == 0) return false;
+
+        if (algoNameLabel != null) algoNameLabel.setText("Algorithm: " + algoName);
+        if (currentStepLabel != null) currentStepLabel.setText("Action: Starting...");
+        if (stepDescriptionArea != null) stepDescriptionArea.setText("Ready to sort.");
 
         setControlsDisable(true);
         setMediaControlsDisable(false);
         stepQueue.clear();
+        stepMessages.clear();
         currentStepIndex = 0;
+
+        virtualArrowIdx = -1;
+        virtualArrowShow = false;
+        if (iPointerArrow != null) iPointerArrow.setVisible(false);
 
         tempArray = array.clone();
         virtualColors = new Color[array.length];
@@ -265,8 +332,53 @@ public class SortingController {
         return true;
     }
 
+    // --- QuickSort specific step for Arrow pointer ---
+    private void addArrowStep(int targetIdx, boolean show, String msg) {
+        int prevIdx = virtualArrowIdx;
+        boolean prevShow = virtualArrowShow;
+
+        virtualArrowIdx = targetIdx;
+        virtualArrowShow = show;
+
+        int newIdx = targetIdx;
+        boolean newShow = show;
+
+        stepQueue.add(new SortStep() {
+            @Override public void forward() { updateArrow(newIdx, newShow); }
+            @Override public void backward() { updateArrow(prevIdx, prevShow); }
+        });
+
+        if (msg == null || msg.isEmpty()) msg = "Updating target pointer position.";
+        stepMessages.add(msg);
+    }
+
+    private void updateArrow(int idx, boolean show) {
+        if (iPointerArrow == null) return;
+
+        if (show && idx >= 0 && idx < array.length) {
+            double paneW = displayPane.getWidth() > 0 ? displayPane.getWidth() : 600;
+            double slotWidth = paneW / array.length;
+            double barX = idx * slotWidth + (slotWidth / 2.0);
+
+            // Center arrow horizontally
+            iPointerArrow.setLayoutX(barX - 12);
+
+            // Get the physical Y coordinate of the actual bar we are pointing to
+            double barY = bars[idx].getY();
+
+            // Set the arrow's bounding box to end right before the top of the bar
+            // (18 is the arrow's height, plus 4 pixels of padding = 22)
+            iPointerArrow.setLayoutY(barY - 22);
+
+            iPointerArrow.setVisible(true);
+            iPointerArrow.toFront();
+        } else {
+            iPointerArrow.setVisible(false);
+        }
+    }
+
     // swap
-    private void addSwapStep(int idx1, int idx2) {
+    private void addSwapStep(int idx1, int idx2, String msg) {
         int temp = tempArray[idx1];
         tempArray[idx1] = tempArray[idx2];
         tempArray[idx2] = temp;
@@ -276,10 +388,11 @@ public class SortingController {
             @Override public void forward() { executeSwap(idx1, idx2); }
             @Override public void backward() { executeSwap(idx1, idx2); }
         });
+        stepMessages.add(msg);
     }
 
     // colors 1 bar
-    private void addColorStep(int idx, Color newColor) {
+    private void addColorStep(int idx, Color newColor, String msg) {
         Color oldColor = virtualColors[idx]; // Remember what it WAS
         virtualColors[idx] = newColor;       // Update what it WILL BE
 
@@ -287,10 +400,11 @@ public class SortingController {
             @Override public void forward() { bars[idx].setFill(newColor); }
             @Override public void backward() { bars[idx].setFill(oldColor); }
         });
+        stepMessages.add(msg);
     }
 
     // colors 2 bars in one frame
-    private void addColorStep(int idx1, int idx2, Color newColor) {
+    private void addColorStep(int idx1, int idx2, Color newColor, String msg) {
         Color old1 = virtualColors[idx1];
         Color old2 = virtualColors[idx2];
         virtualColors[idx1] = newColor;
@@ -300,23 +414,23 @@ public class SortingController {
             @Override public void forward() { bars[idx1].setFill(newColor); bars[idx2].setFill(newColor); }
             @Override public void backward() { bars[idx1].setFill(old1); bars[idx2].setFill(old2); }
         });
+        stepMessages.add(msg);
     }
 
-    //swaps bars
+    //swaps bars visually
     private void executeSwap(int idx1, int idx2){
         Rectangle r1 = bars[idx1];
         Rectangle r2 = bars[idx2];
 
-        // 2. Swap them in our tracking array so future steps grab the correct physical bar!
+        // Swap tracking array
         bars[idx1] = r2;
         bars[idx2] = r1;
 
-        // 3. Swap the master math array
+        // Swap math array
         int t = array[idx1];
         array[idx1] = array[idx2];
         array[idx2] = t;
 
-        // 4. Calculate exactly where they are supposed to move to on the screen
         double paneW = displayPane.getWidth();
         if (paneW <= 0) paneW = 600;
         double slotWidth = paneW / array.length;
@@ -324,25 +438,28 @@ public class SortingController {
         double targetXForR1 = idx2 * slotWidth;
         double targetXForR2 = idx1 * slotWidth;
 
-        // 5. Create the smooth sliding animation
         Timeline swapAnimation = new Timeline(
-                new KeyFrame(Duration.millis(600), // Takes 250ms to slide
+                new KeyFrame(Duration.millis(600),
                         new KeyValue(r1.xProperty(), targetXForR1, Interpolator.EASE_BOTH),
                         new KeyValue(r2.xProperty(), targetXForR2, Interpolator.EASE_BOTH)
                 )
         );
 
-        // 6. Bind the sliding animation speed to our speed slider!
         if (speedSlider != null) {
             swapAnimation.rateProperty().bind(speedSlider.valueProperty());
         }
-
-        // Action!
         swapAnimation.play();
     }
 
-    private void addInstantInsertStep(int fromIdx, int toIdx) {
-        if (fromIdx == toIdx) return;
+    private void addInstantInsertStep(int fromIdx, int toIdx, String msg) {
+        if (fromIdx == toIdx) {
+            stepQueue.add(new SortStep() {
+                @Override public void forward() {}
+                @Override public void backward() {}
+            });
+            stepMessages.add(msg);
+            return;
+        }
 
         // shifting math
         int temp = tempArray[fromIdx];
@@ -351,332 +468,298 @@ public class SortingController {
         }
         tempArray[toIdx] = temp;
 
-        // 2. Instantly update the color scratchpad
-        Color[] oldColors = virtualColors.clone(); // Save snapshot for Rewind
+        Color[] oldColors = virtualColors.clone();
 
         for (int k = fromIdx; k > toIdx; k--) {
-            virtualColors[k] = Color.LIMEGREEN; // The bars shifted right stay Green
+            virtualColors[k] = Color.LIMEGREEN;
         }
-        virtualColors[toIdx] = Color.RED; // The newly inserted bar stays Red
+        virtualColors[toIdx] = Color.RED;
 
-        // 3. Package all of the movement into ONE single animation frame
         stepQueue.add(new SortStep() {
             @Override
             public void forward() {
-                // Ripple the swaps downward instantly
                 for (int k = fromIdx; k > toIdx; k--) executeSwap(k, k - 1);
-
-                // Snap all the colors to their new states instantly
                 for (int k = toIdx; k <= fromIdx; k++) bars[k].setFill(virtualColors[k]);
             }
 
             @Override
             public void backward() {
-                // To undo, ripple the swaps back upward instantly
                 for (int k = toIdx + 1; k <= fromIdx; k++) executeSwap(k, k - 1);
-
-                // Restore old colors
                 for (int k = toIdx; k <= fromIdx; k++) bars[k].setFill(oldColors[k]);
             }
         });
+        stepMessages.add(msg);
     }
 
-    private void quickSortHelper(int low, int high) {
-        if (low < high) {
-            int pivotIndex = partition(low, high);
 
-            addColorStep(pivotIndex, Color.LIMEGREEN);
-
-            quickSortHelper(low, pivotIndex - 1);
-            quickSortHelper(pivotIndex + 1, high);
-
-        } else if (low == high) {
-            addColorStep(low, Color.LIMEGREEN);
-        }
-    }
-
-    private int partition(int low, int high){
-        int pivotValue = tempArray[high];
-        addColorStep(high, Color.MAGENTA);
-
-        int i = low - 1;
-
-        for (int j = low; j < high; j++){
-            addColorStep(j, Color.YELLOW);
-
-            if (tempArray[j] < pivotValue){
-                i++;
-
-                if (i != j) {
-                    addSwapStep(i, j);
-                    addColorStep(i, Color.CYAN);
-
-                } else {
-                    addColorStep(j, Color.CYAN);
-                }
-            } else {
-                addColorStep(j, Color.CYAN);
-            }
-        }
-
-        if (i + 1 != high) {
-            addSwapStep(i + 1, high);
-
-            addColorStep(i + 1, Color.MAGENTA);
-            addColorStep(high, Color.CYAN);
-        }
-
-        return i + 1;
-    }
     // =======================================================
     // --- SORTING ALGORITHMS ---
     // =======================================================
 
     @FXML
     void runBubbleSort(){
-        if (!prepareSort()) return;
+        if (!prepareSort("Bubble Sort")) return;
 
         for (int i = 0; i < tempArray.length - 1; i++) {
             for (int j = 0; j < tempArray.length - i - 1; j++) {
 
-                // 1. Highlight the bars we are comparing
-                addColorStep(j, j + 1, Color.YELLOW);
+                addColorStep(j, j + 1, Color.YELLOW, "Highlighting the two adjacent YELLOW bars for comparison.");
 
-                // 2. Check and Swap
                 if (tempArray[j] > tempArray[j + 1]) {
-                    addSwapStep(j, j + 1);
+                    addSwapStep(j, j + 1, "The left YELLOW bar is taller, swapping them.");
                 }
 
-                // 3. Un-highlight the bars
-                addColorStep(j, j + 1, Color.CYAN);
+                addColorStep(j, j + 1, Color.CYAN, "Comparison complete. Reverting the two bars to CYAN.");
             }
-            // 4. Mark the end of this pass as fully sorted
-            addColorStep(tempArray.length - i - 1, Color.LIMEGREEN);
+            addColorStep(tempArray.length - i - 1, Color.LIMEGREEN, "The tallest unsorted bar has reached its final position. Locking as GREEN.");
         }
 
-        // Mark the very first element as sorted when done
-        addColorStep(0, Color.LIMEGREEN);
-
+        addColorStep(0, Color.LIMEGREEN, "Final bar locked as GREEN. Array is fully sorted!");
         togglePlayPause();
     }
 
     @FXML
     void runSelectionSort(){
-        if(!prepareSort()) return;
+        if(!prepareSort("Selection Sort")) return;
 
         for(int i = 0; i < tempArray.length - 1; i++){
             int min_idx = i;
 
-            addColorStep(i, Color.YELLOW);
+            addColorStep(i, Color.YELLOW, "Starting a new pass. Marking the current target position in YELLOW.");
+
             for(int j = i + 1; j < tempArray.length; j++){
-                addColorStep(j, Color.YELLOW);
+                addColorStep(j, Color.YELLOW, "Comparing the next bar in YELLOW to RED to see if it is shorter.");
+
                 if(tempArray[j] < tempArray[min_idx]){
                     if(min_idx == i){
-                        addColorStep(i, Color.YELLOW);
+                        addColorStep(i, Color.YELLOW, "First bar is currently the shortest.");
                     }
                     else{
-                        addColorStep(min_idx, Color.CYAN);
+                        addColorStep(min_idx, Color.CYAN, "Discarding the old minimum, reverting it to CYAN.");
                     }
                     min_idx = j;
-                    addColorStep(min_idx, Color.RED);
+                    addColorStep(min_idx, Color.RED, "Found a shorter bar! Marking the new minimum candidate in RED.");
                 }
-                else addColorStep(j, Color.CYAN);
+                else {
+                    addColorStep(j, Color.CYAN, "This bar is taller. Ignoring it and reverting to CYAN.");
+                }
             }
-            addColorStep(i, Color.CYAN);
-            addSwapStep(i, min_idx);
-            addColorStep(i, Color.LIMEGREEN);
+
+            addColorStep(i, Color.CYAN, "Scan complete for this pass. Reverting the start position to CYAN.");
+            addSwapStep(i, min_idx, "Swapping the shortest RED bar into its correct sorted position.");
+            addColorStep(i, Color.LIMEGREEN, "The bar is now in its final sorted position. Locking as GREEN.");
         }
-        addColorStep(tempArray.length - 1, Color.LIMEGREEN);
+        addColorStep(tempArray.length - 1, Color.LIMEGREEN, "Final element sorted! Locking as GREEN.");
 
         togglePlayPause();
     }
 
     @FXML
     void runInsertionSort(){
-        if(!prepareSort()) return;
+        if(!prepareSort("Insertion Sort")) return;
 
-        addColorStep(0, Color.LIMEGREEN);
+        addColorStep(0, Color.LIMEGREEN, "The first bar is trivially sorted. Locking as GREEN.");
+
         for(int i = 1; i < tempArray.length; i++){
             int j = i - 1;
-            addColorStep(i, Color.RED);
             int target = tempArray[i];
+
+            addColorStep(i, Color.RED, "Selecting the next unsorted bar and marking it RED.");
+
             while(j >= 0 && tempArray[j] > target){
-                addColorStep(j, Color.YELLOW);
-                addColorStep(j, Color.LIMEGREEN);
+                addColorStep(j, Color.YELLOW, "Comparing the RED bar against the sorted YELLOW bar.");
+                addColorStep(j, Color.LIMEGREEN, "Needs to be shifted to insert the RED bar.");
                 j--;
             }
             int targetSpot = j + 1;
 
-            if (targetSpot != i) {
-                addInstantInsertStep(i, targetSpot);
+            if (targetSpot == i) {
+                addColorStep(i, Color.RED, "Found spot! The RED bar is already in the correct sequence position.");
+            } else {
+                addColorStep(i, Color.RED, "Found spot! Preparing to insert the RED bar into the opened space.");
+                addInstantInsertStep(i, targetSpot, "Inserting the RED bar into its correct position.");
             }
 
-            addColorStep(targetSpot, Color.LIMEGREEN);
+            addColorStep(targetSpot, Color.LIMEGREEN, "Bar is successfully placed in the sorted sequence. Locking as GREEN.");
         }
-
 
         togglePlayPause();
     }
 
     @FXML
     void runQuickSort() {
-        if (!prepareSort()) return;
+        if (!prepareSort("Quick Sort")) return;
 
         quickSortHelper(0, tempArray.length - 1);
 
         for (int i = 0; i < tempArray.length; i++) {
-            addColorStep(i, Color.LIMEGREEN);
+            addColorStep(i, Color.LIMEGREEN, "Marking all bars as GREEN. Array fully sorted!");
         }
 
         togglePlayPause();
     }
 
+    private void quickSortHelper(int low, int high) {
+        if (low < high) {
+            int pivotIndex = partition(low, high);
+
+            addColorStep(pivotIndex, Color.LIMEGREEN, "Pivot bar is perfectly placed. Locking as LIME GREEN.");
+
+            quickSortHelper(low, pivotIndex - 1);
+            quickSortHelper(pivotIndex + 1, high);
+
+        } else if (low == high) {
+            addColorStep(low, Color.LIMEGREEN, "Single bar remaining in this partition. Locking as LIME GREEN.");
+        }
+    }
+
+    private int partition(int low, int high){
+        int pivotValue = tempArray[high];
+        addColorStep(high, Color.MAGENTA, "Selecting the end bar as the pivot and marking it MAGENTA.");
+
+        int i = low - 1;
+
+        // Setup arrow boundary marker at the beginning of partition
+        addArrowStep(i + 1, true, "ORANGE arrow marks the boundary for smaller elements.");
+
+        for (int j = low; j < high; j++){
+            addColorStep(j, Color.YELLOW, "Highlighting the current bar in YELLOW to compare against the MAGENTA pivot.");
+
+            if (tempArray[j] < pivotValue){
+                i++;
+
+                if (i != j) {
+                    addSwapStep(i, j, "The YELLOW bar is shorter! Swapping it into the boundary under the arrow.");
+                    addColorStep(i, Color.CYAN, "Swap complete. Reverting the shorter bar to CYAN.");
+                } else {
+                    addColorStep(j, Color.CYAN, "The bar is shorter but already in position. Reverting to CYAN.");
+                }
+
+                // Shift arrow boundary right if there are more elements
+                addArrowStep(i + 1, true, "Moving target boundary forward.");
+
+            } else {
+                addColorStep(j, Color.CYAN, "The YELLOW bar is taller than the pivot. Leaving it on the right and reverting to CYAN.");
+            }
+        }
+
+        addArrowStep(i + 1, true, "Partition scan complete! ORANGE arrow marks the pivot's final destination.");
+
+        if (i + 1 != high) {
+            addSwapStep(i + 1, high, "Swapping the MAGENTA pivot into the dividing point under the arrow.");
+            addColorStep(i + 1, Color.MAGENTA, "The MAGENTA pivot has reached its correct dividing position.");
+            addColorStep(high, Color.CYAN, "Reverting the placed bar to CYAN.");
+        }
+
+        // Hide arrow at the end of this partition frame
+        addArrowStep(-1, false, "Hiding target arrow.");
+
+        return i + 1;
+    }
+
+
     // Merge sort depth-row tracking
-    private int[] virtualDepth;   // -1 = full-height display, 0+ = merge sort row
-    private int   maxSortDepth;   // ceil(log₂ n) — how many rows the tree needs
-    private int   maxArrayValue;  // max value, stable — used for height scaling
-    // =======================================================
-// MERGE SORT — depth-row tree visualisation
-// =======================================================
+    private int[] virtualDepth;
+    private int   maxSortDepth;
+    private int   maxArrayValue;
 
     @FXML
     void runMergeSort() {
-        if (!prepareSort()) return;
+        if (!prepareSort("Merge Sort")) return;
 
         int n = tempArray.length;
 
-        // How many levels the recursion tree has
         maxSortDepth   = (n <= 1) ? 0 : (int) Math.ceil(Math.log(n) / Math.log(2));
         virtualDepth   = new int[n];
-        Arrays.fill(virtualDepth, -1);   // -1 = currently in full-height display mode
+        Arrays.fill(virtualDepth, -1);
 
         maxArrayValue = 0;
         for (int v : array) if (v > maxArrayValue) maxArrayValue = v;
 
-        // ── Phase 1: shrink all bars and slide them into row 0 ──
-        addRepositionStep(0, n - 1, 0);
+        addRepositionStep(0, n - 1, 0, "Starting Merge Sort. Dropping all bars to the top level to begin dividing.");
 
-        // ── Phase 2: recursive divide + merge ──
         mergeSortHelper(0, n - 1, 0);
 
-        // ── Phase 3: expand bars back to full-height and colour green ──
-        addRepositionStep(0, n - 1, -1);
-        for (int i = 0; i < n; i++) addColorStep(i, Color.LIMEGREEN);
+        addRepositionStep(0, n - 1, -1, "Merge Sort Complete! Expanding all sorted bars back to full size.");
+        for (int i = 0; i < n; i++) addColorStep(i, Color.LIMEGREEN, "Merge Sort Finished!");
 
         togglePlayPause();
     }
 
-    /**
-     * Recursively builds steps for the depth-row tree.
-     *
-     * @param depth  current row in the tree (0 = root row at the top)
-     */
     private void mergeSortHelper(int low, int high, int depth) {
         if (low >= high) {
             if (low == high) {
-                addColorStep(low, Color.LIMEGREEN);
-                addSingleRepositionStep(low, depth);    // leaf rises to its own row
+                addColorStep(low, Color.LIMEGREEN, "Base case: A single bar is already sorted. Marking LIME GREEN.");
+                addSingleRepositionStep(low, depth, "Moving the sorted single bar up to await merging.");
             }
             return;
         }
 
         int mid = (low + high) / 2;
 
-        // Flash the subarray so the viewer sees the divide happening
-        for (int i = low; i <= high; i++) addColorStep(i, Color.YELLOW);
-        for (int i = low; i <= high; i++) addColorStep(i, Color.CYAN);
+        for (int i = low; i <= high; i++) addColorStep(i, Color.YELLOW, "Dividing Phase: Highlighting the current subarray in YELLOW.");
+        for (int i = low; i <= high; i++) addColorStep(i, Color.CYAN, "Splitting the YELLOW subarray into a left and right half.");
 
-        // Divide: both halves drop one row lower
-        addRepositionStep(low,      mid,  depth + 1);
-        addRepositionStep(mid + 1, high, depth + 1);
+        addRepositionStep(low,      mid,  depth + 1, "Dropping the left half down one level to divide it further.");
+        addRepositionStep(mid + 1, high, depth + 1, "Dropping the right half down one level to divide it further.");
 
         mergeSortHelper(low,      mid,  depth + 1);
         mergeSortHelper(mid + 1, high, depth + 1);
 
-        // Merge: each element rises to `depth` one by one as it's sorted
         merge(low, mid, high, depth);
-        // ↑ no separate addRepositionStep here anymore — merge() does it per element
     }
 
     private void merge(int low, int mid, int high, int depth) {
-        for (int i = low;      i <= mid;  i++) addColorStep(i, Color.CYAN);
-        for (int i = mid + 1; i <= high; i++) addColorStep(i, Color.MAGENTA);
+        for (int i = low;      i <= mid;  i++) addColorStep(i, Color.CYAN, "Merge Phase: Marking the left half CYAN.");
+        for (int i = mid + 1; i <= high; i++) addColorStep(i, Color.MAGENTA, "Merge Phase: Marking the right half MAGENTA. Now merging them into sorted order.");
 
         int left         = low;
         int currentMid   = mid;
         int right        = mid + 1;
-        int currentDepth = depth + 1;   // elements are sitting one level below target
+        int currentDepth = depth + 1;
 
         while (left <= currentMid && right <= high) {
-            addColorStep(left,  Color.YELLOW);
-            addColorStep(right, Color.YELLOW);
+            addColorStep(left,  Color.YELLOW, "Selecting the smallest remaining bar from the left half (YELLOW).");
+            addColorStep(right, Color.YELLOW, "Comparing it against the smallest remaining bar from the right half (YELLOW).");
 
             if (tempArray[left] <= tempArray[right]) {
-                // Left element wins: already in place, just rise straight up
-                addColorStep(left, Color.LIMEGREEN);
-                addSingleRepositionStep(left, depth);
+                addColorStep(left, Color.LIMEGREEN, "The left YELLOW bar is smaller (or equal). Marking LIME GREEN.");
+                addSingleRepositionStep(left, depth, "Moving the LIME GREEN bar up into its sorted position in the merged array.");
                 left++;
             } else {
-                // Right element wins: diagonal arc up-left + displace middle bars right
-                // (no separate RED/addInstantInsertStep needed — this does it all in one)
-                addMergeRotateAndRiseStep(right, left, currentDepth, depth);
+                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right YELLOW bar is smaller! Shifting it past the left half and moving it up. Marking LIME GREEN.");
                 currentMid++;
                 right++;
                 left++;
             }
         }
 
-        // Remaining left-half: already in place, rise straight up
         while (left <= currentMid) {
-            addColorStep(left, Color.LIMEGREEN);
-            addSingleRepositionStep(left, depth);
+            addColorStep(left, Color.LIMEGREEN, "Right half is exhausted. Marking remaining left bar LIME GREEN.");
+            addSingleRepositionStep(left, depth, "Moving the remaining sorted bar up.");
             left++;
         }
 
-        // Remaining right-half: already in place, rise straight up
         while (right <= high) {
-            addColorStep(right, Color.LIMEGREEN);
-            addSingleRepositionStep(right, depth);
+            addColorStep(right, Color.LIMEGREEN, "Left half is exhausted. Marking remaining right bar LIME GREEN.");
+            addSingleRepositionStep(right, depth, "Moving the remaining sorted bar up.");
             right++;
         }
     }
-// =======================================================
-// REPOSITION HELPERS
-// =======================================================
 
-    /**
-     * Records a step that smoothly animates bars [low..high] to the target depth row.
-     *
-     *  depth  <  0  →  full-height display (the normal pre/post-sort view)
-     *  depth  >= 0  →  a compact row in the merge tree
-     *                  row 0 is near the top, deeper rows go further down
-     */
-    /** Records a step that moves a single bar to a target depth row. */
-
-    /**
-     * When the right-half element wins the comparison:
-     * - It rotates into position AND rises to the parent row in one diagonal arc.
-     * - The displaced bars [toIdx..fromIdx-1] slide right simultaneously.
-     */
-    private void addMergeRotateAndRiseStep(int fromIdx, int toIdx, int currentDepth, int targetDepth) {
-        // ── Advance tempArray ──
+    private void addMergeRotateAndRiseStep(int fromIdx, int toIdx, int currentDepth, int targetDepth, String msg) {
         int temp = tempArray[fromIdx];
         for (int k = fromIdx; k > toIdx; k--) tempArray[k] = tempArray[k - 1];
         tempArray[toIdx] = temp;
 
-        // ── Advance virtualDepth for the winner ──
-        virtualDepth[toIdx] = targetDepth;   // winner rises; shifted bars stay at currentDepth
-
-        // ── Snapshot virtualColors before this step (needed for backward) ──
+        virtualDepth[toIdx] = targetDepth;
         Color[] oldColors = virtualColors.clone();
-        // Rotate virtualColors to match bars moving right
         for (int k = fromIdx; k > toIdx; k--) virtualColors[k] = virtualColors[k - 1];
         virtualColors[toIdx] = Color.LIMEGREEN;
 
         stepQueue.add(new SortStep() {
             @Override
             public void forward() {
-                // 1. Rotate bars[] and array[] in sync
                 Rectangle winner = bars[fromIdx];
                 int winnerVal    = array[fromIdx];
                 for (int k = fromIdx; k > toIdx; k--) {
@@ -686,13 +769,11 @@ public class SortingController {
                 bars[toIdx]  = winner;
                 array[toIdx] = winnerVal;
 
-                // 2. Build one Timeline — winner goes diagonal, others slide right
                 double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
                 double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
                 double slotW = paneW / array.length;
                 double rowH  = paneH / (maxSortDepth + 2.0);
 
-                // Winner: arc diagonally up-left to (toIdx, targetDepth)
                 double wH = (array[toIdx] / (double) maxArrayValue) * rowH * 0.85;
                 double wY = (targetDepth + 1) * rowH - wH;
                 double wX = toIdx * slotW;
@@ -705,15 +786,12 @@ public class SortingController {
                 ));
                 winner.setFill(Color.LIMEGREEN);
 
-
-
                 if (speedSlider != null) tl.rateProperty().bind(speedSlider.valueProperty());
                 tl.play();
             }
 
             @Override
             public void backward() {
-                // 1. Reverse-rotate bars[] and array[]
                 Rectangle winner = bars[toIdx];
                 int winnerVal    = array[toIdx];
                 for (int k = toIdx; k < fromIdx; k++) {
@@ -723,17 +801,14 @@ public class SortingController {
                 bars[fromIdx]  = winner;
                 array[fromIdx] = winnerVal;
 
-                // 2. Restore depth and color tracking
                 virtualDepth[toIdx] = currentDepth;
                 System.arraycopy(oldColors, 0, virtualColors, 0, oldColors.length);
 
-                // 3. Animate winner back down-right, shifted bars back left
                 double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
                 double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
                 double slotW = paneW / array.length;
                 double rowH  = paneH / (maxSortDepth + 2.0);
 
-                // Winner returns to fromIdx at currentDepth
                 double wH = (array[fromIdx] / (double) maxArrayValue) * rowH * 0.85;
                 double wY = (currentDepth + 1) * rowH - wH;
                 double wX = fromIdx * slotW;
@@ -746,7 +821,6 @@ public class SortingController {
                 ));
                 winner.setFill(oldColors[fromIdx]);
 
-                // Restore colors only — positions were never moved
                 for (int k = toIdx; k < fromIdx; k++) {
                     bars[k].setFill(oldColors[k]);
                 }
@@ -755,9 +829,10 @@ public class SortingController {
                 tl.play();
             }
         });
+        stepMessages.add(msg);
     }
 
-    private void addSingleRepositionStep(int idx, int targetDepth) {
+    private void addSingleRepositionStep(int idx, int targetDepth, String msg) {
         int prevDepth = virtualDepth[idx];
         virtualDepth[idx] = targetDepth;
 
@@ -765,6 +840,7 @@ public class SortingController {
             @Override public void forward()  { playSingleRepositionAnim(idx, targetDepth); }
             @Override public void backward() { playSingleRepositionAnim(idx, prevDepth);   }
         });
+        stepMessages.add(msg);
     }
 
     private void playSingleRepositionAnim(int idx, int depth) {
@@ -774,7 +850,7 @@ public class SortingController {
         double rowH  = paneH / (maxSortDepth + 2.0);
 
         double barH, barY, barX;
-        barX = idx * slotW;   // ← always land in the correct sorted column
+        barX = idx * slotW;
 
         if (depth < 0) {
             barH = (array[idx] / (double) maxArrayValue) * paneH * 0.9;
@@ -785,7 +861,7 @@ public class SortingController {
         }
 
         Timeline tl = new Timeline(new KeyFrame(Duration.millis(400),
-                new KeyValue(bars[idx].xProperty(),      barX, Interpolator.EASE_BOTH),  // ← X corrected
+                new KeyValue(bars[idx].xProperty(),      barX, Interpolator.EASE_BOTH),
                 new KeyValue(bars[idx].yProperty(),      barY, Interpolator.EASE_BOTH),
                 new KeyValue(bars[idx].heightProperty(), barH, Interpolator.EASE_BOTH)
         ));
@@ -793,7 +869,7 @@ public class SortingController {
         tl.play();
     }
 
-    private void addRepositionStep(int low, int high, int targetDepth) {
+    private void addRepositionStep(int low, int high, int targetDepth, String msg) {
         int   count      = high - low + 1;
         int[] indices    = new int[count];
         int[] prevDepths = new int[count];
@@ -805,29 +881,21 @@ public class SortingController {
             virtualDepth[i] = targetDepth;
         }
 
-        // Capture for lambdas
         int[] targetDepths = makeUniform(count, targetDepth);
 
         stepQueue.add(new SortStep() {
             @Override public void forward()  { playRepositionAnim(indices, targetDepths); }
             @Override public void backward() { playRepositionAnim(indices, prevDepths);   }
         });
+        stepMessages.add(msg);
     }
 
-    /** Convenience: fills an int[] of given length with one value. */
     private int[] makeUniform(int length, int value) {
         int[] arr = new int[length];
         Arrays.fill(arr, value);
         return arr;
     }
 
-    /**
-     * Fires a Timeline that slides each bar[indices[k]] to the Y/height
-     * dictated by depths[k].
-     *
-     * Called at PLAYBACK time, so array[idx] always reflects the live sorted
-     * state of the display (executeSwap keeps array[] in sync).
-     */
     private void playRepositionAnim(int[] indices, int[] depths) {
         double paneW = displayPane.getWidth()  > 0 ? displayPane.getWidth()  : 600;
         double paneH = displayPane.getHeight() > 0 ? displayPane.getHeight() : 400;
@@ -841,7 +909,7 @@ public class SortingController {
             int depth = depths[k];
 
             double barH, barY, barX;
-            barX = idx * slotW;   // ← always snap to correct column
+            barX = idx * slotW;
 
             if (depth < 0) {
                 barH = (array[idx] / (double) maxArrayValue) * paneH * 0.9;
@@ -852,7 +920,7 @@ public class SortingController {
             }
 
             tl.getKeyFrames().add(new KeyFrame(Duration.millis(500),
-                    new KeyValue(bars[idx].xProperty(),      barX, Interpolator.EASE_BOTH),  // ← X corrected
+                    new KeyValue(bars[idx].xProperty(),      barX, Interpolator.EASE_BOTH),
                     new KeyValue(bars[idx].yProperty(),      barY, Interpolator.EASE_BOTH),
                     new KeyValue(bars[idx].heightProperty(), barH, Interpolator.EASE_BOTH)
             ));
@@ -861,8 +929,6 @@ public class SortingController {
         if (speedSlider != null) tl.rateProperty().bind(speedSlider.valueProperty());
         tl.play();
     }
-    //run run
-    // =======================================================
 
     @FXML
     void backToHome(ActionEvent event) throws IOException {
