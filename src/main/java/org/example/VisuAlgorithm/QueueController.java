@@ -178,7 +178,7 @@ public class QueueController {
     // ================= BACK =================
     @FXML
     private void onBack() {
-        goTo("hello-view.fxml"); // change if your menu fxml name is different
+        Launcher.switchScene("hello-view.fxml"); // change if your menu fxml name is different
     }
 
     private void goTo(String fxmlName) {

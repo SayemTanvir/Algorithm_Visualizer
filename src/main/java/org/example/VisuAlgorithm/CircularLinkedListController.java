@@ -89,7 +89,7 @@ public class CircularLinkedListController {
 
     @FXML
     private void onBack() {
-        goTo("linked-list-view.fxml");
+        Launcher.switchScene("linked-list-view.fxml");
     }
 
     private void goTo(String fxml) {

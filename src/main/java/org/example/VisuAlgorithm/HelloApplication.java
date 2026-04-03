@@ -13,19 +13,17 @@ public class HelloApplication extends Application {
     @Override
     public void start(Stage stage) throws IOException {
 
+        // Load INTRO instead of hello-view
         FXMLLoader fxmlLoader = new FXMLLoader(
-                HelloApplication.class.getResource("hello-view.fxml")
+                HelloApplication.class.getResource("intro-view.fxml")
         );
 
-        Scene scene = new Scene(fxmlLoader.load());
+        Scene scene = new Scene(fxmlLoader.load(), 1400, 700);
 
-        // CSS
-//        scene.getStylesheets().add(
-//                getClass().getResource("style.css").toExternalForm()
-//        );
+        // Apply CSS
         scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm());
 
-        stage.setTitle("VisualAlgorithm");
+        stage.setTitle("VisuAlgorithm - Beautiful DSA Visualizations");
 
         // Icon (safe)
         try {
@@ -36,8 +34,8 @@ public class HelloApplication extends Application {
         }
 
         stage.setScene(scene);
-        stage.setMaximized(true); // optional
-
+        stage.setMaximized(false); // Start normal size
         stage.show();
     }
+
 }

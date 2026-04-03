@@ -94,7 +94,7 @@ public class StackController {
 
     @FXML
     private void onBack() {
-        goTo("hello-view.fxml");
+        Launcher.switchScene("hello-view.fxml");
     }
 
     private void goTo(String fxml) {

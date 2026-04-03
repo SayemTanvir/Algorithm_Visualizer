@@ -933,9 +933,16 @@ public class SortingController {
     @FXML
     void backToHome(ActionEvent event) throws IOException {
         stopAll();
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
-        Parent root = fxmlLoader.load();
-        Stage stage = (Stage)((Node)event.getSource()).getScene().getWindow();
-        stage.getScene().setRoot(root);
+//        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
+//        Parent root = fxmlLoader.load();
+//        Stage stage = (Stage)((Node)event.getSource()).getScene().getWindow();
+//        Scene scene = new Scene(root);
+//
+//        // Always re-add CSS!
+//        scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm());
+//
+//        stage.setScene(scene);
+//        stage.show();
+        Launcher.switchScene("hello-view.fxml");
     }
 }

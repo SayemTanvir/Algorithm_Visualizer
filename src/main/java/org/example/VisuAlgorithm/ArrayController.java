@@ -81,15 +81,7 @@ public class ArrayController {
     // ------------ Navigation ------------
     @FXML
     void backHome() throws IOException {
-        Parent root = FXMLLoader.load(getClass().getResource("/org/example/VisuAlgorithm/hello-view.fxml"));
-        Stage stage = (Stage) arrayBox.getScene().getWindow();
-        Scene scene = new Scene(root);
-
-        // Always re-add CSS!
-        scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm());
-
-        stage.setScene(scene);
-        stage.show();
+        Launcher.switchScene("hello-view.fxml");
     }
 
     // ------------ Mode ------------
