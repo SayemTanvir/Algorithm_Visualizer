@@ -18,11 +18,11 @@
                 <ToggleButton text="Node" fx:id="nodeTool" toggleGroup="$toolGroup" selected="true"/>
                 <ToggleButton text="Edge" fx:id="edgeTool" toggleGroup="$toolGroup"/>
                 <Separator/>
-                <CheckBox text="Directed" fx:id="directedCheck"/>
-                <CheckBox text="Weighted" fx:id="weightedCheck"/>
+                <CheckBox text="Directed" fx:id="directedCheck" style="-fx-text-fill:#ffd580"/>
+                <CheckBox text="Weighted" fx:id="weightedCheck" style="-fx-text-fill:#ffd580"/>
                 <TextField fx:id="weightField" prefWidth="60" promptText="1"/>
                 <Separator/>
-                <CheckBox text="Custom Node" fx:id="customNodeCheck"/>
+                <CheckBox text="Custom Node" fx:id="customNodeCheck" style="-fx-text-fill:#ffd580"/>
                 <TextField fx:id="nodeValueField" prefWidth="60" promptText="Val"/>
                 <Separator/>
                 <Button text="Delete" onAction="#deleteSelected"/>
@@ -37,7 +37,7 @@
             <ToolBar fx:id="algoToolbar" visible="false">
                 <Button text="⬅ Build Mode" onAction="#switchToBuildMode" style="-fx-font-weight: bold;"/>
                 <Separator/>
-                <ComboBox fx:id="algoComboBox" promptText="Select Algorithm"/>
+                <ComboBox fx:id="algoComboBox" promptText="Select Algorithm" />
                 <TextField fx:id="startNodeField" promptText="Start Node" prefWidth="80"/>
                 <TextField fx:id="endNodeField" promptText="End (Dijkstra)" prefWidth="100"/>
                 <Separator/>
@@ -146,7 +146,7 @@
         <VBox>
             <ToolBar style="-fx-alignment: center;">
                 <Label fx:id="resultLabel" text=""
-                       style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                       style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill:white"/>
             </ToolBar>
 
             <ToolBar fx:id="playbackToolbar" visible="false" managed="false">

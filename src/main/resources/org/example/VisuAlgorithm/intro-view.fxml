@@ -42,7 +42,7 @@
                           -fx-wrap-text: true;
                           -fx-text-alignment: center;"/>
 
-            <Label text="Sorting • Searching • Trees • Graphs • Dynamic Programming"
+            <Label text="Sorting • Searching • Array • Linked List • Trees • Graphs"
                    style="-fx-font-size: 13px;
                           -fx-text-fill: #7cb9e8;
                           -fx-wrap-text: true;

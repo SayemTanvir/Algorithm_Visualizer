@@ -50,7 +50,7 @@
 
     <bottom>
         <VBox>
-            <Label fx:id="resultLabel" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 6 12 6 12;" text="" />
+            <Label fx:id="resultLabel" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 6 12 6 12; -fx-text-fill:white;" text="" />
             <ToolBar fx:id="playbackToolbar" managed="false" visible="false">
                 <Button fx:id="playPauseButton" onAction="#togglePlayPause" prefWidth="95" text="▶ Play" />
                 <Button onAction="#stepBackward" text="⏮ Step Back" />

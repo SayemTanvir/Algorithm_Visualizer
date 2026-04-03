@@ -103,12 +103,12 @@
                </VBox.margin>
             </Separator>
 
-            <Label text="Live Status Update" textFill="#1e005e">
+            <Label text="Live Status Update" textFill="white">
                <font>
                   <Font name="System Bold" size="14.0" />
                </font>
             </Label>
-            <Label fx:id="algoNameLabel" prefWidth="180.0" text="Algorithm: None" textFill="#0d0084" wrapText="true">
+            <Label fx:id="algoNameLabel" prefWidth="180.0" text="Algorithm: None" style="-fx-text-fill:#ffd580" wrapText="true">
                <font>
                   <Font name="System Bold" size="12.0" />
                </font>
