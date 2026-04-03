@@ -5,6 +5,10 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
+import javafx.animation.FadeTransition;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.util.Duration;
 
 public class Launcher extends Application {
 
@@ -38,11 +42,38 @@ public class Launcher extends Application {
 
     public static void switchScene(String fxmlFile) {
         try {
-            FXMLLoader loader = new FXMLLoader(
-                    Launcher.class.getResource("/org/example/VisuAlgorithm/" + fxmlFile)
-            );
+            var currentRoot = mainScene.getRoot();
 
-            mainScene.setRoot(loader.load());
+            FadeTransition fadeOut = new FadeTransition(Duration.millis(180), currentRoot);
+            fadeOut.setFromValue(1.0);
+            fadeOut.setToValue(0.0);
+
+            fadeOut.setOnFinished(event -> {
+                try {
+                    FXMLLoader loader = new FXMLLoader(
+                            Launcher.class.getResource(
+                                    "/org/example/VisuAlgorithm/" + fxmlFile
+                            )
+                    );
+
+                    Parent newRoot = loader.load();
+                    newRoot.setOpacity(0);
+
+                    mainScene.setRoot(newRoot);
+
+                    FadeTransition fadeIn = new FadeTransition(
+                            Duration.millis(220), newRoot
+                    );
+                    fadeIn.setFromValue(0.0);
+                    fadeIn.setToValue(1.0);
+                    fadeIn.play();
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+
+            fadeOut.play();
 
         } catch (Exception e) {
             e.printStackTrace();
