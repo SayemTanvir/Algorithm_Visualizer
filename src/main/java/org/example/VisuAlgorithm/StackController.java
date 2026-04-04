@@ -278,153 +278,126 @@ public class StackController {
 
     private void playPushIncomingAnimation(int value) {
         if (stack.size() >= MAX_SIZE) {
-            setStatus("Stack overflow");
-            showPopup("Stack Overflow", "Maximum 7 elements allowed in the stack.");
+            playOverflowAnimation(value); // Custom overflow animation
             return;
         }
 
-        if (pushAnimationRunning) return;
         pushAnimationRunning = true;
-
-        redraw(-1, -1);
-
-        double startAnimX = 80;
-        double startAnimY = 120;
-
+        double entryX = x;
+        double entryY = 50; // Start high up
+        double topOfContainerY = startY - (MAX_SIZE * gap);
         double targetY = startY - stack.size() * gap;
-        double targetX = x;
 
-        createAnimatedBox(startAnimX, startAnimY, value, "#dbeafe", "#2563eb");
-        setStatus("Pushing " + value + "...");
+        createAnimatedBox(entryX, entryY, value, "#3b82f6", "#ffffff");
 
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.0),
-                        new KeyValue(animatedBox.xProperty(), startAnimX),
-                        new KeyValue(animatedBox.yProperty(), startAnimY),
-                        new KeyValue(animatedText.xProperty(), startAnimX + 42),
-                        new KeyValue(animatedText.yProperty(), startAnimY + 35)
-                ),
-                new KeyFrame(Duration.seconds(0.8),
-                        new KeyValue(animatedBox.xProperty(), targetX),
-                        new KeyValue(animatedBox.yProperty(), targetY),
-                        new KeyValue(animatedText.xProperty(), targetX + 42),
-                        new KeyValue(animatedText.yProperty(), targetY + 35)
-                )
+        Timeline gravityDrop = new Timeline(
+                // Phase 1: Move to top of container
+                new KeyFrame(Duration.ZERO, new KeyValue(animatedBox.yProperty(), entryY)),
+                new KeyFrame(Duration.seconds(0.4), new KeyValue(animatedBox.yProperty(), topOfContainerY)),
+
+                // Phase 2: Drop into position (Gravity effect)
+                new KeyFrame(Duration.seconds(0.8), new KeyValue(animatedBox.yProperty(), targetY))
         );
 
-        timeline.setOnFinished(e -> {
-            clearAnimatedBox();
+        gravityDrop.setOnFinished(e -> {
             stack.add(value);
-            redraw(stack.size() - 1, -1);
-            setStatus("Pushed " + value);
+            clearAnimatedBox();
+            redraw(-1, -1);
             pushAnimationRunning = false;
         });
-
-        timeline.play();
+        gravityDrop.play();
     }
 
     private void playPopOutgoingAnimation() {
-        if (stack.isEmpty()) {
-            setStatus("Stack underflow");
-            showPopup("Stack Empty", "Cannot pop because the stack is empty.");
-            return;
-        }
-
-        if (popAnimationRunning) return;
         popAnimationRunning = true;
+        int topIdx = stack.size() - 1;
+        int val = stack.get(topIdx);
+        stack.remove(topIdx);
+        redraw(-1, -1); // Redraw without the top element
 
-        int topIndex = stack.size() - 1;
-        int removedValue = stack.get(topIndex);
+        createAnimatedBox(x, startY - topIdx * gap, val, "#ef4444", "#ffffff");
 
-        redraw(topIndex, -1);
-        setStatus("Popping top...");
-
-        double startAnimX = x;
-        double startAnimY = startY - topIndex * gap;
-
-        double targetAnimX = 80;
-        double targetAnimY = 120;
-
-        createAnimatedBox(startAnimX, startAnimY, removedValue, "#fee2e2", "#dc2626");
-
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.0),
-                        new KeyValue(animatedBox.xProperty(), startAnimX),
-                        new KeyValue(animatedBox.yProperty(), startAnimY),
-                        new KeyValue(animatedText.xProperty(), startAnimX + 42),
-                        new KeyValue(animatedText.yProperty(), startAnimY + 35)
-                ),
-                new KeyFrame(Duration.seconds(0.8),
-                        new KeyValue(animatedBox.xProperty(), targetAnimX),
-                        new KeyValue(animatedBox.yProperty(), targetAnimY),
-                        new KeyValue(animatedText.xProperty(), targetAnimX + 42),
-                        new KeyValue(animatedText.yProperty(), targetAnimY + 35)
+        Timeline liftAndFade = new Timeline(
+                new KeyFrame(Duration.seconds(0.6),
+                        new KeyValue(animatedBox.yProperty(), 50),
+                        new KeyValue(animatedBox.opacityProperty(), 0),
+                        new KeyValue(animatedText.opacityProperty(), 0)
                 )
         );
 
-        timeline.setOnFinished(e -> {
+        liftAndFade.setOnFinished(e -> {
             clearAnimatedBox();
-
-            if (!stack.isEmpty()) {
-                stack.remove(stack.size() - 1);
-            }
-
-            redraw(-1, -1);
-            setStatus("Popped " + removedValue);
             popAnimationRunning = false;
         });
+        liftAndFade.play();
+    }
+    private void playOverflowAnimation(int value) {
+        pushAnimationRunning = true;
+        createAnimatedBox(x, 50, value, "#ef4444", "#ffffff");
 
-        timeline.play();
+        Timeline overflow = new Timeline(
+                new KeyFrame(Duration.seconds(0.5), new KeyValue(animatedBox.yProperty(), startY - (MAX_SIZE * gap) - 20)),
+                new KeyFrame(Duration.seconds(0.8), new KeyValue(animatedBox.xProperty(), x + 150), new KeyValue(animatedBox.opacityProperty(), 0))
+        );
+
+        overflow.setOnFinished(e -> {
+            clearAnimatedBox();
+            pushAnimationRunning = false;
+            showPopup("Stack Overflow", "Stack is full!");
+        });
+        overflow.play();
+    }
+    private void drawContainer() {
+        double containerX = x - 10;
+        double containerWidth = boxW + 20;
+        double containerHeight = (MAX_SIZE * gap) + 20;
+        double containerY = startY - containerHeight + boxH + 10;
+
+        // The Glass Body
+        Rectangle body = new Rectangle(containerX, containerY, containerWidth, containerHeight);
+        body.setFill(Color.web("#f1f5f9", 0.5)); // Semi-transparent
+        body.setStroke(Color.web("#cbd5e1"));
+        body.setStrokeWidth(2);
+        body.setArcWidth(20);
+        body.setArcHeight(20);
+
+        // Left and Right Walls (Visual priority)
+        Rectangle leftWall = new Rectangle(containerX, containerY, 5, containerHeight);
+        leftWall.setFill(Color.web("#94a3b8"));
+        Rectangle rightWall = new Rectangle(containerX + containerWidth - 5, containerY, 5, containerHeight);
+        rightWall.setFill(Color.web("#94a3b8"));
+
+        canvas.getChildren().addAll(body, leftWall, rightWall);
     }
 
     private void redraw(int primaryIndex, int secondaryIndex) {
         canvas.getChildren().clear();
+        drawContainer(); // Always draw the bucket first
 
-        canvas.setPrefHeight(760);
-        canvas.setPrefWidth(1000);
-        Text animationZone = makeText(70, 95, "", 14);
-        animationZone.setFill(Color.web("#64748b"));
-        canvas.getChildren().add(animationZone);
         if (stack.isEmpty()) {
-            Text emptyText = makeText(320, 180, "Stack is empty", 24);
-            emptyText.setFill(Color.web("#64748b"));
+            Text emptyText = makeText(x + 8, startY - 100, "EMPTY STACK", 18);
+            emptyText.setFill(Color.web("#94a3b8"));
             canvas.getChildren().add(emptyText);
             topLabel.setText("-1");
             return;
         }
 
+        String[] colors = {"#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"};
+
         for (int i = 0; i < stack.size(); i++) {
             double y = startY - i * gap;
-
-            String fill = "#ffffff";
-            if (i == secondaryIndex) fill = "#93c5fd";
-            if (i == primaryIndex) fill = "#fde68a";
-
             Rectangle box = new Rectangle(x, y, boxW, boxH);
-            box.setArcWidth(18);
-            box.setArcHeight(18);
-            box.setFill(Color.web(fill));
-            box.setStroke(Color.web("#60a5fa"));
-            box.setStrokeWidth(2.5);
+            box.setArcWidth(10);
+            box.setArcHeight(10);
+            box.setFill(Color.web(colors[i % colors.length]));
+            box.setStroke(Color.WHITE);
+            box.setStrokeWidth(2);
 
-            Text valueText = makeText(x + 42, y + 35, String.valueOf(stack.get(i)), 20);
-            Text indexText = makeText(x - 60, y + 33, "[" + i + "]", 13);
+            Text val = makeText(x + 45, y + 35, String.valueOf(stack.get(i)), 18);
+            val.setFill(Color.WHITE);
 
-            canvas.getChildren().addAll(box, valueText, indexText);
-
-            if (i == stack.size() - 1) {
-                Text topText = makeText(x + boxW + 25, y + 32, "TOP", 14);
-                topText.setFill(Color.web("#dc2626"));
-                canvas.getChildren().add(topText);
-            }
-
-            if (i == 0) {
-                Text bottomText = makeText(x + boxW + 25, y + 32, "BOTTOM", 14);
-                bottomText.setFill(Color.web("#0f766e"));
-                canvas.getChildren().add(bottomText);
-            }
+            canvas.getChildren().addAll(box, val);
         }
-
         topLabel.setText(String.valueOf(stack.size() - 1));
     }
 
