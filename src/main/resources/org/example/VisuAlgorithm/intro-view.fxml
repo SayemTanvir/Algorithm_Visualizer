@@ -40,7 +40,7 @@
     <VBox fx:id="textGroup"
           alignment="CENTER"
           spacing="10"
-          translateY="175"
+          translateY="161"
           pickOnBounds="false">
 
         <!-- Main app title — fx:id used for the DropShadow glow effect -->
