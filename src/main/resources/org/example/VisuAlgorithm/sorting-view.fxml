@@ -13,118 +13,112 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="550.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.VisuAlgorithm.SortingController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="550.0" prefWidth="800.0" style="-fx-background-color: #f4f6f8;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.VisuAlgorithm.SortingController">
+
    <top>
-      <HBox alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="600.0" spacing="20.0" style="-fx-background-color: #1e005e;" BorderPane.alignment="CENTER">
+      <HBox alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="600.0" spacing="20.0" style="-fx-background-color: #ffffff; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);" BorderPane.alignment="CENTER">
          <padding>
-            <Insets left="20.0" />
+            <Insets left="20.0" right="20.0" />
          </padding>
          <children>
-            <Button mnemonicParsing="false" onAction="#backToHome" text="Back" />
-            <Label text="Sorting Visualization" textFill="#ff7272">
+            <Button mnemonicParsing="false" onAction="#backToHome" style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: #374151; -fx-cursor: hand;" text="Back" />
+            <Label text="Sorting Visualization" textFill="#111827">
                <font>
-                  <Font size="37.0" />
+                  <Font name="System Bold" size="26.0" />
                </font>
             </Label>
          </children>
       </HBox>
    </top>
+
    <right>
-      <VBox prefHeight="340.0" prefWidth="80.0" spacing="5.0" BorderPane.alignment="CENTER">
+      <VBox prefHeight="340.0" prefWidth="100.0" spacing="10.0" BorderPane.alignment="CENTER">
          <padding>
-            <Insets bottom="10.0" left="5.0" right="5.0" top="10.0" />
+            <Insets bottom="15.0" left="10.0" right="15.0" top="15.0" />
          </padding>
          <children>
-            <Button mnemonicParsing="false" onAction="#runSelectionSort" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Selection Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
+            <Button mnemonicParsing="false" onAction="#runSelectionSort" prefHeight="35.0" prefWidth="85.0" style="-fx-background-color: #ffffff; -fx-border-color: #3b82f6; -fx-text-fill: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;" text="Selection" textAlignment="CENTER" wrapText="true">
+               <font><Font size="11.0" /></font>
             </Button>
-            <Button layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#runInsertionSort" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Insertion Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
+            <Button layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#runInsertionSort" prefHeight="35.0" prefWidth="85.0" style="-fx-background-color: #ffffff; -fx-border-color: #3b82f6; -fx-text-fill: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;" text="Insertion" textAlignment="CENTER" wrapText="true">
+               <font><Font size="11.0" /></font>
             </Button>
-            <Button fx:id="bubbleSortBtn" layoutX="10.0" layoutY="52.0" mnemonicParsing="false" onAction="#runBubbleSort" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Bubble Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
+            <Button fx:id="bubbleSortBtn" layoutX="10.0" layoutY="52.0" mnemonicParsing="false" onAction="#runBubbleSort" prefHeight="35.0" prefWidth="85.0" style="-fx-background-color: #ffffff; -fx-border-color: #3b82f6; -fx-text-fill: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;" text="Bubble" textAlignment="CENTER" wrapText="true">
+               <font><Font size="11.0" /></font>
             </Button>
-            <Button layoutX="10.0" layoutY="95.0" mnemonicParsing="false" onAction="#runMergeSort" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Merge Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
+            <Button layoutX="10.0" layoutY="95.0" mnemonicParsing="false" onAction="#runMergeSort" prefHeight="35.0" prefWidth="85.0" style="-fx-background-color: #ffffff; -fx-border-color: #3b82f6; -fx-text-fill: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;" text="Merge" textAlignment="CENTER" wrapText="true">
+               <font><Font size="11.0" /></font>
             </Button>
-            <Button layoutX="10.0" layoutY="137.0" mnemonicParsing="false" onAction="#runQuickSort" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Quick Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
+            <Button layoutX="10.0" layoutY="137.0" mnemonicParsing="false" onAction="#runQuickSort" prefHeight="35.0" prefWidth="85.0" style="-fx-background-color: #ffffff; -fx-border-color: #3b82f6; -fx-text-fill: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;" text="Quick" textAlignment="CENTER" wrapText="true">
+               <font><Font size="11.0" /></font>
             </Button>
          </children>
       </VBox>
    </right>
+
    <center>
-      <Pane fx:id="displayPane" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER" />
+      <Pane fx:id="displayPane" prefHeight="200.0" prefWidth="200.0" style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 8, 0, 0, 4);" BorderPane.alignment="CENTER">
+         <BorderPane.margin>
+            <Insets bottom="15.0" left="10.0" right="5.0" top="15.0" />
+         </BorderPane.margin></Pane>
    </center>
+
    <left>
-      <VBox prefHeight="400.0" prefWidth="200.0" spacing="10.0" BorderPane.alignment="CENTER">
+      <VBox prefHeight="400.0" prefWidth="210.0" spacing="12.0" BorderPane.alignment="CENTER">
          <padding>
-            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+            <Insets bottom="15.0" left="20.0" right="10.0" top="15.0" />
          </padding>
          <children>
-            <Label fx:id="sizeLabel" prefHeight="24.0" prefWidth="180.0" text="Array Size: 10" textAlignment="CENTER" />
-            <Slider fx:id="sizeSlider" majorTickUnit="5.0" max="25.0" min="1.0" minorTickCount="1" showTickLabels="true" snapToTicks="true" value="10.0" />
-            <Button mnemonicParsing="false" onAction="#generateRandomArray" prefWidth="180.0" text="Random Generate" textAlignment="CENTER" wrapText="true">
-               <font>
-                  <Font size="12.0" />
-               </font>
-            </Button>
-            <Label prefHeight="18.0" prefWidth="180.0" text="Custom Input:">
-               <font>
-                  <Font size="13.0" />
-               </font>
+            <Label fx:id="sizeLabel" prefHeight="24.0" prefWidth="180.0" text="Array Size: 10" textFill="#4b5563">
+               <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <TextField fx:id="customInput" prefWidth="180.0" text="5, 12, 8, 2, 10" />
-            <Button mnemonicParsing="false" onAction="#loadCustomInput" prefHeight="26.0" prefWidth="180.0" text="Load Input" />
+            <Slider fx:id="sizeSlider" majorTickUnit="5.0" max="25.0" min="1.0" minorTickCount="1" showTickLabels="true" snapToTicks="true" value="10.0" />
+            <Button mnemonicParsing="false" onAction="#generateRandomArray" prefHeight="30.0" prefWidth="180.0" style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand;" text="Generate Random" />
+
+            <Label prefHeight="18.0" prefWidth="180.0" text="Custom Input:" textFill="#4b5563">
+               <font><Font name="System Bold" size="13.0" /></font>
+               <VBox.margin><Insets top="5.0" /></VBox.margin>
+            </Label>
+            <TextField fx:id="customInput" prefWidth="180.0" style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4; -fx-text-fill: #111827;" text="5, 12, 8, 2, 10" />
+            <Button mnemonicParsing="false" onAction="#loadCustomInput" prefHeight="30.0" prefWidth="180.0" style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand;" text="Load Input" />
 
             <Separator prefWidth="180.0">
                <VBox.margin>
-                  <Insets bottom="5.0" top="10.0" />
+                  <Insets bottom="5.0" top="5.0" />
                </VBox.margin>
             </Separator>
 
-            <Label text="" textFill="white">
+            <Label fx:id="algoNameLabel" prefWidth="180.0" text="Algorithm: None" textFill="#2563eb" wrapText="true">
                <font>
                   <Font name="System Bold" size="14.0" />
                </font>
             </Label>
-            <Label fx:id="algoNameLabel" prefWidth="180.0" style="-fx-text-fill:#ffd580" text="Algorithm: None" wrapText="true">
-               <font>
-                  <Font name="System Bold" size="12.0" />
-               </font>
+            <Label fx:id="currentStepLabel" prefWidth="180.0" text="Action: -" textFill="#dc2626" wrapText="true">
+               <font><Font name="System Bold" size="12.0" /></font>
             </Label>
-            <Label fx:id="currentStepLabel" prefWidth="180.0" text="Action: -" textFill="#ff7272" wrapText="true" />
-            <TextArea fx:id="stepDescriptionArea" editable="false" prefHeight="120.0" prefWidth="180.0" promptText="Algorithm details..." wrapText="true" />
-
+            <TextArea fx:id="stepDescriptionArea" editable="false" prefHeight="100.0" prefWidth="180.0" promptText="Algorithm details..." style="-fx-control-inner-background: #ffffff; -fx-border-color: #e5e7eb; -fx-text-fill: #374151; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;" wrapText="true" />
          </children>
       </VBox>
    </left>
+
    <bottom>
-      <HBox alignment="CENTER_LEFT" prefHeight="50.0" prefWidth="600.0" spacing="15.0" BorderPane.alignment="CENTER">
+      <HBox alignment="CENTER_LEFT" prefHeight="65.0" prefWidth="600.0" spacing="15.0" style="-fx-background-color: #ffffff; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0;" BorderPane.alignment="CENTER">
          <padding>
             <Insets left="20.0" right="20.0" />
          </padding>
          <children>
-            <Button fx:id="stepBackBtn" mnemonicParsing="false" onAction="#stepBackward" prefHeight="30.0" prefWidth="40.0" text="⏮" />
-            <Button fx:id="playPauseBtn" mnemonicParsing="false" onAction="#togglePlayPause" prefHeight="30.0" prefWidth="40.0" text="▶" />
-            <Button fx:id="skipBtn" mnemonicParsing="false" onAction="#stepForward" prefHeight="30.0" prefWidth="40.0" text="⏭" />
-            <Pane prefHeight="50.0" prefWidth="30.0" /> <Label text="Speed">
-            <font>
-               <Font size="16.0" />
-            </font>
-         </Label>
+            <Button fx:id="stepBackBtn" mnemonicParsing="false" onAction="#stepBackward" prefHeight="35.0" prefWidth="45.0" style="-fx-background-color: #f3f4f6; -fx-text-fill: #111827; -fx-background-radius: 6; -fx-cursor: hand;" text="⏮" />
+            <Button fx:id="playPauseBtn" mnemonicParsing="false" onAction="#togglePlayPause" prefHeight="35.0" prefWidth="45.0" style="-fx-background-color: #3b82f6; -fx-text-fill: #ffffff; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;" text="▶" />
+            <Button fx:id="skipBtn" mnemonicParsing="false" onAction="#stepForward" prefHeight="35.0" prefWidth="45.0" style="-fx-background-color: #f3f4f6; -fx-text-fill: #111827; -fx-background-radius: 6; -fx-cursor: hand;" text="⏭" />
+
+            <Pane prefHeight="50.0" prefWidth="20.0" />
+
+            <Label text="Speed" textFill="#4b5563">
+               <font><Font name="System Bold" size="14.0" /></font>
+            </Label>
             <Slider fx:id="speedSlider" max="10.0" prefHeight="35.0" prefWidth="180.0" />
          </children>
       </HBox>
    </bottom>
+
 </BorderPane>

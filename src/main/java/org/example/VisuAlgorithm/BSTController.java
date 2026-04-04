@@ -727,8 +727,12 @@ public class BSTController {
 
     @FXML
     private void handleBackButton(ActionEvent event) throws IOException {
-        stopAll();
-        Launcher.switchScene("hello-view.fxml");
+        if (isAlgorithmMode) {
+            switchToBuildMode();
+        } else {
+            stopAll();
+            Launcher.switchScene("hello-view.fxml");
+        }
     }
 
     private void stopAll() {

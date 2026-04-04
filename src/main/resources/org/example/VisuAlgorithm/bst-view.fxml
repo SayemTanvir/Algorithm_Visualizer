@@ -37,7 +37,6 @@
                 <ComboBox fx:id="algoComboBox" prefWidth="230" promptText="Select Algorithm" />
                 <Label text="Value:" />
                 <TextField fx:id="startNodeField" onAction="#togglePlayPause" prefWidth="90" promptText="search value" />
-                <Button onAction="#switchToBuildMode" text="← Build Mode" />
             </ToolBar>
         </StackPane>
     </top>
