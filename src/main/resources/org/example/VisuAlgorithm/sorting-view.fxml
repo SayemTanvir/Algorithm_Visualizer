@@ -32,7 +32,7 @@
    <right>
       <VBox prefHeight="340.0" prefWidth="80.0" spacing="5.0" BorderPane.alignment="CENTER">
          <padding>
-            <Insets top="10.0" bottom="10.0" left="5.0" right="5.0" />
+            <Insets bottom="10.0" left="5.0" right="5.0" top="10.0" />
          </padding>
          <children>
             <Button mnemonicParsing="false" onAction="#runSelectionSort" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Selection Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
@@ -60,16 +60,6 @@
                   <Font size="11.0" />
                </font>
             </Button>
-            <Button layoutX="10.0" layoutY="180.0" mnemonicParsing="false" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Counting Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
-            </Button>
-            <Button layoutX="10.0" layoutY="222.0" mnemonicParsing="false" prefWidth="70.0" style="-fx-background-color: #36a5c7;" text="Heap   Sort" textAlignment="CENTER" textFill="#0d0084" wrapText="true">
-               <font>
-                  <Font size="11.0" />
-               </font>
-            </Button>
          </children>
       </VBox>
    </right>
@@ -79,7 +69,7 @@
    <left>
       <VBox prefHeight="400.0" prefWidth="200.0" spacing="10.0" BorderPane.alignment="CENTER">
          <padding>
-            <Insets top="10.0" left="10.0" right="10.0" bottom="10.0" />
+            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
          </padding>
          <children>
             <Label fx:id="sizeLabel" prefHeight="24.0" prefWidth="180.0" text="Array Size: 10" textAlignment="CENTER" />
@@ -99,16 +89,16 @@
 
             <Separator prefWidth="180.0">
                <VBox.margin>
-                  <Insets top="10.0" bottom="5.0" />
+                  <Insets bottom="5.0" top="10.0" />
                </VBox.margin>
             </Separator>
 
-            <Label text="Live Status Update" textFill="white">
+            <Label text="" textFill="white">
                <font>
                   <Font name="System Bold" size="14.0" />
                </font>
             </Label>
-            <Label fx:id="algoNameLabel" prefWidth="180.0" text="Algorithm: None" style="-fx-text-fill:#ffd580" wrapText="true">
+            <Label fx:id="algoNameLabel" prefWidth="180.0" style="-fx-text-fill:#ffd580" text="Algorithm: None" wrapText="true">
                <font>
                   <Font name="System Bold" size="12.0" />
                </font>
