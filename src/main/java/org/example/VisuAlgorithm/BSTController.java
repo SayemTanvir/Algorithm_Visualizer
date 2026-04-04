@@ -5,12 +5,15 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Point2D;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -19,6 +22,8 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.scene.transform.Scale;
+import javafx.scene.transform.Translate;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -46,7 +51,6 @@ public class BSTController {
     private final Stack<UndoCommand>     undoStack    = new Stack<>();
 
     // ── Snapshot (backward stepping) ───────────────────────────────────────────
-    // Static: does not need a reference to the outer controller instance.
     private static class NodeState {
         final int     value;
         final BSTNode left, right, parent;
@@ -69,11 +73,17 @@ public class BSTController {
     private final Set<Integer>   nonReplayableSteps = new HashSet<>();
     private int                  currentStep        = 0;
 
-    // ── Animation handles (tracked so they can be cancelled) ───────────────────
-    // Bug fix: previously these were never tracked, leading to multiple concurrent
-    // timers and layout animations firing on the wrong tree state.
+    // ── Animation handles ──────────────────────────────────────────────────────
     private PauseTransition pendingLayoutTimer = null;
     private AnimationTimer  activeEdgeSync     = null;
+
+    // ── Canvas Pan & Zoom Sub-Container & Variables ────────────────────────────
+    private final Group treeContentGroup = new Group();
+    private final Scale scaleTransform = new Scale(1, 1);
+    private final Translate panTransform = new Translate(0, 0);
+    private double lastPanX, lastPanY;
+    private double dragStartX, dragStartY;
+    private boolean canvasDragged = false;
 
     // ==========================================================================
     // INNER CLASS: BSTNode
@@ -85,8 +95,6 @@ public class BSTController {
         Circle     circle;
         Text       label;
         Line       edgeToParent;
-        // Bug fix: was ParallelTransition — changed to Transition so it can hold
-        // either a ParallelTransition or a SequentialTransition without a cast error.
         Transition exitAnimation;
 
         BSTNode(int value) {
@@ -105,7 +113,12 @@ public class BSTController {
             edgeToParent.setStrokeWidth(2);
             edgeToParent.setMouseTransparent(true);
 
-            circle.setOnMouseClicked(e -> { handleNodeClick(this); e.consume(); });
+            circle.setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.PRIMARY && !canvasDragged) {
+                    handleNodeClick(this);
+                }
+                e.consume();
+            });
         }
     }
 
@@ -148,17 +161,117 @@ public class BSTController {
         if (algoToolbar    != null) { algoToolbar.setVisible(false);     algoToolbar.setManaged(false);    }
         if (playbackToolbar != null) { playbackToolbar.setVisible(false); playbackToolbar.setManaged(false); }
 
-        // Ctrl / Cmd + Z → undo
+        // Ctrl / Cmd Shortcuts for Undo and Zooming
         Platform.runLater(() -> {
             if (canvasPane.getScene() != null) {
                 canvasPane.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                    if (event.isShortcutDown() && event.getCode() == KeyCode.Z) {
-                        handleUndo();
-                        event.consume();
+                    if (event.isShortcutDown()) {
+                        if (event.getCode() == KeyCode.Z) {
+                            handleUndo();
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS || event.getCode() == KeyCode.ADD) {
+                            applyZoom(1.1, canvasPane.getWidth() / 2, canvasPane.getHeight() / 2);
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.MINUS || event.getCode() == KeyCode.SUBTRACT) {
+                            applyZoom(0.9, canvasPane.getWidth() / 2, canvasPane.getHeight() / 2);
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) {
+                            resetPanAndZoom();
+                            event.consume();
+                        }
                     }
                 });
             }
         });
+
+        setupCanvasPanAndZoom();
+    }
+
+    // ==========================================================================
+    // CANVAS PAN & ZOOM SETUP
+    // ==========================================================================
+    private void setupCanvasPanAndZoom() {
+        if (canvasPane == null) return;
+
+        if (!canvasPane.getChildren().contains(treeContentGroup)) {
+            canvasPane.getChildren().add(treeContentGroup);
+        }
+
+        treeContentGroup.getTransforms().addAll(panTransform, scaleTransform);
+
+        // 1. Trackpad Two-Finger Swipe to Pan
+        canvasPane.setOnScroll(event -> {
+            panTransform.setX(panTransform.getX() + event.getDeltaX());
+            panTransform.setY(panTransform.getY() + event.getDeltaY());
+            event.consume();
+        });
+
+        // 2. Trackpad Pinch to Zoom
+        canvasPane.setOnZoom(event -> {
+            applyZoom(event.getZoomFactor(), event.getX(), event.getY());
+            event.consume();
+        });
+
+        // 3. Mouse Click & Drag to Pan (Left, Middle, or Right Click)
+        canvasPane.setOnMousePressed(event -> {
+            lastPanX = event.getSceneX();
+            lastPanY = event.getSceneY();
+            dragStartX = lastPanX;
+            dragStartY = lastPanY;
+            canvasDragged = false;
+
+            if (event.getButton() != MouseButton.PRIMARY || isAlgorithmMode) {
+                canvasPane.setCursor(javafx.scene.Cursor.CLOSED_HAND);
+            }
+        });
+
+        canvasPane.setOnMouseDragged(event -> {
+            double deltaX = event.getSceneX() - lastPanX;
+            double deltaY = event.getSceneY() - lastPanY;
+
+            panTransform.setX(panTransform.getX() + deltaX);
+            panTransform.setY(panTransform.getY() + deltaY);
+
+            lastPanX = event.getSceneX();
+            lastPanY = event.getSceneY();
+
+            // If moved more than 3 pixels, it's considered a drag (prevents accidental selection clearing)
+            if (Math.hypot(event.getSceneX() - dragStartX, event.getSceneY() - dragStartY) > 3) {
+                canvasDragged = true;
+                canvasPane.setCursor(javafx.scene.Cursor.CLOSED_HAND);
+            }
+
+            event.consume();
+        });
+
+        canvasPane.setOnMouseReleased(event -> {
+            canvasPane.setCursor(javafx.scene.Cursor.DEFAULT);
+        });
+    }
+
+    private void applyZoom(double zoomFactor, double pivotX, double pivotY) {
+        double currentScale = scaleTransform.getX();
+        double newScale = currentScale * zoomFactor;
+
+        // Clamp the scale bounds
+        if (newScale < 0.2 || newScale > 5.0) return;
+
+        double f = (zoomFactor - 1);
+        double dx = pivotX - panTransform.getX();
+        double dy = pivotY - panTransform.getY();
+
+        panTransform.setX(panTransform.getX() - dx * f);
+        panTransform.setY(panTransform.getY() - dy * f);
+
+        scaleTransform.setX(newScale);
+        scaleTransform.setY(newScale);
+    }
+
+    private void resetPanAndZoom() {
+        panTransform.setX(0);
+        panTransform.setY(0);
+        scaleTransform.setX(1);
+        scaleTransform.setY(1);
     }
 
     // ==========================================================================
@@ -215,7 +328,6 @@ public class BSTController {
     // TREE LAYOUT
     // ==========================================================================
 
-    /** Instant layout — used for batch inserts, step-backward restore, and clear. */
     private void layoutTree() {
         if (root == null) return;
         int[] counter = {0};
@@ -238,13 +350,6 @@ public class BSTController {
         assignDepthY(node.right, depth + 1);
     }
 
-    /**
-     * Updates edge endpoints and label positions to match current circle centres.
-     *
-     * Bug fix: removed the Platform.runLater wrapper that was here previously.
-     * Text.getLayoutBounds() is computed from font metrics and is accurate immediately,
-     * so deferring it caused labels to lag one frame behind during the slide animation.
-     */
     private void updateEdgesAndLabels(BSTNode node) {
         if (node == null) return;
 
@@ -263,7 +368,7 @@ public class BSTController {
                 node.edgeToParent.setEndY  (cy - (dy / len) * NODE_RADIUS);
             }
         } else {
-            canvasPane.getChildren().remove(node.edgeToParent);
+            treeContentGroup.getChildren().remove(node.edgeToParent);
         }
 
         double w = node.label.getLayoutBounds().getWidth();
@@ -275,17 +380,9 @@ public class BSTController {
         updateEdgesAndLabels(node.right);
     }
 
-    /**
-     * Animated layout — slides all surviving nodes to their new positions over 550 ms.
-     * An AnimationTimer keeps edges and labels locked to the moving circles every frame.
-     *
-     * Bug fix: the AnimationTimer was never tracked, so rapid calls stacked multiple
-     * concurrent timers. Now we stop the previous one before starting a new one.
-     */
     private void layoutTreeAnimated() {
         if (root == null) return;
 
-        // Stop any previous edge-sync timer before creating a new one
         if (activeEdgeSync != null) { activeEdgeSync.stop(); activeEdgeSync = null; }
 
         Map<BSTNode, double[]> targets = new LinkedHashMap<>();
@@ -338,12 +435,6 @@ public class BSTController {
     // CANVAS MANAGEMENT & ANIMATION
     // ==========================================================================
 
-    /**
-     * Resets all JavaFX transform and opacity properties on a node's visual elements
-     * to their clean default values.
-     *
-     * Bug fix: this was duplicated inline across multiple methods; now a single helper.
-     */
     private void resetNodeVisuals(BSTNode node) {
         node.circle.setTranslateX(0); node.circle.setTranslateY(0);
         node.circle.setScaleX(1.0);   node.circle.setScaleY(1.0);
@@ -354,28 +445,20 @@ public class BSTController {
         node.edgeToParent.setOpacity(1.0);
     }
 
-    /**
-     * Adds a subtree to the canvas with a pop-in animation for new nodes.
-     *
-     * Bug fix: previously, transforms were reset on ALL nodes in the subtree, including
-     * ones already on canvas. This interrupted active algorithm colour animations on
-     * existing nodes. Now resets and animations only run for genuinely new nodes.
-     */
     private void addSubtreeToCanvas(BSTNode node) {
         if (node == null) return;
 
         if (node.exitAnimation != null) { node.exitAnimation.stop(); node.exitAnimation = null; }
         node.circle.setMouseTransparent(false);
 
-        if (!canvasPane.getChildren().contains(node.circle)) {
-            // Only reset and animate nodes that are not already on the canvas
+        if (!treeContentGroup.getChildren().contains(node.circle)) {
             resetNodeVisuals(node);
 
-            if (node.parent != null && !canvasPane.getChildren().contains(node.edgeToParent)) {
-                canvasPane.getChildren().add(0, node.edgeToParent);
+            if (node.parent != null && !treeContentGroup.getChildren().contains(node.edgeToParent)) {
+                treeContentGroup.getChildren().add(0, node.edgeToParent);
                 node.edgeToParent.setOpacity(0);
             }
-            canvasPane.getChildren().addAll(node.circle, node.label);
+            treeContentGroup.getChildren().addAll(node.circle, node.label);
 
             node.circle.setScaleX(0); node.circle.setScaleY(0);
             node.circle.setOpacity(0);
@@ -388,12 +471,10 @@ public class BSTController {
             FadeTransition ftCircle = new FadeTransition(Duration.millis(320), node.circle);
             ftCircle.setToValue(1);
 
-            // Label fades in slightly after the circle so text appears once the shape is visible
             FadeTransition ftLabel = new FadeTransition(Duration.millis(380), node.label);
             ftLabel.setToValue(1);
             ftLabel.setDelay(Duration.millis(120));
 
-            // Edge fades in between circle and label
             FadeTransition ftEdge = new FadeTransition(Duration.millis(360), node.edgeToParent);
             ftEdge.setToValue(1);
             ftEdge.setDelay(Duration.millis(60));
@@ -405,13 +486,6 @@ public class BSTController {
         addSubtreeToCanvas(node.right);
     }
 
-    /**
-     * Adds a subtree to the canvas instantly with no animation.
-     *
-     * Bug fix: step-backward was using the animated addSubtreeToCanvas, causing every
-     * node to pop-in simultaneously — creating an obvious flash on every backward step.
-     * This method is used exclusively by restoreTreeState().
-     */
     private void addSubtreeToCanvasInstant(BSTNode node) {
         if (node == null) return;
 
@@ -419,35 +493,26 @@ public class BSTController {
         resetNodeVisuals(node);
         node.circle.setMouseTransparent(false);
 
-        if (!canvasPane.getChildren().contains(node.circle)) {
-            if (node.parent != null && !canvasPane.getChildren().contains(node.edgeToParent)) {
-                canvasPane.getChildren().add(0, node.edgeToParent);
+        if (!treeContentGroup.getChildren().contains(node.circle)) {
+            if (node.parent != null && !treeContentGroup.getChildren().contains(node.edgeToParent)) {
+                treeContentGroup.getChildren().add(0, node.edgeToParent);
             }
-            canvasPane.getChildren().addAll(node.circle, node.label);
+            treeContentGroup.getChildren().addAll(node.circle, node.label);
         }
 
         addSubtreeToCanvasInstant(node.left);
         addSubtreeToCanvasInstant(node.right);
     }
 
-    /**
-     * Animates a node leaving the canvas: red pulse → float up + shrink + fade.
-     * The edge severs first so the tree visually "releases" the node before it disappears.
-     *
-     * Full reset is applied in the onFinished callback so that undo / step-backward
-     * can restore the node in a clean visual state.
-     */
     private void removeNodeFromCanvas(BSTNode node) {
         node.circle.setMouseTransparent(true);
 
-        // Brief red pulse — confirms to the eye that this node is selected for removal
         FadeTransition pulse = new FadeTransition(Duration.millis(120), node.circle);
         pulse.setFromValue(1.0);
         pulse.setToValue(0.55);
         pulse.setCycleCount(2);
         pulse.setAutoReverse(true);
 
-        // Float circle and label upward together
         TranslateTransition ttCircle = new TranslateTransition(Duration.millis(860), node.circle);
         ttCircle.setByY(-22);
         ttCircle.setInterpolator(Interpolator.EASE_OUT);
@@ -456,24 +521,20 @@ public class BSTController {
         ttLabel.setByY(-22);
         ttLabel.setInterpolator(Interpolator.EASE_OUT);
 
-        // Shrink the circle toward its own centre
         ScaleTransition stCircle = new ScaleTransition(Duration.millis(860), node.circle);
         stCircle.setToX(0); stCircle.setToY(0);
         stCircle.setInterpolator(Interpolator.EASE_IN);
 
-        // Ghost out — delayed so the value is readable before the node vanishes
         FadeTransition ftCircle = new FadeTransition(Duration.millis(680), node.circle);
         ftCircle.setDelay(Duration.millis(180));
         ftCircle.setToValue(0);
         ftCircle.setInterpolator(Interpolator.EASE_IN);
 
-        // Label fades out slightly ahead of the circle
         FadeTransition ftLabel = new FadeTransition(Duration.millis(520), node.label);
         ftLabel.setDelay(Duration.millis(120));
         ftLabel.setToValue(0);
         ftLabel.setInterpolator(Interpolator.EASE_IN);
 
-        // Edge severs first — the connection breaks before the node itself leaves
         FadeTransition ftEdge = new FadeTransition(Duration.millis(380), node.edgeToParent);
         ftEdge.setToValue(0);
         ftEdge.setInterpolator(Interpolator.EASE_IN);
@@ -483,8 +544,8 @@ public class BSTController {
                 new ParallelTransition(ttCircle, ttLabel, stCircle, ftCircle, ftLabel, ftEdge)
         );
         node.exitAnimation.setOnFinished(e -> {
-            canvasPane.getChildren().removeAll(node.circle, node.label, node.edgeToParent);
-            resetNodeVisuals(node);   // clean state for undo / step-backward
+            treeContentGroup.getChildren().removeAll(node.circle, node.label, node.edgeToParent);
+            resetNodeVisuals(node);
             node.exitAnimation = null;
         });
         node.exitAnimation.play();
@@ -506,20 +567,9 @@ public class BSTController {
         takeSnapshot(root);
     }
 
-    /**
-     * Restores the tree to its snapshot state for step-backward.
-     *
-     * Bug fixes applied here:
-     *  1. Cancel the pending layout timer so it cannot fire on the restored tree.
-     *  2. Stop all exit animations and clear their transform residue before rebuilding,
-     *     so nodes don't appear mid-animation when re-added.
-     *  3. Use addSubtreeToCanvasInstant (no pop-in animation) to avoid the flash.
-     *  4. Use instant layoutTree (not animated) so the backward step snaps cleanly.
-     */
     private void restoreTreeState() {
         cancelPendingLayout();
 
-        // Wipe animation residue from every snapshotted node before rebuilding the canvas
         for (BSTNode n : treeSnapshot.keySet()) {
             if (n.exitAnimation != null) { n.exitAnimation.stop(); n.exitAnimation = null; }
             resetNodeVisuals(n);
@@ -536,7 +586,7 @@ public class BSTController {
             n.parent = s.parent;
         }
 
-        canvasPane.getChildren().clear();
+        treeContentGroup.getChildren().clear();
         if (root != null) {
             addSubtreeToCanvasInstant(root);
             layoutTree();
@@ -547,30 +597,17 @@ public class BSTController {
     // INSERT / DELETE
     // ==========================================================================
 
-    /** Single animated insert — used for user-triggered inserts and undo. */
     private void insertValue(int value) {
         root = insertBST(root, null, value);
         addSubtreeToCanvas(root);
-        // Bug fix: was layoutTree (instant). Now uses animated layout for single inserts.
         Platform.runLater(this::layoutTreeAnimated);
     }
 
-    /**
-     * Silent insert with no animation — used exclusively by generateRandomTree()
-     * so that batch inserts don't trigger N overlapping layout animations.
-     */
     private void insertValueSilent(int value) {
         root = insertBST(root, null, value);
         addSubtreeToCanvasInstant(root);
     }
 
-    /**
-     * Deletes a value and schedules a re-layout after the exit animation completes.
-     *
-     * Bug fix: the PauseTransition was never stored, so it could not be cancelled.
-     * If the user stepped backward before 980 ms elapsed, the delayed layoutTreeAnimated()
-     * would fire on the already-restored tree, causing a jarring spurious re-layout.
-     */
     private void deleteValue(int value) {
         if (root == null) return;
         clearSelection();
@@ -578,13 +615,11 @@ public class BSTController {
         if (root != null) root.parent = null;
 
         cancelPendingLayout();
-        // 980 ms = 860 ms exit animation + 120 ms buffer; survivors slide only after node is gone.
         pendingLayoutTimer = new PauseTransition(Duration.millis(980));
         pendingLayoutTimer.setOnFinished(e -> { pendingLayoutTimer = null; layoutTreeAnimated(); });
         pendingLayoutTimer.play();
     }
 
-    /** Cancels any in-flight delayed layout call. */
     private void cancelPendingLayout() {
         if (pendingLayoutTimer != null) { pendingLayoutTimer.stop(); pendingLayoutTimer = null; }
     }
@@ -615,7 +650,8 @@ public class BSTController {
     @FXML
     private void handleCanvasClick(MouseEvent event) {
         if (isAlgorithmMode) return;
-        if (event.getTarget() == canvasPane) clearSelection();
+        if (canvasDragged) return; // Prevent clearing selection if we were just panning
+        if (event.getTarget() == canvasPane || event.getTarget() == treeContentGroup) clearSelection();
     }
 
     @FXML
@@ -656,13 +692,6 @@ public class BSTController {
         }
     }
 
-    /**
-     * Generates a random tree of 7–11 nodes.
-     *
-     * Bug fix: previously called insertValue() N times, triggering N pop-in animations
-     * and N overlapping layoutTreeAnimated() calls fighting each other.
-     * Now uses insertValueSilent() for each node and a single layoutTree() at the end.
-     */
     @FXML
     public void generateRandomTree() {
         clearTree();
@@ -682,7 +711,7 @@ public class BSTController {
 
         root         = null;
         selectedNode = null;
-        canvasPane.getChildren().clear();
+        treeContentGroup.getChildren().clear();
         undoStack.clear();
         algorithmSteps.clear();
         nonReplayableSteps.clear();
@@ -693,21 +722,12 @@ public class BSTController {
         if (timeline != null) { timeline.stop(); timeline = null; }
         if (playPauseButton != null) playPauseButton.setText("▶ Play");
         resultLabel.setText("");
+        resetPanAndZoom();
     }
 
     @FXML
     private void handleBackButton(ActionEvent event) throws IOException {
         stopAll();
-//        FXMLLoader loader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
-//        Parent     root   = loader.load();
-//        Stage      stage  = (Stage) ((Node) event.getSource()).getScene().getWindow();
-//        Scene scene = new Scene(root);
-//
-//        // Always re-add CSS!
-//        scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm());
-//
-//        stage.setScene(scene);
-//        stage.show();
         Launcher.switchScene("hello-view.fxml");
     }
 
@@ -863,15 +883,6 @@ public class BSTController {
         if (currentStep < algorithmSteps.size()) algorithmSteps.get(currentStep++).run();
     }
 
-    /**
-     * Steps backward by one algorithm step.
-     *
-     * Bug fixes:
-     *  1. cancelPendingLayout() is called inside restoreTreeState(), preventing any
-     *     in-flight deleteValue() timer from firing on the restored tree.
-     *  2. restoreTreeState() uses addSubtreeToCanvasInstant (no pop-in flash).
-     *  3. Only nonReplayable steps are skipped during the replay; safe colour steps run.
-     */
     @FXML
     private void stepBackward() {
         if (algorithmSteps.isEmpty() || currentStep <= 0) return;
@@ -879,7 +890,6 @@ public class BSTController {
 
         currentStep--;
 
-        // Discard the matching undo entry for any structural change we're unwinding
         if (nonReplayableSteps.contains(currentStep) && !undoStack.isEmpty()) {
             undoStack.pop();
         }
@@ -888,18 +898,11 @@ public class BSTController {
         resetAllColors();
         resultLabel.setText("");
 
-        // Replay colour-only steps up to (but not including) currentStep
         for (int i = 0; i < currentStep; i++) {
             if (!nonReplayableSteps.contains(i)) algorithmSteps.get(i).run();
         }
     }
 
-    /**
-     * Resets algorithm state without touching the tree structure.
-     *
-     * Bug fix: cancelPendingLayout() added so that any in-flight layout timer from a
-     * previous algorithm run cannot fire after the state has been reset.
-     */
     @FXML
     private void resetAlgorithmState() {
         cancelPendingLayout();

@@ -57,6 +57,9 @@ public class SortingController {
     private int virtualArrowIdx = -1;
     private boolean virtualArrowShow = false;
 
+    // UI State tracking
+    private Button currentActiveSortBtn = null;
+
     // Animation helpers
     private interface SortStep {
         void forward();
@@ -128,7 +131,7 @@ public class SortingController {
     private void setControlsDisable(boolean disable) {
         sizeSlider.setDisable(disable);
         customInput.setDisable(disable);
-        if (bubbleSortBtn != null) bubbleSortBtn.setDisable(disable);
+        // Individual sorting buttons are now handled dynamically by currentActiveSortBtn
     }
 
     private void setMediaControlsDisable(boolean disable) {
@@ -185,6 +188,12 @@ public class SortingController {
             isPlaying = false;
             playPauseBtn.setText("▶");
             setControlsDisable(false);
+
+            // Re-enable the active sorting button now that sorting is finished
+            if (currentActiveSortBtn != null) {
+                currentActiveSortBtn.setDisable(false);
+                currentActiveSortBtn = null;
+            }
 
             if (algoNameLabel != null) algoNameLabel.setText("Status: Finished");
             if (currentStepLabel != null) currentStepLabel.setText("Action: Sorted!");
@@ -245,8 +254,14 @@ public class SortingController {
         stepQueue.clear();
         stepMessages.clear();
         currentStepIndex = 0;
+
         setControlsDisable(false);
         setMediaControlsDisable(true);
+
+        if (currentActiveSortBtn != null) {
+            currentActiveSortBtn.setDisable(false);
+            currentActiveSortBtn = null;
+        }
 
         if (algoNameLabel != null) algoNameLabel.setText("Algorithm: None");
         if (currentStepLabel != null) currentStepLabel.setText("Action: -");
@@ -308,12 +323,27 @@ public class SortingController {
     }
 
 
-    private boolean prepareSort(String algoName) {
+    private boolean prepareSort(String algoName, ActionEvent event) {
         if (array == null || array.length == 0) return false;
+
+        // Stop any currently running timeline if we switch algorithms midway
+        if (playTimeline != null) playTimeline.stop();
+        isPlaying = false;
+        if (playPauseBtn != null) playPauseBtn.setText("▶");
 
         if (algoNameLabel != null) algoNameLabel.setText("Algorithm: " + algoName);
         if (currentStepLabel != null) currentStepLabel.setText("Action: Starting...");
         if (stepDescriptionArea != null) stepDescriptionArea.setText("Ready to sort.");
+
+        // Re-enable previously greyed out button if user clicked a new one
+        if (currentActiveSortBtn != null) {
+            currentActiveSortBtn.setDisable(false);
+        }
+        // Grey out the newly clicked algorithm button
+        if (event != null && event.getSource() instanceof Button) {
+            currentActiveSortBtn = (Button) event.getSource();
+            currentActiveSortBtn.setDisable(true);
+        }
 
         setControlsDisable(true);
         setMediaControlsDisable(false);
@@ -497,8 +527,8 @@ public class SortingController {
     // =======================================================
 
     @FXML
-    void runBubbleSort(){
-        if (!prepareSort("Bubble Sort")) return;
+    void runBubbleSort(ActionEvent event){
+        if (!prepareSort("Bubble Sort", event)) return;
 
         for (int i = 0; i < tempArray.length - 1; i++) {
             for (int j = 0; j < tempArray.length - i - 1; j++) {
@@ -519,8 +549,8 @@ public class SortingController {
     }
 
     @FXML
-    void runSelectionSort(){
-        if(!prepareSort("Selection Sort")) return;
+    void runSelectionSort(ActionEvent event){
+        if(!prepareSort("Selection Sort", event)) return;
 
         for(int i = 0; i < tempArray.length - 1; i++){
             int min_idx = i;
@@ -555,8 +585,8 @@ public class SortingController {
     }
 
     @FXML
-    void runInsertionSort(){
-        if(!prepareSort("Insertion Sort")) return;
+    void runInsertionSort(ActionEvent event){
+        if(!prepareSort("Insertion Sort", event)) return;
 
         addColorStep(0, Color.LIMEGREEN, "The first bar is trivially sorted. Locking as GREEN.");
 
@@ -587,8 +617,8 @@ public class SortingController {
     }
 
     @FXML
-    void runQuickSort() {
-        if (!prepareSort("Quick Sort")) return;
+    void runQuickSort(ActionEvent event) {
+        if (!prepareSort("Quick Sort", event)) return;
 
         quickSortHelper(0, tempArray.length - 1);
 
@@ -664,8 +694,8 @@ public class SortingController {
     private int   maxArrayValue;
 
     @FXML
-    void runMergeSort() {
-        if (!prepareSort("Merge Sort")) return;
+    void runMergeSort(ActionEvent event) {
+        if (!prepareSort("Merge Sort", event)) return;
 
         int n = tempArray.length;
 
@@ -680,7 +710,7 @@ public class SortingController {
 
         mergeSortHelper(0, n - 1, 0);
 
-        addRepositionStep(0, n - 1, -1, "Merge Sort Complete! Expanding all sorted bars back to full size.");
+        addRepositionStep(0, n - 1, -1, "Algorithm complete! Expanding bars back to full height.");
         for (int i = 0; i < n; i++) addColorStep(i, Color.LIMEGREEN, "Merge Sort Finished!");
 
         togglePlayPause();
