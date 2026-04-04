@@ -112,7 +112,7 @@ public class HelloController {
     }
 
     private void animateAll() {
-        double t = System.currentTimeMillis()/700.0;
+        double t = System.currentTimeMillis()/500.0;
         for (AnimationGroup g : dsaGroups) g.animate(t);
     }
 
