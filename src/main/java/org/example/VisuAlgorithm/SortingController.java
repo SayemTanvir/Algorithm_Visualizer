@@ -533,10 +533,10 @@ public class SortingController {
         for (int i = 0; i < tempArray.length - 1; i++) {
             for (int j = 0; j < tempArray.length - i - 1; j++) {
 
-                addColorStep(j, j + 1, Color.YELLOW, "Highlighting the two adjacent YELLOW bars for comparison.");
+                addColorStep(j, j + 1, Color.GOLD, "Highlighting the two adjacent GOLD bars for comparison.");
 
                 if (tempArray[j] > tempArray[j + 1]) {
-                    addSwapStep(j, j + 1, "The left YELLOW bar is taller, swapping them.");
+                    addSwapStep(j, j + 1, "The left GOLD bar is taller, swapping them.");
                 }
 
                 addColorStep(j, j + 1, Color.CYAN, "Comparison complete. Reverting the two bars to CYAN.");
@@ -555,14 +555,14 @@ public class SortingController {
         for(int i = 0; i < tempArray.length - 1; i++){
             int min_idx = i;
 
-            addColorStep(i, Color.YELLOW, "Starting a new pass. Marking the current target position in YELLOW.");
+            addColorStep(i, Color.GOLD, "Starting a new pass. Marking the current target position in GOLD.");
 
             for(int j = i + 1; j < tempArray.length; j++){
-                addColorStep(j, Color.YELLOW, "Comparing the next bar in YELLOW to RED to see if it is shorter.");
+                addColorStep(j, Color.GOLD, "Comparing the next bar in GOLD to RED to see if it is shorter.");
 
                 if(tempArray[j] < tempArray[min_idx]){
                     if(min_idx == i){
-                        addColorStep(i, Color.YELLOW, "First bar is currently the shortest.");
+                        addColorStep(i, Color.GOLD, "First bar is currently the shortest.");
                     }
                     else{
                         addColorStep(min_idx, Color.CYAN, "Discarding the old minimum, reverting it to CYAN.");
@@ -597,7 +597,7 @@ public class SortingController {
             addColorStep(i, Color.RED, "Selecting the next unsorted bar and marking it RED.");
 
             while(j >= 0 && tempArray[j] > target){
-                addColorStep(j, Color.YELLOW, "Comparing the RED bar against the sorted YELLOW bar.");
+                addColorStep(j, Color.GOLD, "Comparing the RED bar against the sorted GOLD bar.");
                 addColorStep(j, Color.LIMEGREEN, "Needs to be shifted to insert the RED bar.");
                 j--;
             }
@@ -653,13 +653,13 @@ public class SortingController {
         addArrowStep(i + 1, true, "ORANGE arrow marks the boundary for smaller elements.");
 
         for (int j = low; j < high; j++){
-            addColorStep(j, Color.YELLOW, "Highlighting the current bar in YELLOW to compare against the MAGENTA pivot.");
+            addColorStep(j, Color.GOLD, "Highlighting the current bar in GOLD to compare against the MAGENTA pivot.");
 
             if (tempArray[j] < pivotValue){
                 i++;
 
                 if (i != j) {
-                    addSwapStep(i, j, "The YELLOW bar is shorter! Swapping it into the boundary under the arrow.");
+                    addSwapStep(i, j, "The GOLD bar is shorter! Swapping it into the boundary under the arrow.");
                     addColorStep(i, Color.CYAN, "Swap complete. Reverting the shorter bar to CYAN.");
                 } else {
                     addColorStep(j, Color.CYAN, "The bar is shorter but already in position. Reverting to CYAN.");
@@ -669,7 +669,7 @@ public class SortingController {
                 addArrowStep(i + 1, true, "Moving target boundary forward.");
 
             } else {
-                addColorStep(j, Color.CYAN, "The YELLOW bar is taller than the pivot. Leaving it on the right and reverting to CYAN.");
+                addColorStep(j, Color.CYAN, "The GOLD bar is taller than the pivot. Leaving it on the right and reverting to CYAN.");
             }
         }
 
@@ -727,8 +727,8 @@ public class SortingController {
 
         int mid = (low + high) / 2;
 
-        for (int i = low; i <= high; i++) addColorStep(i, Color.YELLOW, "Dividing Phase: Highlighting the current subarray in YELLOW.");
-        for (int i = low; i <= high; i++) addColorStep(i, Color.CYAN, "Splitting the YELLOW subarray into a left and right half.");
+        for (int i = low; i <= high; i++) addColorStep(i, Color.GOLD, "Dividing Phase: Highlighting the current subarray in GOLD.");
+        for (int i = low; i <= high; i++) addColorStep(i, Color.CYAN, "Splitting the GOLD subarray into a left and right half.");
 
         addRepositionStep(low,      mid,  depth + 1, "Dropping the left half down one level to divide it further.");
         addRepositionStep(mid + 1, high, depth + 1, "Dropping the right half down one level to divide it further.");
@@ -749,15 +749,15 @@ public class SortingController {
         int currentDepth = depth + 1;
 
         while (left <= currentMid && right <= high) {
-            addColorStep(left,  Color.YELLOW, "Selecting the smallest remaining bar from the left half (YELLOW).");
-            addColorStep(right, Color.YELLOW, "Comparing it against the smallest remaining bar from the right half (YELLOW).");
+            addColorStep(left,  Color.GOLD, "Selecting the smallest remaining bar from the left half (GOLD).");
+            addColorStep(right, Color.GOLD, "Comparing it against the smallest remaining bar from the right half (GOLD).");
 
             if (tempArray[left] <= tempArray[right]) {
-                addColorStep(left, Color.LIMEGREEN, "The left YELLOW bar is smaller (or equal). Marking LIME GREEN.");
+                addColorStep(left, Color.LIMEGREEN, "The left GOLD bar is smaller (or equal). Marking LIME GREEN.");
                 addSingleRepositionStep(left, depth, "Moving the LIME GREEN bar up into its sorted position in the merged array.");
                 left++;
             } else {
-                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right YELLOW bar is smaller! Shifting it past the left half and moving it up. Marking LIME GREEN.");
+                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right GOLD bar is smaller! Shifting it past the left half and moving it up. Marking LIME GREEN.");
                 currentMid++;
                 right++;
                 left++;

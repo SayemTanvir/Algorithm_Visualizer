@@ -48,7 +48,59 @@
     -fx-scale-x: 1.04;
     -fx-scale-y: 1.04;
 }
+.sorting-button {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #3b82f6;
+    -fx-text-fill: #2563eb;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+    -fx-font-weight: bold;
+    -fx-padding: 8 15 8 15; /* Increased padding slightly for a better look */
 
+    /* REMOVE -Infinity and -preferred. Use these instead: */
+    -fx-min-width: 90px;   /* Sets a safe minimum size */
+    -fx-pref-width: 150;    /* -1 is the CSS way to say 'Use Computed Size' */
+}
+
+.sorting-button:hover {
+    -fx-background-color: #3b82f6;
+    -fx-text-fill: #ffffff;
+}
+/* Specific style for Linked List Action Buttons */
+.ll-button {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #10b981; /* A nice Emerald Green for Actions */
+    -fx-text-fill: #059669;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-padding: 6 10 6 10;
+
+    /* Allow button to fit text exactly */
+    -fx-min-width: -1;
+    -fx-pref-width: -1;
+}
+
+.ll-button:hover {
+    -fx-background-color: #10b981;
+    -fx-text-fill: #ffffff;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+/* Red style for Delete/Clear buttons - adds to the base class */
+.lldanger-button {
+    -fx-border-color: #ef4444;
+    -fx-text-fill: #dc2626;
+}
+
+.lldanger-button:hover {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: #ffffff;
+}
 /* Toolbars */
 .tool-bar {
     -fx-background-color: linear-gradient(to right, #232c57 60%, #5561ac);

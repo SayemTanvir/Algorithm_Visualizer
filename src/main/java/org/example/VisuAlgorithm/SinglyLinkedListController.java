@@ -476,7 +476,7 @@ public class SinglyLinkedListController {
         canvas.setPrefHeight(720);
 
         if (head == null) {
-            Text text = makeText(250, 180, "Singly Linked List is empty", 22);
+            Text text = makeText(350, 180, "Singly Linked List is empty", 22);
             canvas.getChildren().add(text);
             return;
         }

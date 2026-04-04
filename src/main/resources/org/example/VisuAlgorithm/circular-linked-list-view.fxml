@@ -11,6 +11,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.layout.FlowPane?>
 <BorderPane xmlns="http://javafx.com/javafx/17"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.VisuAlgorithm.CircularLinkedListController"
@@ -28,7 +29,7 @@
                         onAction="#onBack"
                         style="-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"/>
 
-                <Label text="Singly Linked List"
+                <Label text="Circular Linked List"
                        style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"/>
 
                 <Region HBox.hgrow="ALWAYS"/>
@@ -38,32 +39,36 @@
                        style="-fx-text-fill: #dbeafe;"/>
             </HBox>
 
-            <VBox spacing="10" style="-fx-background-color: white;">
+            <VBox spacing="10" style="-fx-background-color: #f8fafc;">
                 <padding>
                     <Insets top="12" right="16" bottom="12" left="16"/>
                 </padding>
 
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Value:"/>
-                    <TextField fx:id="valueField" promptText="value" prefWidth="90"/>
+                <FlowPane hgap="10" vgap="10" alignment="CENTER_LEFT">
+                    <children>
+                        <Label text="Value:" style="-fx-font-weight: bold;"/>
+                        <TextField fx:id="valueField" promptText="val" prefWidth="70"/>
 
-                    <Label text="Index:"/>
-                    <TextField fx:id="indexField" promptText="index" prefWidth="90"/>
+                        <Label text="Index:" style="-fx-font-weight: bold;"/>
+                        <TextField fx:id="indexField" promptText="idx" prefWidth="70"/>
 
-                    <Button text="Insert Head" onAction="#onInsertHead"/>
-                    <Button text="Insert Tail" onAction="#onInsertTail"/>
-                    <Button text="Insert At" onAction="#onInsertAt"/>
-                    <Button text="Random" onAction="#onRandom"/>
-                    <Button text="Delete Head" onAction="#onDeleteHead"/>
-                    <Button text="Delete Tail" onAction="#onDeleteTail"/>
-                    <Button text="Delete At" onAction="#onDeleteAt"/>
-                    <Button text="Search" onAction="#onSearch"/>
-                    <Button text="Traverse" onAction="#onTraverse"/>
-                    <Button text="Sort" onAction="#onSort"/>
-                    <Button text="Clear" onAction="#onClear"/>
-                </HBox>
+                        <Button text="Insert Head" onAction="#onInsertHead" styleClass="ll-button"/>
+                        <Button text="Insert Tail" onAction="#onInsertTail" styleClass="ll-button"/>
+                        <Button text="Insert At" onAction="#onInsertAt" styleClass="ll-button"/>
+                        <Button text="Random" onAction="#onRandom" styleClass="ll-button"/>
 
-                <Label fx:id="statusLabel" text="Ready."/>
+                        <Button text="Search" onAction="#onSearch" styleClass="ll-button"/>
+                        <Button text="Traverse" onAction="#onTraverse" styleClass="ll-button"/>
+                        <Button text="Sort" onAction="#onSort" styleClass="ll-button"/>
+
+                        <Button text="Delete Head" onAction="#onDeleteHead" styleClass="ll-button, lldanger-button"/>
+                        <Button text="Delete Tail" onAction="#onDeleteTail" styleClass="ll-button, lldanger-button"/>
+                        <Button text="Delete At" onAction="#onDeleteAt" styleClass="ll-button, lldanger-button"/>
+                        <Button text="Clear" onAction="#onClear" styleClass="ll-button, lldanger-button"/>
+                    </children>
+                </FlowPane>
+
+                <Label fx:id="statusLabel" text="Ready." style="-fx-text-fill: #64748b; -fx-font-style: italic;"/>
             </VBox>
         </VBox>
     </top>

@@ -475,7 +475,7 @@ public class CircularLinkedListController {
         canvas.setPrefHeight(820);
 
         if (head == null) {
-            canvas.getChildren().add(makeText(250, 180, "Circular Linked List is empty", 22));
+            canvas.getChildren().add(makeText(350, 180, "Circular Linked List is empty", 22));
             return;
         }
 

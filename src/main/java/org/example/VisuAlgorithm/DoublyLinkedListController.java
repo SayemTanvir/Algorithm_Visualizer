@@ -443,7 +443,7 @@ public class DoublyLinkedListController {
         canvas.setPrefHeight(720);
 
         if (head == null) {
-            canvas.getChildren().add(makeText(250, 180, "Doubly Linked List is empty", 22));
+            canvas.getChildren().add(makeText(350, 180, "Doubly Linked List is empty", 22));
             return;
         }
 
