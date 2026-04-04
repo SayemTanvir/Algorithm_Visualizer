@@ -49,34 +49,24 @@ public class StackController {
         return random.nextInt(90) + 10; // 10–99 (clean UI numbers)
     }
     @FXML
+    private void onPush() {
+        onPush(false); // Default behavior: not random
+    }
+    @FXML
     private void onRandom() {
-        stack.clear();
         if (pushAnimationRunning || popAnimationRunning) return;
 
-        int space = MAX_SIZE - stack.size();
-
-        if (space <= 0) {
-            showPopup("Stack Full", "Cannot add random elements. Stack is full.");
-            return;
-        }
-
-        int count = random.nextInt(space) + 1; // 1 to remaining space
+        stack.clear();
+        redraw(-1, -1); // Clears the canvas but keeps the container
 
         Timeline timeline = new Timeline();
-
-        for (int i = 0; i < count; i++) {
-            int value = getRandomValue();
-            int step = i;
-
+        for (int i = 0; i < MAX_SIZE; i++) {
+            // We space the starts by 1.2 seconds so the previous
+            // box has time to finish its 'drop' before the next starts.
             timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(step * 0.7), e -> {
-                        stack.add(value);
-                        redraw(stack.size() - 1, -1);
-                        setStatus("Random push: " + value);
-                    })
+                    new KeyFrame(Duration.seconds(i * 1.2), e -> onPush(true))
             );
         }
-
         timeline.play();
     }
     private void showPopup(String title, String message) {
@@ -112,7 +102,7 @@ public class StackController {
     }
 
     @FXML
-    private void onPush() {
+    private void onPush(boolean onRandom) {
         if (pushAnimationRunning || popAnimationRunning) return;
 
         if (stack.size() >= MAX_SIZE) {
@@ -121,7 +111,13 @@ public class StackController {
             return;
         }
 
-        Integer value = parseInt(valueField.getText());
+        Integer value;
+        if(onRandom) {
+            value=getRandomValue();
+        }
+        else {
+            value = parseInt(valueField.getText());
+        }
         if (value == null) return;
 
         playPushIncomingAnimation(value);
@@ -293,7 +289,7 @@ public class StackController {
         Timeline gravityDrop = new Timeline(
                 // Phase 1: Move to top of container
                 new KeyFrame(Duration.ZERO, new KeyValue(animatedBox.yProperty(), entryY)),
-                new KeyFrame(Duration.seconds(0.4), new KeyValue(animatedBox.yProperty(), topOfContainerY)),
+                //new KeyFrame(Duration.seconds(0.4), new KeyValue(animatedBox.yProperty(), topOfContainerY)),
 
                 // Phase 2: Drop into position (Gravity effect)
                 new KeyFrame(Duration.seconds(0.8), new KeyValue(animatedBox.yProperty(), targetY))
@@ -382,7 +378,7 @@ public class StackController {
             return;
         }
 
-        String[] colors = {"#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"};
+        String[] colors = {"#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#0891B2"};
 
         for (int i = 0; i < stack.size(); i++) {
             double y = startY - i * gap;
