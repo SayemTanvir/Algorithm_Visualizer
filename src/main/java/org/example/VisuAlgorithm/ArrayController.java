@@ -414,7 +414,7 @@ public class ArrayController {
 
         if (!isSortedNonDecreasing()) {
             showWarningPopup("Array Not Sorted",
-                    "Binary Search requires a sorted array.\n\nClick Merge Sort first.");
+                    "Binary Search requires a sorted array.\n\nClick Sort first.");
             return;
         }
 
@@ -899,16 +899,53 @@ public class ArrayController {
     private void showWarningPopup(String title, String msg) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.WARNING);
+
+            // 1. macOS Full Screen Fix
+            if (arrayBox != null && arrayBox.getScene() != null) {
+                alert.initOwner(arrayBox.getScene().getWindow());
+            }
+
+            // 2. Apply Custom CSS
+            DialogPane dialogPane = alert.getDialogPane();
+            try {
+                // Link to your existing main.css
+                dialogPane.getStylesheets().add(
+                        getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm()
+                );
+                // Apply the CSS class we just created
+                dialogPane.getStyleClass().add("custom-alert");
+            } catch (Exception e) {
+                System.out.println("Could not load CSS for Alert: " + e.getMessage());
+            }
+
             alert.setTitle(title);
             alert.setHeaderText(title);
             alert.setContentText(msg);
-            alert.show(); // NOT showAndWait
+            alert.show();
         });
     }
 
     private void showInfoPopup(String title, String msg) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
+
+            // FIX: Tie the alert to the main window
+            if (arrayBox != null && arrayBox.getScene() != null) {
+                alert.initOwner(arrayBox.getScene().getWindow());
+            }
+
+            DialogPane dialogPane = alert.getDialogPane();
+            try {
+                // Link to your existing main.css
+                dialogPane.getStylesheets().add(
+                        getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm()
+                );
+                // Apply the CSS class we just created
+                dialogPane.getStyleClass().add("custom-alert");
+            } catch (Exception e) {
+                System.out.println("Could not load CSS for Alert: " + e.getMessage());
+            }
+
             alert.setTitle(title);
             alert.setHeaderText(title);
             alert.setContentText(msg);
