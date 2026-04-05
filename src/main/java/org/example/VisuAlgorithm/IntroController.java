@@ -13,6 +13,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
@@ -560,7 +561,7 @@ public class IntroController {
             // 1. Grab the scene and turn the absolute bottom layer dark IMMEDIATELY
             Scene currentScene = rootPane.getScene();
             if (currentScene != null) {
-                currentScene.setFill(Color.web("#000810"));
+                currentScene.setFill(Color.web("#15152c"));
             }
 
             URL fxmlUrl = getClass().getResource("hello-view.fxml");
@@ -572,7 +573,7 @@ public class IntroController {
             Parent newRoot = new FXMLLoader(fxmlUrl).load();
 
             // 2. Lock in the dark background on the new layout
-            newRoot.setStyle("-fx-background-color: #000810;");
+            newRoot.setStyle("-fx-background-color: linear-gradient(to bottom right, #15152c 90%, #232c57)");
 
             // --- THE MAGIC FIX ---
             // 3. DO NOT clear the Scene's stylesheets. That causes the 1-frame white flash.
