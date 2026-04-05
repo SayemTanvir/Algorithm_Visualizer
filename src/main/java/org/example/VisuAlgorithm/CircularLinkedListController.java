@@ -8,6 +8,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Pane;
@@ -586,6 +587,24 @@ public class CircularLinkedListController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+
+        if (canvas != null && canvas.getScene() != null) {
+            Stage stage = (Stage) canvas.getScene().getWindow();
+            alert.initOwner(stage);
+        }
+
+        DialogPane dialogPane = alert.getDialogPane();
+        try {
+            // Link to your existing main.css
+            dialogPane.getStylesheets().add(
+                    getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm()
+            );
+            // Apply the CSS class we just created
+            dialogPane.getStyleClass().add("custom-alert");
+        } catch (Exception e) {
+            System.out.println("Could not load CSS for Alert: " + e.getMessage());
+        }
+
         alert.showAndWait();
     }
 

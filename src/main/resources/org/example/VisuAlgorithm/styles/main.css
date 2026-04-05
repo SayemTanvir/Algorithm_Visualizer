@@ -155,3 +155,37 @@ float {
 .stack-box-2 { -fx-fill: #f59e0b; } /* Orange */
 .stack-box-3 { -fx-fill: #8b5cf6; } /* Purple */
 .stack-box-4 { -fx-fill: #0891B2; }
+
+/* --- Custom Alert Styling --- */
+.custom-alert {
+    -fx-background-color: #000530; /* Matches your array cell background */
+}
+
+/* The main message text */
+.custom-alert .content.label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+}
+
+/* The header area background */
+.custom-alert .header-panel {
+    -fx-background-color: #2c2c54; /* Matches your empty array cell color */
+}
+
+/* The header title text */
+.custom-alert .header-panel .label {
+    -fx-text-fill: #f1c40f; /* Matches your search highlight yellow */
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+/* Style the OK button so it doesn't disappear */
+.custom-alert .button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.custom-alert .button:hover {
+    -fx-background-color: #2980b9;
+}

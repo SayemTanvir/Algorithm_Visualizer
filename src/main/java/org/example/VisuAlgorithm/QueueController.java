@@ -1,6 +1,7 @@
 package org.example.VisuAlgorithm;
 
 import java.util.Random;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -23,44 +24,74 @@ import java.util.Comparator;
 public class QueueController {
 
     // ---------- UI ----------
-    @FXML private Pane canvas;
-    @FXML private Button backBtn;
+    @FXML
+    private Pane canvas;
+    @FXML
+    private Button backBtn;
 
-    @FXML private ToggleGroup modeGroup;
-    @FXML private RadioButton rbQueue;
-    @FXML private RadioButton rbDeque;
-    @FXML private RadioButton rbPriority;
-    @FXML private RadioButton rbCircular;
+    @FXML
+    private ToggleGroup modeGroup;
+    @FXML
+    private RadioButton rbQueue;
+    @FXML
+    private RadioButton rbDeque;
+    @FXML
+    private RadioButton rbPriority;
+    @FXML
+    private RadioButton rbCircular;
 
-    @FXML private ToggleGroup priorityTypeGroup;
-    @FXML private RadioButton rbMaxPriority;
-    @FXML private RadioButton rbMinPriority;
+    @FXML
+    private ToggleGroup priorityTypeGroup;
+    @FXML
+    private RadioButton rbMaxPriority;
+    @FXML
+    private RadioButton rbMinPriority;
 
-    @FXML private TextField valueField;
-    @FXML private TextField priorityField;
-    @FXML private TextField capacityField;
+    @FXML
+    private TextField valueField;
+    @FXML
+    private TextField priorityField;
+    @FXML
+    private TextField capacityField;
 
-    @FXML private Label priorityLabel;
-    @FXML private Label capacityLabel;
-    @FXML private Label statusLabel;
-    @FXML private Label headerStatusLabel;
-    @FXML private Label modeHintLabel;
-    @FXML private Label frontLabel;
-    @FXML private Label rearLabel;
+    @FXML
+    private Label priorityLabel;
+    @FXML
+    private Label capacityLabel;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private Label headerStatusLabel;
+    @FXML
+    private Label modeHintLabel;
+    @FXML
+    private Label frontLabel;
+    @FXML
+    private Label rearLabel;
 
-    @FXML private Button enqueueBtn;
-    @FXML private Button dequeueBtn;
-    @FXML private Button pushFrontBtn;
-    @FXML private Button pushRearBtn;
-    @FXML private Button popFrontBtn;
-    @FXML private Button popRearBtn;
-    @FXML private Button peekBtn;
-    @FXML private Button setCapacityBtn;
+    @FXML
+    private Button enqueueBtn;
+    @FXML
+    private Button dequeueBtn;
+    @FXML
+    private Button pushFrontBtn;
+    @FXML
+    private Button pushRearBtn;
+    @FXML
+    private Button popFrontBtn;
+    @FXML
+    private Button popRearBtn;
+    @FXML
+    private Button peekBtn;
+    @FXML
+    private Button setCapacityBtn;
 
-    @FXML private HBox priorityTypeBox;
+    @FXML
+    private HBox priorityTypeBox;
 
     // ---------- Modes ----------
-    private enum Mode { QUEUE, DEQUE, PRIORITY_QUEUE, CIRCULAR_QUEUE }
+    private enum Mode {QUEUE, DEQUE, PRIORITY_QUEUE, CIRCULAR_QUEUE}
+
     private Mode mode = Mode.QUEUE;
 
     // ---------- Data ----------
@@ -100,6 +131,7 @@ public class QueueController {
     private int getRandomValue() {
         return random.nextInt(90) + 10; // 10–99 (clean UI numbers)
     }
+
     @FXML
     private void onRandom() {
 
@@ -168,6 +200,7 @@ public class QueueController {
             setStatus("Random Circular Queue generated");
         }
     }
+
     @FXML
     public void initialize() {
         setMode(Mode.QUEUE);
@@ -203,6 +236,7 @@ public class QueueController {
         else if (rbPriority.isSelected()) setMode(Mode.PRIORITY_QUEUE);
         else setMode(Mode.CIRCULAR_QUEUE);
     }
+
     private void updateCanvasSize() {
         if (mode == Mode.CIRCULAR_QUEUE) {
             canvas.setPrefWidth(1400);
@@ -223,6 +257,7 @@ public class QueueController {
         canvas.setPrefWidth(neededWidth);
         canvas.setPrefHeight(neededHeight);
     }
+
     private void setMode(Mode m) {
         mode = m;
 
