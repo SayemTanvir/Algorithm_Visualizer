@@ -8,15 +8,14 @@
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.VisuAlgorithm.ArrayController"
             prefHeight="600.0" prefWidth="900.0"
-            style="-fx-background-color: #090247;">
+            style="-fx-background-color: #ffffff;">
 
-    <!-- TOP BAR -->
     <top>
         <HBox spacing="12" alignment="CENTER_LEFT" style="-fx-background-color:#1a1460;">
             <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
 
             <Button text="⬅ Back" onAction="#backHome"
-                    style="-fx-background-color:#51c4d3; -fx-font-weight:bold; -fx-cursor:hand;" />
+                    style="-fx-background-color:#51c4d3; -fx-font-weight:bold; -fx-cursor:hand;"/>
 
             <Label text="ARRAY VISUALIZER" textFill="#f5a9a9">
                 <font><Font name="Candara Bold" size="28"/></font>
@@ -27,14 +26,14 @@
         </HBox>
     </top>
 
-    <!-- CENTER: VISUAL -->
     <center>
         <VBox spacing="12" alignment="TOP_CENTER">
             <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
 
-            <Label fx:id="statusLabel" text="Create an array to start" textFill="#51c4d3"/>
+            <Label fx:id="statusLabel" text="Create an array to start" textFill="#0056b3">
+                <font><Font name="System Bold" size="16"/></font>
+            </Label>
 
-            <!-- Array cells will be placed here -->
             <ScrollPane fitToHeight="true" fitToWidth="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
                         style="-fx-background: transparent; -fx-background-color: transparent;">
                 <content>
@@ -42,11 +41,17 @@
                 </content>
             </ScrollPane>
 
-            <Label fx:id="sizeCapLabel" text="" textFill="white"/>
+            <Label fx:id="sizeCapLabel" text="" textFill="#333333"/>
+
+            <Pane VBox.vgrow="ALWAYS"/> <VBox alignment="CENTER" style="-fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-width: 1; -fx-background-radius: 5; -fx-border-radius: 5;" minHeight="70">
+            <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+            <Label fx:id="stepLabel" text="" textFill="#2c3e50" wrapText="true" textAlignment="CENTER">
+                <font><Font name="System Bold" size="16"/></font>
+            </Label>
+        </VBox>
         </VBox>
     </center>
 
-    <!-- RIGHT: CONTROLS -->
     <right>
         <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
                     style="-fx-background: transparent; -fx-background-color: transparent;">
@@ -74,7 +79,6 @@
                     <Button text="Set(index, value)" onAction="#setValue" maxWidth="1.7976931348623157E308"/>
                     <Button text="Insert(index, value)" onAction="#insertAt" maxWidth="1.7976931348623157E308"/>
 
-                    <!-- ✅ move Merge Sort here -->
                     <Button text="Sort" onAction="#mergeSort" maxWidth="1.7976931348623157E308"/>
 
                     <Button text="Delete(index)" onAction="#deleteAt" maxWidth="1.7976931348623157E308"/>
@@ -95,6 +99,5 @@
             </content>
         </ScrollPane>
     </right>
-
 
 </BorderPane>

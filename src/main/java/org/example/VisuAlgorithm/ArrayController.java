@@ -4,17 +4,13 @@ import javafx.application.Platform;
 import javafx.animation.PauseTransition;
 import javafx.animation.SequentialTransition;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.io.IOException;
@@ -28,6 +24,7 @@ public class ArrayController {
     @FXML private HBox arrayBox;
     @FXML private Label statusLabel;
     @FXML private Label sizeCapLabel;
+    @FXML private Label stepLabel; // NEW: Detailed step explanation label
     @FXML private Label modeLabel;
 
     @FXML private RadioButton fixedBtn;
@@ -101,12 +98,14 @@ public class ArrayController {
         dynSize = 0;
         dynCap = 0;
         arrayBox.getChildren().clear();
+        stepLabel.setText("");
     }
 
     // ------------ Create / Random ------------
     @FXML
     void createArray() {
         if (runningAnimation) return;
+        stepLabel.setText("");
 
         int n = parseInt(sizeField.getText(), -1);
         if (n <= 0) { flashStatus("Invalid size!", true); return; }
@@ -129,6 +128,7 @@ public class ArrayController {
     void randomFill() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         if (!dynamicMode) {
             for (int i = 0; i < fixed.length; i++) fixed[i] = rnd.nextInt(90)/1.0 + 10;
@@ -148,6 +148,7 @@ public class ArrayController {
     void getValue() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
         if (!inRangeRead(idx)) return;
@@ -160,6 +161,7 @@ public class ArrayController {
     void setValue() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
         Double val = parseDoubleValue(valueField.getText());
@@ -185,6 +187,7 @@ public class ArrayController {
     void insertAt() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
         Double val = parseDoubleValue(valueField.getText());
@@ -272,6 +275,7 @@ public class ArrayController {
     void deleteAt() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
 
@@ -344,6 +348,7 @@ public class ArrayController {
     void linearSearch() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         Double target = parseDoubleValue(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
@@ -355,10 +360,19 @@ public class ArrayController {
         for (int i = 0; i < n; i++) {
             final int idx = i;
 
-            seq.getChildren().add(step(0.18, () -> {
+            seq.getChildren().add(step(0.25, () -> {
                 clearColors();
                 colorCell(idx, "#f1c40f");
                 statusLabel.setText("Checking index " + idx);
+
+                double val = dynamicMode ? dyn[idx] : (fixed[idx] != null ? fixed[idx] : 0);
+                boolean isNull = (!dynamicMode && fixed[idx] == null);
+
+                if (isNull) {
+                    stepLabel.setText("Checking index " + idx + ": Cell is empty.");
+                } else {
+                    stepLabel.setText("Checking index " + idx + ". Value is " + formatNum(val) + ".");
+                }
             }));
 
             boolean match = dynamicMode
@@ -367,10 +381,11 @@ public class ArrayController {
 
             if (match) {
                 found[0] = true;
-                seq.getChildren().add(step(0.18, () -> {
+                seq.getChildren().add(step(0.25, () -> {
                     clearColors();
                     colorCell(idx, "#2ecc71");
                     statusLabel.setText("FOUND at index " + idx);
+                    stepLabel.setText("Match found! Target " + formatNum(target) + " is at index " + idx + ".");
                 }));
                 break;
             }
@@ -380,6 +395,7 @@ public class ArrayController {
             if (!found[0]) {
                 clearColors();
                 statusLabel.setText("NOT FOUND ❌");
+                stepLabel.setText("Reached the end of the array. Value is not present.");
                 showInfoPopup("Not Found", "Value " + formatNum(target) + " is not in the array.");
             }
         }));
@@ -391,6 +407,7 @@ public class ArrayController {
     void binarySearch() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         Double target = parseDoubleValue(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
@@ -410,36 +427,46 @@ public class ArrayController {
         while (low <= high) {
             int mid = low + (high - low) / 2;
             final int fLow = low, fMid = mid, fHigh = high;
+            double midVal = dynamicMode ? dyn[mid] : fixed[mid];
 
-            seq.getChildren().add(step(0.25, () -> {
+            seq.getChildren().add(step(0.40, () -> {
                 clearColors();
                 colorCell(fLow, "#9b59b6");
                 colorCell(fHigh, "#9b59b6");
                 colorCell(fMid, "#f1c40f");
                 statusLabel.setText("low=" + fLow + " mid=" + fMid + " high=" + fHigh);
+                stepLabel.setText("Search space: [" + fLow + " .. " + fHigh + "]. Mid is " + fMid + ".\nComparing mid value " + formatNum(midVal) + " with target " + formatNum(target) + ".");
             }));
-
-            double midVal = dynamicMode ? dyn[mid] : fixed[mid];
 
             if (eq(midVal, target)) {
                 found[0] = true;
-                seq.getChildren().add(step(0.25, () -> {
+                seq.getChildren().add(step(0.30, () -> {
                     clearColors();
                     colorCell(fMid, "#2ecc71");
                     statusLabel.setText("FOUND at index " + fMid);
+                    stepLabel.setText("Match found! " + formatNum(midVal) + " == " + formatNum(target) + ".");
                 }));
                 break;
             } else if (midVal < target) {
                 low = mid + 1;
+                final int newLow = low;
+                seq.getChildren().add(step(0.30, () -> {
+                    stepLabel.setText(formatNum(midVal) + " < " + formatNum(target) + ".\nTarget must be in the right half. Updating low = " + newLow + ".");
+                }));
             } else {
                 high = mid - 1;
+                final int newHigh = high;
+                seq.getChildren().add(step(0.30, () -> {
+                    stepLabel.setText(formatNum(midVal) + " > " + formatNum(target) + ".\nTarget must be in the left half. Updating high = " + newHigh + ".");
+                }));
             }
         }
 
-        seq.getChildren().add(step(0.18, () -> {
+        seq.getChildren().add(step(0.20, () -> {
             if (!found[0]) {
                 clearColors();
                 statusLabel.setText("NOT FOUND ❌");
+                stepLabel.setText("Search space exhausted (low > high). Value is not in the array.");
                 showInfoPopup("Not Found", "Value " + formatNum(target) + " is not in the array.");
             }
         }));
@@ -451,6 +478,7 @@ public class ArrayController {
     void ternarySearch() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         Double target = parseDoubleValue(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
@@ -473,53 +501,68 @@ public class ArrayController {
             int mid2 = high - third;
 
             final int fLow = low, fHigh = high, fMid1 = mid1, fMid2 = mid2;
+            double v1 = dynamicMode ? dyn[mid1] : fixed[mid1];
+            double v2 = dynamicMode ? dyn[mid2] : fixed[mid2];
 
-            seq.getChildren().add(step(0.28, () -> {
+            seq.getChildren().add(step(0.45, () -> {
                 clearColors();
                 colorCell(fLow, "#9b59b6");
                 colorCell(fHigh, "#9b59b6");
                 colorCell(fMid1, "#f1c40f");
                 colorCell(fMid2, "#f1c40f");
                 statusLabel.setText("low=" + fLow + " mid1=" + fMid1 + " mid2=" + fMid2 + " high=" + fHigh);
+                stepLabel.setText("Search space: [" + fLow + " .. " + fHigh + "]. Checking mid1 (" + fMid1 + ") = " + formatNum(v1) + " and mid2 (" + fMid2 + ") = " + formatNum(v2) + ".");
             }));
-
-            double v1 = dynamicMode ? dyn[mid1] : fixed[mid1];
-            double v2 = dynamicMode ? dyn[mid2] : fixed[mid2];
 
             if (eq(v1, target)) {
                 found[0] = true;
-                seq.getChildren().add(step(0.28, () -> {
+                seq.getChildren().add(step(0.30, () -> {
                     clearColors();
                     colorCell(fMid1, "#2ecc71");
                     statusLabel.setText("FOUND at index " + fMid1);
+                    stepLabel.setText("Target " + formatNum(target) + " found at mid1!");
                 }));
                 break;
             }
 
             if (eq(v2, target)) {
                 found[0] = true;
-                seq.getChildren().add(step(0.28, () -> {
+                seq.getChildren().add(step(0.30, () -> {
                     clearColors();
                     colorCell(fMid2, "#2ecc71");
                     statusLabel.setText("FOUND at index " + fMid2);
+                    stepLabel.setText("Target " + formatNum(target) + " found at mid2!");
                 }));
                 break;
             }
 
             if (target < v1) {
                 high = mid1 - 1;
+                final int newHigh = high;
+                seq.getChildren().add(step(0.35, () -> {
+                    stepLabel.setText(formatNum(target) + " < " + formatNum(v1) + " (mid1).\nTarget is in the first third. Updating high = " + newHigh + ".");
+                }));
             } else if (target > v2) {
                 low = mid2 + 1;
+                final int newLow = low;
+                seq.getChildren().add(step(0.35, () -> {
+                    stepLabel.setText(formatNum(target) + " > " + formatNum(v2) + " (mid2).\nTarget is in the last third. Updating low = " + newLow + ".");
+                }));
             } else {
                 low = mid1 + 1;
                 high = mid2 - 1;
+                final int newLow = low, newHigh = high;
+                seq.getChildren().add(step(0.35, () -> {
+                    stepLabel.setText("Target is between mid1 and mid2.\nDiscarding outer thirds. Updating low = " + newLow + ", high = " + newHigh + ".");
+                }));
             }
         }
 
-        seq.getChildren().add(step(0.18, () -> {
+        seq.getChildren().add(step(0.20, () -> {
             if (!found[0]) {
                 clearColors();
                 statusLabel.setText("NOT FOUND ❌");
+                stepLabel.setText("Search space exhausted (low > high). Value is not in the array.");
                 showInfoPopup("Not Found", "Value " + formatNum(target) + " is not in the array.");
             }
         }));
@@ -532,6 +575,7 @@ public class ArrayController {
     void mergeSort() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
+        stepLabel.setText("");
 
         if (!dynamicMode) {
             if (fixedLast <= 0) { flashStatus("Need at least 2 elements!", true); return; }
@@ -562,6 +606,7 @@ public class ArrayController {
                     colorRange(s.l, s.r, "#34495e");
                     colorCell(s.index, "#e67e22");
                     statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
+                    //stepLabel.setText("Merging: placing " + formatNum(s.value) + " at sorted position " + s.index + ".");
                 }));
             }
 
@@ -570,6 +615,7 @@ public class ArrayController {
                 drawFixed();
                 clearColors();
                 statusLabel.setText("Sorting DONE ✅");
+                stepLabel.setText("Merge sort completed successfully.");
                 runningAnimation = false;
             }));
 
@@ -601,6 +647,7 @@ public class ArrayController {
                     colorRange(s.l, s.r, "#34495e");
                     colorCell(s.index, "#e67e22");
                     statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
+                    stepLabel.setText("Merging: placing " + formatNum(s.value) + " at sorted position " + s.index + ".");
                 }));
             }
 
@@ -609,6 +656,7 @@ public class ArrayController {
                 drawDynamic();
                 clearColors();
                 statusLabel.setText("Sorting DONE ✅");
+                stepLabel.setText("Merge sort completed successfully.");
                 runningAnimation = false;
             }));
 
@@ -840,9 +888,10 @@ public class ArrayController {
 
     private void flashStatus(String msg, boolean error) {
         statusLabel.setText(msg);
-        statusLabel.setStyle(error ? "-fx-text-fill:#ff6b6b;" : "-fx-text-fill:#51c4d3;");
+        // Updated colors for better visibility on a white background
+        statusLabel.setStyle(error ? "-fx-text-fill:#d32f2f;" : "-fx-text-fill:#0056b3;");
         PauseTransition p = new PauseTransition(Duration.seconds(0.5));
-        p.setOnFinished(e -> statusLabel.setStyle("-fx-text-fill:#51c4d3;"));
+        p.setOnFinished(e -> statusLabel.setStyle("-fx-text-fill:#0056b3;"));
         p.play();
     }
 
