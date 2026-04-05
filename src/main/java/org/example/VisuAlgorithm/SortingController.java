@@ -5,10 +5,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
@@ -18,7 +14,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.io.IOException;
@@ -38,10 +33,19 @@ public class SortingController {
     @FXML private Label sizeLabel;
     @FXML private TextField customInput;
 
+    // Make sure these match the fx:id in your SceneBuilder!
     @FXML private Button bubbleSortBtn;
+    @FXML private Button selectionSortBtn;
+    @FXML private Button insertionSortBtn;
+    @FXML private Button quickSortBtn;
+    @FXML private Button mergeSortBtn;
+
     @FXML private Button playPauseBtn;
     @FXML private Button stepBackBtn;
     @FXML private Button skipBtn;
+
+    // List to keep track of all sorting buttons for easy UI updates
+    private List<Button> allSortButtons = new ArrayList<>();
 
     // --- Live Status UI ---
     @FXML private Label algoNameLabel;
@@ -66,7 +70,7 @@ public class SortingController {
         void backward();
     }
 
-    private List<SortStep> stepQueue = new ArrayList<>();               //stores thee steps
+    private List<SortStep> stepQueue = new ArrayList<>();               //stores the steps
     private List<String> stepMessages = new ArrayList<>();              //stores the live status text for each step
     private int currentStepIndex = 0;                                   //current step in animation
     private Timeline playTimeline;                                      //jfx animator
@@ -77,6 +81,13 @@ public class SortingController {
 
     @FXML
     public void initialize() {
+        // Populate the button list
+        if (bubbleSortBtn != null) allSortButtons.add(bubbleSortBtn);
+        if (selectionSortBtn != null) allSortButtons.add(selectionSortBtn);
+        if (insertionSortBtn != null) allSortButtons.add(insertionSortBtn);
+        if (quickSortBtn != null) allSortButtons.add(quickSortBtn);
+        if (mergeSortBtn != null) allSortButtons.add(mergeSortBtn);
+
         // Enforcing max limit of 25 programmatically to make space
         sizeSlider.setMax(25);
         sizeSlider.setValue(10);
@@ -120,7 +131,7 @@ public class SortingController {
 
     //animator
     private void setupTimeline() {
-        playTimeline = new Timeline(new KeyFrame(Duration.millis(1000), e -> executeNextStep()));        //calls executeNextStep() every 300ms
+        playTimeline = new Timeline(new KeyFrame(Duration.millis(1000), e -> executeNextStep()));        //calls executeNextStep() every 1000ms
         playTimeline.setCycleCount(Timeline.INDEFINITE);          // setting end to indefinite
         if (speedSlider != null) {
             playTimeline.rateProperty().bind(speedSlider.valueProperty());      //rate is bind to value of speed slider
@@ -131,7 +142,6 @@ public class SortingController {
     private void setControlsDisable(boolean disable) {
         sizeSlider.setDisable(disable);
         customInput.setDisable(disable);
-        // Individual sorting buttons are now handled dynamically by currentActiveSortBtn
     }
 
     private void setMediaControlsDisable(boolean disable) {
@@ -189,9 +199,12 @@ public class SortingController {
             playPauseBtn.setText("▶");
             setControlsDisable(false);
 
-            // Re-enable the active sorting button now that sorting is finished
+            // Re-enable ALL sort buttons and clear the active outline
+            for (Button btn : allSortButtons) {
+                btn.setDisable(false);
+            }
             if (currentActiveSortBtn != null) {
-                currentActiveSortBtn.setDisable(false);
+                currentActiveSortBtn.setStyle("");
                 currentActiveSortBtn = null;
             }
 
@@ -258,10 +271,12 @@ public class SortingController {
         setControlsDisable(false);
         setMediaControlsDisable(true);
 
-        if (currentActiveSortBtn != null) {
-            currentActiveSortBtn.setDisable(false);
-            currentActiveSortBtn = null;
+        // Reset all sort buttons to enabled and remove outlines
+        for (Button btn : allSortButtons) {
+            btn.setDisable(false);
+            btn.setStyle("");
         }
+        currentActiveSortBtn = null;
 
         if (algoNameLabel != null) algoNameLabel.setText("Algorithm: None");
         if (currentStepLabel != null) currentStepLabel.setText("Action: -");
@@ -335,14 +350,17 @@ public class SortingController {
         if (currentStepLabel != null) currentStepLabel.setText("Action: Starting...");
         if (stepDescriptionArea != null) stepDescriptionArea.setText("Ready to sort.");
 
-        // Re-enable previously greyed out button if user clicked a new one
-        if (currentActiveSortBtn != null) {
-            currentActiveSortBtn.setDisable(false);
+        // Disable ALL sorting buttons and clear any previous outlines
+        for (Button btn : allSortButtons) {
+            btn.setDisable(true);
+            btn.setStyle("");
         }
-        // Grey out the newly clicked algorithm button
+
+        // Set the newly clicked button as active and apply the outline
         if (event != null && event.getSource() instanceof Button) {
             currentActiveSortBtn = (Button) event.getSource();
-            currentActiveSortBtn.setDisable(true);
+            // Feel free to change the hex color #FFA500 (orange) to something else!
+            currentActiveSortBtn.setStyle("-fx-border-color: #FFA500; -fx-border-width: 2px; -fx-border-radius: 3px;");
         }
 
         setControlsDisable(true);
@@ -963,16 +981,6 @@ public class SortingController {
     @FXML
     void backToHome(ActionEvent event) throws IOException {
         stopAll();
-//        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
-//        Parent root = fxmlLoader.load();
-//        Stage stage = (Stage)((Node)event.getSource()).getScene().getWindow();
-//        Scene scene = new Scene(root);
-//
-//        // Always re-add CSS!
-//        scene.getStylesheets().add(getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm());
-//
-//        stage.setScene(scene);
-//        stage.show();
         Launcher.switchScene("hello-view.fxml");
     }
 }
