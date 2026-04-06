@@ -659,13 +659,13 @@ public class SortingController {
         if (low < high) {
             int pivotIndex = partition(low, high);
 
-            addColorStep(pivotIndex, Color.LIMEGREEN, "Pivot bar is perfectly placed. Locking as LIME GREEN.");
+            addColorStep(pivotIndex, Color.LIMEGREEN, "Pivot bar is perfectly placed. Locking as GREEN.");
 
             quickSortHelper(low, pivotIndex - 1);
             quickSortHelper(pivotIndex + 1, high);
 
         } else if (low == high) {
-            addColorStep(low, Color.LIMEGREEN, "Single bar remaining in this partition. Locking as LIME GREEN.");
+            addColorStep(low, Color.LIMEGREEN, "Single bar remaining in this partition. Locking as GREEN.");
         }
     }
 
@@ -747,7 +747,7 @@ public class SortingController {
     private void mergeSortHelper(int low, int high, int depth) {
         if (low >= high) {
             if (low == high) {
-                addColorStep(low, Color.LIMEGREEN, "Base case: A single bar is already sorted. Marking LIME GREEN.");
+                addColorStep(low, Color.LIMEGREEN, "Base case: A single bar is already sorted. Marking GREEN.");
                 addSingleRepositionStep(low, depth, "Moving the sorted single bar up to await merging.");
             }
             return;
@@ -787,11 +787,11 @@ public class SortingController {
                     : tempArray[left] >= tempArray[right];
 
             if (leftWins) {
-                addColorStep(left, Color.LIMEGREEN, "The left GOLD bar wins this comparison. Marking LIME GREEN.");
-                addSingleRepositionStep(left, depth, "Moving the LIME GREEN bar up into its sorted position.");
+                addColorStep(left, Color.LIMEGREEN, "The left GOLD bar wins this comparison. Marking GREEN.");
+                addSingleRepositionStep(left, depth, "Moving the GREEN bar up into its sorted position.");
                 left++;
             } else {
-                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right GOLD bar wins! Shifting it past the left half and moving it up. Marking LIME GREEN.");
+                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right GOLD bar wins! Shifting it past the left half and moving it up. Marking GREEN.");
                 currentMid++;
                 right++;
                 left++;
@@ -799,13 +799,13 @@ public class SortingController {
         }
 
         while (left <= currentMid) {
-            addColorStep(left, Color.LIMEGREEN, "Right half is exhausted. Marking remaining left bar LIME GREEN.");
+            addColorStep(left, Color.LIMEGREEN, "Right half is exhausted. Marking remaining left bar GREEN.");
             addSingleRepositionStep(left, depth, "Moving the remaining sorted bar up.");
             left++;
         }
 
         while (right <= high) {
-            addColorStep(right, Color.LIMEGREEN, "Left half is exhausted. Marking remaining right bar LIME GREEN.");
+            addColorStep(right, Color.LIMEGREEN, "Left half is exhausted. Marking remaining right bar GREEN.");
             addSingleRepositionStep(right, depth, "Moving the remaining sorted bar up.");
             right++;
         }
