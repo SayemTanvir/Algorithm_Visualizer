@@ -59,7 +59,7 @@
             <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoDoublyLinkedList">
                 <ImageView fitHeight="90" fitWidth="160">
                     <image>
-                        <Image url="@/Images/linked_list.png"/>
+                        <Image url="@/Images/doubly_linked_list.png"/>
                     </image>
                 </ImageView>
                 <Label text="Doubly Linked List" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
@@ -70,7 +70,7 @@
             <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoCircularLinkedList">
                 <ImageView fitHeight="90" fitWidth="160">
                     <image>
-                        <Image url="@/Images/linked_list.png"/>
+                        <Image url="@/Images/circular_linked_list.png"/>
                     </image>
                 </ImageView>
                 <Label text="Circular Linked List" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
