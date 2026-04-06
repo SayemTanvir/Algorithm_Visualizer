@@ -107,7 +107,8 @@ public class ArrayController {
         if (runningAnimation) return;
         stepLabel.setText("");
 
-        int n = parseInt(sizeField.getText(), -1);
+        String inputText = sizeField.getText();
+        int n = (inputText == null || inputText.trim().isEmpty()) ? 10 : parseInt(inputText, -1);
         if (n <= 0) { flashStatus("Invalid size!", true); return; }
 
         if (!dynamicMode) {
