@@ -3,6 +3,7 @@ package org.example.VisuAlgorithm;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import javafx.animation.FadeTransition;
@@ -29,7 +30,12 @@ public class Launcher extends Application {
                 getClass().getResource("/org/example/VisuAlgorithm/styles/main.css")
                         .toExternalForm()
         );
-
+        try {
+            Image appIcon = new Image(getClass().getResourceAsStream("/Images/logo.png"));
+            stage.getIcons().add(appIcon);
+        } catch (Exception e) {
+            System.err.println("Icon image not found!");
+        }
         stage.setTitle("VisuAlgorithm");
         stage.setScene(mainScene);
 
