@@ -7,6 +7,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioButton;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -33,7 +34,6 @@ public class SortingController {
     @FXML private Label sizeLabel;
     @FXML private TextField customInput;
 
-    // Make sure these match the fx:id in your SceneBuilder!
     @FXML private Button bubbleSortBtn;
     @FXML private Button selectionSortBtn;
     @FXML private Button insertionSortBtn;
@@ -43,6 +43,10 @@ public class SortingController {
     @FXML private Button playPauseBtn;
     @FXML private Button stepBackBtn;
     @FXML private Button skipBtn;
+
+    // Sort order radio buttons
+    @FXML private RadioButton ascendingRadio;
+    @FXML private RadioButton descendingRadio;
 
     // List to keep track of all sorting buttons for easy UI updates
     private List<Button> allSortButtons = new ArrayList<>();
@@ -70,78 +74,75 @@ public class SortingController {
         void backward();
     }
 
-    private List<SortStep> stepQueue = new ArrayList<>();               //stores the steps
-    private List<String> stepMessages = new ArrayList<>();              //stores the live status text for each step
-    private int currentStepIndex = 0;                                   //current step in animation
-    private Timeline playTimeline;                                      //jfx animator
+    private List<SortStep> stepQueue = new ArrayList<>();
+    private List<String> stepMessages = new ArrayList<>();
+    private int currentStepIndex = 0;
+    private Timeline playTimeline;
     private boolean isPlaying = false;
 
-    private int[] tempArray;                                            //array sorted at the beginning to record steps
-    private Color[] virtualColors;                                      // array of colors to keep track of bar colors
+    private int[] tempArray;
+    private Color[] virtualColors;
+
+    // -------------------------------------------------------
+    // Helper: returns true if Ascending is selected
+    // -------------------------------------------------------
+    private boolean isAscending() {
+        return ascendingRadio == null || ascendingRadio.isSelected();
+    }
 
     @FXML
     public void initialize() {
-        // Populate the button list
         if (bubbleSortBtn != null) allSortButtons.add(bubbleSortBtn);
         if (selectionSortBtn != null) allSortButtons.add(selectionSortBtn);
         if (insertionSortBtn != null) allSortButtons.add(insertionSortBtn);
         if (quickSortBtn != null) allSortButtons.add(quickSortBtn);
         if (mergeSortBtn != null) allSortButtons.add(mergeSortBtn);
 
-        // Enforcing max limit of 25 programmatically to make space
         sizeSlider.setMax(25);
         sizeSlider.setValue(10);
         updateSizeLabel(10);
 
-        //setting speed slider (default = 3x)
         if (speedSlider != null) {
             speedSlider.setMin(0.5);
             speedSlider.setMax(10.0);
             speedSlider.setValue(2.0);
         }
 
-        //generates array after creating window
         Platform.runLater(this::generateRandomArray);
 
-        //generates new array everytime size slider is changed  (.addListener watches for value change and executes the following lambda func)
         sizeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             int oldSize = oldVal.intValue();
             int newSize = newVal.intValue();
-
             if (oldSize != newSize) {
                 updateSizeLabel(newSize);
                 generateRandomArray();
             }
         });
 
-        //draws new bars for everytime window size is changed
         displayPane.widthProperty().addListener((obs, o, n) -> drawArray());
         displayPane.heightProperty().addListener((obs, o, n) -> drawArray());
 
-        //play,pause,back,forward buttons disabled
         setMediaControlsDisable(true);
-
         setupTimeline();
     }
 
-    //updates size text
     private void updateSizeLabel(int size) {
         if (sizeLabel != null) sizeLabel.setText("Size: " + size);
     }
 
-    //animator
     private void setupTimeline() {
-        playTimeline = new Timeline(new KeyFrame(Duration.millis(1000), e -> executeNextStep()));        //calls executeNextStep() every 1000ms
-        playTimeline.setCycleCount(Timeline.INDEFINITE);          // setting end to indefinite
+        playTimeline = new Timeline(new KeyFrame(Duration.millis(1000), e -> executeNextStep()));
+        playTimeline.setCycleCount(Timeline.INDEFINITE);
         if (speedSlider != null) {
-            playTimeline.rateProperty().bind(speedSlider.valueProperty());      //rate is bind to value of speed slider
+            playTimeline.rateProperty().bind(speedSlider.valueProperty());
         }
     }
 
-    //disable controls
     private void setControlsDisable(boolean disable) {
         sizeSlider.setDisable(disable);
         customInput.setDisable(disable);
+        if (ascendingRadio != null) ascendingRadio.setDisable(disable);
+        if (descendingRadio != null) descendingRadio.setDisable(disable);
     }
 
     private void setMediaControlsDisable(boolean disable) {
@@ -150,7 +151,6 @@ public class SortingController {
         if (skipBtn != null) skipBtn.setDisable(disable);
     }
 
-    //controls
     @FXML
     void togglePlayPause() {
         if (stepQueue.isEmpty() || currentStepIndex >= stepQueue.size()) return;
@@ -180,7 +180,7 @@ public class SortingController {
         if (currentStepIndex > 0) {
             currentStepIndex--;
             stepQueue.get(currentStepIndex).backward();
-            updateStatusLabel(currentStepIndex - 1); // Show message for the step we reverted TO
+            updateStatusLabel(currentStepIndex - 1);
 
             if (currentStepIndex < stepQueue.size()) {
                 setControlsDisable(true);
@@ -190,7 +190,7 @@ public class SortingController {
 
     private void executeNextStep() {
         if (currentStepIndex < stepQueue.size()) {
-            updateStatusLabel(currentStepIndex); // Show message for the current step
+            updateStatusLabel(currentStepIndex);
             stepQueue.get(currentStepIndex).forward();
             currentStepIndex++;
         } else {
@@ -199,7 +199,6 @@ public class SortingController {
             playPauseBtn.setText("▶");
             setControlsDisable(false);
 
-            // Re-enable ALL sort buttons and clear the active outline
             for (Button btn : allSortButtons) {
                 btn.setDisable(false);
             }
@@ -271,7 +270,6 @@ public class SortingController {
         setControlsDisable(false);
         setMediaControlsDisable(true);
 
-        // Reset all sort buttons to enabled and remove outlines
         for (Button btn : allSortButtons) {
             btn.setDisable(false);
             btn.setStyle("");
@@ -308,7 +306,7 @@ public class SortingController {
 
         for (int i = 0; i < size; i++) {
             Rectangle bar = new Rectangle();
-            double normalizedHeight = ((double) array[i] / maxVal) * (paneH * 0.85); // slightly smaller to give space for arrow
+            double normalizedHeight = ((double) array[i] / maxVal) * (paneH * 0.85);
 
             bar.setX(i * (paneW / size));
             bar.setY(paneH - normalizedHeight);
@@ -320,9 +318,7 @@ public class SortingController {
             displayPane.getChildren().add(bar);
         }
 
-        // Ensure Arrow exists and is added over the bars
         if (iPointerArrow == null) {
-            // A bold downward pointing triangle arrow
             iPointerArrow = new Polygon(0, 0, 24, 0, 12, 18);
             iPointerArrow.setFill(Color.ORANGE);
             iPointerArrow.setStroke(Color.BLACK);
@@ -337,29 +333,25 @@ public class SortingController {
         }
     }
 
-
     private boolean prepareSort(String algoName, ActionEvent event) {
         if (array == null || array.length == 0) return false;
 
-        // Stop any currently running timeline if we switch algorithms midway
         if (playTimeline != null) playTimeline.stop();
         isPlaying = false;
         if (playPauseBtn != null) playPauseBtn.setText("▶");
 
-        if (algoNameLabel != null) algoNameLabel.setText("Algorithm: " + algoName);
+        String direction = isAscending() ? "Ascending" : "Descending";
+        if (algoNameLabel != null) algoNameLabel.setText("Algorithm: " + algoName + " (" + direction + ")");
         if (currentStepLabel != null) currentStepLabel.setText("Action: Starting...");
         if (stepDescriptionArea != null) stepDescriptionArea.setText("Ready to sort.");
 
-        // Disable ALL sorting buttons and clear any previous outlines
         for (Button btn : allSortButtons) {
             btn.setDisable(true);
             btn.setStyle("");
         }
 
-        // Set the newly clicked button as active and apply the outline
         if (event != null && event.getSource() instanceof Button) {
             currentActiveSortBtn = (Button) event.getSource();
-            // Feel free to change the hex color #FFA500 (orange) to something else!
             currentActiveSortBtn.setStyle("-fx-border-color: #FFA500; -fx-border-width: 2px; -fx-border-radius: 3px;");
         }
 
@@ -408,14 +400,9 @@ public class SortingController {
             double slotWidth = paneW / array.length;
             double barX = idx * slotWidth + (slotWidth / 2.0);
 
-            // Center arrow horizontally
             iPointerArrow.setLayoutX(barX - 12);
 
-            // Get the physical Y coordinate of the actual bar we are pointing to
             double barY = bars[idx].getY();
-
-            // Set the arrow's bounding box to end right before the top of the bar
-            // (18 is the arrow's height, plus 4 pixels of padding = 22)
             iPointerArrow.setLayoutY(barY - 22);
 
             iPointerArrow.setVisible(true);
@@ -431,7 +418,6 @@ public class SortingController {
         tempArray[idx1] = tempArray[idx2];
         tempArray[idx2] = temp;
 
-        // 2. add the step
         stepQueue.add(new SortStep() {
             @Override public void forward() { executeSwap(idx1, idx2); }
             @Override public void backward() { executeSwap(idx1, idx2); }
@@ -441,8 +427,8 @@ public class SortingController {
 
     // colors 1 bar
     private void addColorStep(int idx, Color newColor, String msg) {
-        Color oldColor = virtualColors[idx]; // Remember what it WAS
-        virtualColors[idx] = newColor;       // Update what it WILL BE
+        Color oldColor = virtualColors[idx];
+        virtualColors[idx] = newColor;
 
         stepQueue.add(new SortStep() {
             @Override public void forward() { bars[idx].setFill(newColor); }
@@ -465,16 +451,14 @@ public class SortingController {
         stepMessages.add(msg);
     }
 
-    //swaps bars visually
-    private void executeSwap(int idx1, int idx2){
+    // swaps bars visually
+    private void executeSwap(int idx1, int idx2) {
         Rectangle r1 = bars[idx1];
         Rectangle r2 = bars[idx2];
 
-        // Swap tracking array
         bars[idx1] = r2;
         bars[idx2] = r1;
 
-        // Swap math array
         int t = array[idx1];
         array[idx1] = array[idx2];
         array[idx2] = t;
@@ -509,7 +493,6 @@ public class SortingController {
             return;
         }
 
-        // shifting math
         int temp = tempArray[fromIdx];
         for (int k = fromIdx; k > toIdx; k--) {
             tempArray[k] = tempArray[k - 1];
@@ -545,21 +528,30 @@ public class SortingController {
     // =======================================================
 
     @FXML
-    void runBubbleSort(ActionEvent event){
+    void runBubbleSort(ActionEvent event) {
         if (!prepareSort("Bubble Sort", event)) return;
+
+        boolean asc = isAscending();
+        String cmpWord = asc ? "taller" : "shorter";
 
         for (int i = 0; i < tempArray.length - 1; i++) {
             for (int j = 0; j < tempArray.length - i - 1; j++) {
 
                 addColorStep(j, j + 1, Color.GOLD, "Highlighting the two adjacent GOLD bars for comparison.");
 
-                if (tempArray[j] > tempArray[j + 1]) {
-                    addSwapStep(j, j + 1, "The left GOLD bar is taller, swapping them.");
+                boolean shouldSwap = asc
+                        ? tempArray[j] > tempArray[j + 1]
+                        : tempArray[j] < tempArray[j + 1];
+
+                if (shouldSwap) {
+                    addSwapStep(j, j + 1, "The left GOLD bar is " + cmpWord + ", swapping them.");
                 }
 
                 addColorStep(j, j + 1, Color.CYAN, "Comparison complete. Reverting the two bars to CYAN.");
             }
-            addColorStep(tempArray.length - i - 1, Color.LIMEGREEN, "The tallest unsorted bar has reached its final position. Locking as GREEN.");
+            addColorStep(tempArray.length - i - 1, Color.LIMEGREEN,
+                    asc ? "The tallest unsorted bar has reached its final position. Locking as GREEN."
+                            : "The shortest unsorted bar has reached its final position. Locking as GREEN.");
         }
 
         addColorStep(0, Color.LIMEGREEN, "Final bar locked as GREEN. Array is fully sorted!");
@@ -567,34 +559,39 @@ public class SortingController {
     }
 
     @FXML
-    void runSelectionSort(ActionEvent event){
-        if(!prepareSort("Selection Sort", event)) return;
+    void runSelectionSort(ActionEvent event) {
+        if (!prepareSort("Selection Sort", event)) return;
 
-        for(int i = 0; i < tempArray.length - 1; i++){
-            int min_idx = i;
+        boolean asc = isAscending();
+        String targetWord = asc ? "shortest" : "tallest";
+
+        for (int i = 0; i < tempArray.length - 1; i++) {
+            int extreme_idx = i;
 
             addColorStep(i, Color.GOLD, "Starting a new pass. Marking the current target position in GOLD.");
 
-            for(int j = i + 1; j < tempArray.length; j++){
-                addColorStep(j, Color.GOLD, "Comparing the next bar in GOLD to RED to see if it is shorter.");
+            for (int j = i + 1; j < tempArray.length; j++) {
+                addColorStep(j, Color.GOLD, "Comparing the next bar in GOLD to RED to see if it is " + targetWord + ".");
 
-                if(tempArray[j] < tempArray[min_idx]){
-                    if(min_idx == i){
-                        addColorStep(i, Color.GOLD, "First bar is currently the shortest.");
+                boolean isNewExtreme = asc
+                        ? tempArray[j] < tempArray[extreme_idx]
+                        : tempArray[j] > tempArray[extreme_idx];
+
+                if (isNewExtreme) {
+                    if (extreme_idx == i) {
+                        addColorStep(i, Color.GOLD, "First bar is currently the " + targetWord + ".");
+                    } else {
+                        addColorStep(extreme_idx, Color.CYAN, "Discarding the old candidate, reverting it to CYAN.");
                     }
-                    else{
-                        addColorStep(min_idx, Color.CYAN, "Discarding the old minimum, reverting it to CYAN.");
-                    }
-                    min_idx = j;
-                    addColorStep(min_idx, Color.RED, "Found a shorter bar! Marking the new minimum candidate in RED.");
-                }
-                else {
-                    addColorStep(j, Color.CYAN, "This bar is taller. Ignoring it and reverting to CYAN.");
+                    extreme_idx = j;
+                    addColorStep(extreme_idx, Color.RED, "Found a " + targetWord + " bar! Marking the new candidate in RED.");
+                } else {
+                    addColorStep(j, Color.CYAN, "This bar does not qualify. Ignoring it and reverting to CYAN.");
                 }
             }
 
             addColorStep(i, Color.CYAN, "Scan complete for this pass. Reverting the start position to CYAN.");
-            addSwapStep(i, min_idx, "Swapping the shortest RED bar into its correct sorted position.");
+            addSwapStep(i, extreme_idx, "Swapping the RED bar into its correct sorted position.");
             addColorStep(i, Color.LIMEGREEN, "The bar is now in its final sorted position. Locking as GREEN.");
         }
         addColorStep(tempArray.length - 1, Color.LIMEGREEN, "Final element sorted! Locking as GREEN.");
@@ -603,21 +600,32 @@ public class SortingController {
     }
 
     @FXML
-    void runInsertionSort(ActionEvent event){
-        if(!prepareSort("Insertion Sort", event)) return;
+    void runInsertionSort(ActionEvent event) {
+        if (!prepareSort("Insertion Sort", event)) return;
+
+        boolean asc = isAscending();
 
         addColorStep(0, Color.LIMEGREEN, "The first bar is trivially sorted. Locking as GREEN.");
 
-        for(int i = 1; i < tempArray.length; i++){
+        for (int i = 1; i < tempArray.length; i++) {
             int j = i - 1;
             int target = tempArray[i];
 
             addColorStep(i, Color.RED, "Selecting the next unsorted bar and marking it RED.");
 
-            while(j >= 0 && tempArray[j] > target){
+            boolean shiftCondition = asc
+                    ? tempArray[j] > target
+                    : tempArray[j] < target;
+
+            while (j >= 0 && shiftCondition) {
                 addColorStep(j, Color.GOLD, "Comparing the RED bar against the sorted GOLD bar.");
                 addColorStep(j, Color.LIMEGREEN, "Needs to be shifted to insert the RED bar.");
                 j--;
+                if (j >= 0) {
+                    shiftCondition = asc ? tempArray[j] > target : tempArray[j] < target;
+                } else {
+                    shiftCondition = false;
+                }
             }
             int targetSpot = j + 1;
 
@@ -661,33 +669,36 @@ public class SortingController {
         }
     }
 
-    private int partition(int low, int high){
+    private int partition(int low, int high) {
         int pivotValue = tempArray[high];
+        boolean asc = isAscending();
         addColorStep(high, Color.MAGENTA, "Selecting the end bar as the pivot and marking it MAGENTA.");
 
         int i = low - 1;
 
-        // Setup arrow boundary marker at the beginning of partition
-        addArrowStep(i + 1, true, "ORANGE arrow marks the boundary for smaller elements.");
+        addArrowStep(i + 1, true, "ORANGE arrow marks the boundary for " + (asc ? "smaller" : "larger") + " elements.");
 
-        for (int j = low; j < high; j++){
+        for (int j = low; j < high; j++) {
             addColorStep(j, Color.GOLD, "Highlighting the current bar in GOLD to compare against the MAGENTA pivot.");
 
-            if (tempArray[j] < pivotValue){
+            boolean shouldMove = asc
+                    ? tempArray[j] < pivotValue
+                    : tempArray[j] > pivotValue;
+
+            if (shouldMove) {
                 i++;
 
                 if (i != j) {
-                    addSwapStep(i, j, "The GOLD bar is shorter! Swapping it into the boundary under the arrow.");
-                    addColorStep(i, Color.CYAN, "Swap complete. Reverting the shorter bar to CYAN.");
+                    addSwapStep(i, j, "The GOLD bar qualifies! Swapping it into the boundary under the arrow.");
+                    addColorStep(i, Color.CYAN, "Swap complete. Reverting the bar to CYAN.");
                 } else {
-                    addColorStep(j, Color.CYAN, "The bar is shorter but already in position. Reverting to CYAN.");
+                    addColorStep(j, Color.CYAN, "The bar qualifies but is already in position. Reverting to CYAN.");
                 }
 
-                // Shift arrow boundary right if there are more elements
                 addArrowStep(i + 1, true, "Moving target boundary forward.");
 
             } else {
-                addColorStep(j, Color.CYAN, "The GOLD bar is taller than the pivot. Leaving it on the right and reverting to CYAN.");
+                addColorStep(j, Color.CYAN, "The GOLD bar does not qualify. Leaving it on the other side and reverting to CYAN.");
             }
         }
 
@@ -696,10 +707,9 @@ public class SortingController {
         if (i + 1 != high) {
             addSwapStep(i + 1, high, "Swapping the MAGENTA pivot into the dividing point under the arrow.");
             addColorStep(i + 1, Color.MAGENTA, "The MAGENTA pivot has reached its correct dividing position.");
-            addColorStep(high, Color.CYAN, "Reverting the placed bar to CYAN.");
+            addColorStep(high, Color.CYAN, "Reverting the displaced bar to CYAN.");
         }
 
-        // Hide arrow at the end of this partition frame
         addArrowStep(-1, false, "Hiding target arrow.");
 
         return i + 1;
@@ -758,6 +768,8 @@ public class SortingController {
     }
 
     private void merge(int low, int mid, int high, int depth) {
+        boolean asc = isAscending();
+
         for (int i = low;      i <= mid;  i++) addColorStep(i, Color.CYAN, "Merge Phase: Marking the left half CYAN.");
         for (int i = mid + 1; i <= high; i++) addColorStep(i, Color.MAGENTA, "Merge Phase: Marking the right half MAGENTA. Now merging them into sorted order.");
 
@@ -767,15 +779,19 @@ public class SortingController {
         int currentDepth = depth + 1;
 
         while (left <= currentMid && right <= high) {
-            addColorStep(left,  Color.GOLD, "Selecting the smallest remaining bar from the left half (GOLD).");
-            addColorStep(right, Color.GOLD, "Comparing it against the smallest remaining bar from the right half (GOLD).");
+            addColorStep(left,  Color.GOLD, "Selecting the next bar from the left half (GOLD).");
+            addColorStep(right, Color.GOLD, "Comparing it against the next bar from the right half (GOLD).");
 
-            if (tempArray[left] <= tempArray[right]) {
-                addColorStep(left, Color.LIMEGREEN, "The left GOLD bar is smaller (or equal). Marking LIME GREEN.");
-                addSingleRepositionStep(left, depth, "Moving the LIME GREEN bar up into its sorted position in the merged array.");
+            boolean leftWins = asc
+                    ? tempArray[left] <= tempArray[right]
+                    : tempArray[left] >= tempArray[right];
+
+            if (leftWins) {
+                addColorStep(left, Color.LIMEGREEN, "The left GOLD bar wins this comparison. Marking LIME GREEN.");
+                addSingleRepositionStep(left, depth, "Moving the LIME GREEN bar up into its sorted position.");
                 left++;
             } else {
-                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right GOLD bar is smaller! Shifting it past the left half and moving it up. Marking LIME GREEN.");
+                addMergeRotateAndRiseStep(right, left, currentDepth, depth, "The right GOLD bar wins! Shifting it past the left half and moving it up. Marking LIME GREEN.");
                 currentMid++;
                 right++;
                 left++;

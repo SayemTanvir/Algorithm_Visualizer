@@ -4,12 +4,7 @@ import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.geometry.Point2D;
 import javafx.scene.Group;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -24,7 +19,6 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.transform.Scale;
 import javafx.scene.transform.Translate;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.io.IOException;
@@ -235,7 +229,7 @@ public class BSTController {
             lastPanX = event.getSceneX();
             lastPanY = event.getSceneY();
 
-            // If moved more than 3 pixels, it's considered a drag (prevents accidental selection clearing)
+            // If moved more than 3 pixels, it's considered a drag
             if (Math.hypot(event.getSceneX() - dragStartX, event.getSceneY() - dragStartY) > 3) {
                 canvasDragged = true;
                 canvasPane.setCursor(javafx.scene.Cursor.CLOSED_HAND);
@@ -327,7 +321,6 @@ public class BSTController {
     // ==========================================================================
     // TREE LAYOUT
     // ==========================================================================
-
     private void layoutTree() {
         if (root == null) return;
         int[] counter = {0};
@@ -434,7 +427,6 @@ public class BSTController {
     // ==========================================================================
     // CANVAS MANAGEMENT & ANIMATION
     // ==========================================================================
-
     private void resetNodeVisuals(BSTNode node) {
         node.circle.setTranslateX(0); node.circle.setTranslateY(0);
         node.circle.setScaleX(1.0);   node.circle.setScaleY(1.0);
@@ -596,7 +588,6 @@ public class BSTController {
     // ==========================================================================
     // INSERT / DELETE
     // ==========================================================================
-
     private void insertValue(int value) {
         root = insertBST(root, null, value);
         addSubtreeToCanvas(root);
@@ -650,7 +641,7 @@ public class BSTController {
     @FXML
     private void handleCanvasClick(MouseEvent event) {
         if (isAlgorithmMode) return;
-        if (canvasDragged) return; // Prevent clearing selection if we were just panning
+        if (canvasDragged) return;
         if (event.getTarget() == canvasPane || event.getTarget() == treeContentGroup) clearSelection();
     }
 
@@ -727,12 +718,8 @@ public class BSTController {
 
     @FXML
     private void handleBackButton(ActionEvent event) throws IOException {
-        if (isAlgorithmMode) {
-            switchToBuildMode();
-        } else {
-            stopAll();
-            Launcher.switchScene("hello-view.fxml");
-        }
+        stopAll();
+        Launcher.switchScene("hello-view.fxml");
     }
 
     private void stopAll() {
@@ -755,7 +742,7 @@ public class BSTController {
     }
 
     @FXML
-    private void switchToBuildMode() {
+    public void switchToBuildMode() {
         isAlgorithmMode = false;
         resetAlgorithmState();
         algoToolbar.setVisible(false);     algoToolbar.setManaged(false);
