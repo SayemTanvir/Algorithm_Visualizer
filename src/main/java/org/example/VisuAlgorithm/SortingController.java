@@ -131,7 +131,7 @@ public class SortingController {
     }
 
     private void setupTimeline() {
-        playTimeline = new Timeline(new KeyFrame(Duration.millis(1000), e -> executeNextStep()));
+        playTimeline = new Timeline(new KeyFrame(Duration.millis(700), e -> executeNextStep()));
         playTimeline.setCycleCount(Timeline.INDEFINITE);
         if (speedSlider != null) {
             playTimeline.rateProperty().bind(speedSlider.valueProperty());
