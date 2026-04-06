@@ -639,10 +639,11 @@ public class graphController {
     @FXML
     private void handleBackButton(ActionEvent event) throws IOException {
         stopAll();
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
-        Parent root = fxmlLoader.load();
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-        stage.getScene().setRoot(root);
+//        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
+//        Parent root = fxmlLoader.load();
+//        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+//        stage.getScene().setRoot(root);
+        Launcher.switchScene("hello-view.fxml");
     }
 
     private void stopAll() { resetAlgorithmState(); clearSelection(); }

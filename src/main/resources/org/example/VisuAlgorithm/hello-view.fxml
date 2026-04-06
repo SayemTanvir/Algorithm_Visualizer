@@ -21,7 +21,7 @@
             <Insets top="42" left="0" right="0" bottom="0"/>
         </padding>
         <Label styleClass="dashboard-title" text="VisuAlgorithm"/>
-        <Label styleClass="dashboard-subtitle" text="Interactive DSA visualizations"/>
+        <Label styleClass="dashboard-subtitle" text="Data Structures &amp; Algorithm Visualizations"/>
 
         <FlowPane alignment="CENTER" hgap="32" vgap="32" prefWrapLength="960" style="-fx-padding:22;">
             <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoSorting">
