@@ -279,3 +279,241 @@ public class HelloController {
         }
     }
 }
+//package org.example.VisuAlgorithm;
+//
+//import javafx.animation.KeyFrame;
+//import javafx.animation.Timeline;
+//import javafx.fxml.FXML;
+//import javafx.scene.*;
+//import javafx.scene.effect.DropShadow;
+//import javafx.scene.input.MouseEvent;
+//import javafx.scene.layout.Pane;
+//import javafx.scene.paint.Color;
+//import javafx.scene.shape.*;
+//import javafx.util.Duration;
+//
+//import java.io.IOException;
+//import java.util.*;
+//
+//public class HelloController {
+//
+//    // ── Navigation ────────────────────────────────────────────────────────────
+//    @FXML private void gotoSorting(MouseEvent event)    throws IOException { Launcher.switchScene("sorting-view.fxml"); }
+//    @FXML private void gotoArray(MouseEvent event)      throws IOException { Launcher.switchScene("array-view.fxml"); }
+//    @FXML private void gotoLinkedList(MouseEvent event) throws IOException { Launcher.switchScene("linked-list-view.fxml"); }
+//    @FXML private void gotoStack(MouseEvent event)      throws IOException { Launcher.switchScene("stack-view.fxml"); }
+//    @FXML private void gotoQueue(MouseEvent event)      throws IOException { Launcher.switchScene("queue-view.fxml"); }
+//    @FXML private void gotoGraph(MouseEvent event)      throws IOException { Launcher.switchScene("graph-view.fxml"); }
+//    @FXML private void gotoBST(MouseEvent event)        throws IOException { Launcher.switchScene("bst-view.fxml"); }
+//
+//    // ── Background animation ──────────────────────────────────────────────────
+//    @FXML Pane backgroundAnimationPane;
+//    private final List<AnimationGroup> dsaGroups = new ArrayList<>();
+//    private Timeline timeline;
+//
+//    @FXML
+//    public void initialize() {
+//        setupBackground();
+//    }
+//
+//    private void setupBackground() {
+//        if (backgroundAnimationPane == null) return;
+//
+//        // FIX 1: Stop the old timeline BEFORE clearing groups,
+//        // so the old ticker never fires on a half-rebuilt state.
+//        if (timeline != null) timeline.stop();
+//
+//        backgroundAnimationPane.getChildren().clear();
+//        dsaGroups.clear();
+//
+//        // ── Four corners — small trees ────────────────────────────────────────
+//        dsaGroups.add(AnimationGroup.tree(110,  90,  2, 0.55));   // top-left
+//        dsaGroups.add(AnimationGroup.tree(890,  80,  2, 0.50));   // top-right
+//        dsaGroups.add(AnimationGroup.tree( 90, 520,  2, 0.45));   // bottom-left
+//        dsaGroups.add(AnimationGroup.tree(910, 510,  2, 0.48));   // bottom-right
+//
+//        // ── Left & right edges — sparse graph rings ───────────────────────────
+//        dsaGroups.add(AnimationGroup.graph( 70, 300, 5, 80, 0.40));  // left mid
+//        dsaGroups.add(AnimationGroup.graph(930, 310, 5, 80, 0.38));  // right mid
+//
+//        // ── Top edge — two small graphs ───────────────────────────────────────
+//        dsaGroups.add(AnimationGroup.graph(300,  70, 4, 60, 0.35));  // top-left area
+//        dsaGroups.add(AnimationGroup.graph(700,  75, 4, 60, 0.35));  // top-right area
+//
+//        // ── Bottom edge — two small graphs ───────────────────────────────────
+//        dsaGroups.add(AnimationGroup.graph(280, 580, 4, 55, 0.32));  // bottom-left
+//        dsaGroups.add(AnimationGroup.graph(720, 575, 4, 55, 0.32));  // bottom-right
+//
+//        // ── Accent trees — slightly inward from the mid-edges ─────────────────
+//        dsaGroups.add(AnimationGroup.tree(200, 260, 2, 0.30));
+//        dsaGroups.add(AnimationGroup.tree(800, 270, 2, 0.30));
+//
+//        for (AnimationGroup g : dsaGroups)
+//            backgroundAnimationPane.getChildren().addAll(g.nodes);
+//
+//        // 40 ms tick → smooth but cheap
+//        timeline = new Timeline(new KeyFrame(Duration.millis(40), e -> {
+//            double t = System.currentTimeMillis() / 300.0;
+//            for (AnimationGroup g : dsaGroups) g.tick(t);
+//        }));
+//        timeline.setCycleCount(Timeline.INDEFINITE);
+//        timeline.play();
+//    }
+//
+//    // ── AnimationGroup ────────────────────────────────────────────────────────
+//
+//    private static class AnimationGroup {
+//
+//        /** All JavaFX nodes that belong to this group (edges first, nodes on top). */
+//        final List<Node> nodes = new ArrayList<>();
+//
+//        /** Per-tick update lambda. */
+//        interface Ticker { void tick(double t); }
+//        Ticker ticker = t -> {};
+//
+//        void tick(double t) { ticker.tick(t); }
+//
+//        // ── Palette ───────────────────────────────────────────────────────────
+//        private static Color nodeColor(double alpha)  { return Color.web("#7dd3fc", alpha); }
+//        private static Color strokeColor(double alpha){ return Color.web("#38bdf8", alpha); }
+//        private static Color edgeColor(double alpha)  { return Color.web("#bae6fd", alpha * 0.45); }
+//        private static Color glowColor()              { return Color.web("#0ea5e9", 0.25); }
+//
+//        // ── Tree factory ─────────────────────────────────────────────────────
+//        static AnimationGroup tree(double cx, double cy, int layers, double alpha) {
+//            AnimationGroup g = new AnimationGroup();
+//
+//            double nodeR   = 7.0;
+//            double yStep   = 38.0;
+//            double xSpread = 44.0;
+//
+//            List<Circle>   circles = new ArrayList<>();
+//            List<Line>     edges   = new ArrayList<>();
+//            List<double[]> base    = new ArrayList<>();
+//
+//            // root
+//            Circle root = makeCircle(cx, cy, nodeR, alpha);
+//            circles.add(root);
+//            base.add(new double[]{cx, cy});
+//
+//            List<Circle> prevRow = new ArrayList<>();
+//            prevRow.add(root);
+//
+//            for (int l = 1; l <= layers; l++) {
+//                List<Circle> curRow = new ArrayList<>();
+//                int count = 1 << l;
+//                double half = count / 2.0;
+//
+//                for (int i = 0; i < count; i++) {
+//                    double bx = cx + (i - half + 0.5) * xSpread * Math.pow(1.2, layers - l);
+//                    double by = cy + l * yStep;
+//                    Circle c = makeCircle(bx, by, nodeR * 0.85, alpha * 0.88);
+//                    circles.add(c);
+//                    base.add(new double[]{bx, by});
+//                    curRow.add(c);
+//
+//                    // edge to parent — FIX 2: guard index before accessing prevRow
+//                    int parentIdx = i / 2;
+//                    if (parentIdx < prevRow.size()) {
+//                        Circle parent = prevRow.get(parentIdx);
+//                        Line edge = new Line();
+//                        edge.setStroke(edgeColor(alpha));
+//                        edge.setStrokeWidth(1.1);
+//                        edge.setUserData(new Circle[]{c, parent});
+//                        edges.add(edge);
+//                    }
+//                }
+//                prevRow = curRow;
+//            }
+//
+//            g.nodes.addAll(edges);
+//            g.nodes.addAll(circles);
+//
+//            double freq = 0.08 + new Random().nextDouble() * 0.06;
+//            double mag  = 8   + new Random().nextDouble() * 5;
+//
+//            g.ticker = t -> {
+//                double dy = Math.sin(t * freq) * mag;
+//                double dx = Math.cos(t * freq * 0.7) * mag * 0.5;
+//                // FIX 3: guard both lists to prevent IndexOutOfBoundsException
+//                int size = Math.min(circles.size(), base.size());
+//                for (int i = 0; i < size; i++) {
+//                    circles.get(i).setCenterX(base.get(i)[0] + dx);
+//                    circles.get(i).setCenterY(base.get(i)[1] + dy);
+//                }
+//                for (Line ln : edges) syncEdge(ln);
+//            };
+//            return g;
+//        }
+//
+//        // ── Graph factory ─────────────────────────────────────────────────────
+//        static AnimationGroup graph(double cx, double cy, int n, double R, double alpha) {
+//            AnimationGroup g = new AnimationGroup();
+//
+//            List<Circle>   circles = new ArrayList<>();
+//            List<Line>     edges   = new ArrayList<>();
+//            List<double[]> base    = new ArrayList<>();
+//
+//            double thetaOffset = new Random().nextDouble() * Math.PI * 2;
+//
+//            for (int i = 0; i < n; i++) {
+//                double ang = thetaOffset + 2 * Math.PI * i / n;
+//                double bx  = cx + Math.cos(ang) * R;
+//                double by  = cy + Math.sin(ang) * R * 0.65;
+//                Circle c   = makeCircle(bx, by, 6.5, alpha);
+//                circles.add(c);
+//                base.add(new double[]{bx, by});
+//            }
+//
+//            Random rng = new Random(n * 31L + (long)(cx + cy));
+//            for (int i = 0; i < n; i++) {
+//                for (int j = i + 1; j < n; j++) {
+//                    if (rng.nextDouble() < 0.40) {
+//                        Line ln = new Line();
+//                        ln.setStroke(edgeColor(alpha));
+//                        ln.setStrokeWidth(0.9);
+//                        ln.setUserData(new Circle[]{circles.get(i), circles.get(j)});
+//                        edges.add(ln);
+//                    }
+//                }
+//            }
+//
+//            g.nodes.addAll(edges);
+//            g.nodes.addAll(circles);
+//
+//            double freq = 0.07 + new Random().nextDouble() * 0.06;
+//            double mag  = 9   + new Random().nextDouble() * 6;
+//
+//            g.ticker = t -> {
+//                // FIX 3 (same guard applied to graph ticker too)
+//                int size = Math.min(circles.size(), base.size());
+//                for (int i = 0; i < size; i++) {
+//                    double phase = t * freq + i * 1.3;
+//                    circles.get(i).setCenterX(base.get(i)[0] + Math.sin(phase)        * mag);
+//                    circles.get(i).setCenterY(base.get(i)[1] + Math.cos(phase * 1.15) * mag * 0.55);
+//                }
+//                for (Line ln : edges) syncEdge(ln);
+//            };
+//            return g;
+//        }
+//
+//        // ── Helpers ───────────────────────────────────────────────────────────
+//
+//        private static Circle makeCircle(double x, double y, double r, double alpha) {
+//            Circle c = new Circle(x, y, r);
+//            c.setFill(nodeColor(alpha * 0.55));
+//            c.setStroke(strokeColor(alpha * 0.80));
+//            c.setStrokeWidth(1.2);
+//            c.setEffect(new DropShadow(10, glowColor()));
+//            return c;
+//        }
+//
+//        private static void syncEdge(Line l) {
+//            Circle[] pair = (Circle[]) l.getUserData();
+//            l.setStartX(pair[0].getCenterX());
+//            l.setStartY(pair[0].getCenterY());
+//            l.setEndX(pair[1].getCenterX());
+//            l.setEndY(pair[1].getCenterY());
+//        }
+//    }
+//}
