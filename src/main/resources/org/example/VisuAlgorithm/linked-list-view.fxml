@@ -33,8 +33,8 @@
                     style="-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 8 16 8 16;"/>
             <Label text="Linked List" styleClass="dashboard-title"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <Label fx:id="statusLabel" text="Choose a linked list type"
-                   style="-fx-text-fill: #cbd5e1; -fx-font-size: 14px;"/>
+<!--            <Label fx:id="statusLabel" text="Choose a linked list type"-->
+<!--                   style="-fx-text-fill: #cbd5e1; -fx-font-size: 14px;"/>-->
         </HBox>
 
         <!-- Subtitle -->

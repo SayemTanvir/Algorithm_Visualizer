@@ -30,7 +30,7 @@ public class Launcher extends Application {
                         .toExternalForm()
         );
 
-        stage.setTitle("Algorithm Visualizer");
+        stage.setTitle("VisuAlgorithm");
         stage.setScene(mainScene);
 
         stage.setMinWidth(900);
