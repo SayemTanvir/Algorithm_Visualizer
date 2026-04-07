@@ -251,8 +251,8 @@ src/main/java/HelloApplication.java
 
 | 👤 | Name | Role |
 |:---:|:---|:---:|
-| 🧑‍💻 | **Md. Takvir Hossain Tur** | Developer |
 | 🧑‍💻 | **Abu Sayem Mohammed Tanvir** | Developer |
+| 🧑‍💻 | **Md. Takvir Hossain Tur** | Developer |
 
 *Developed as part of a CSE Object-Oriented Programming course project.*
 
