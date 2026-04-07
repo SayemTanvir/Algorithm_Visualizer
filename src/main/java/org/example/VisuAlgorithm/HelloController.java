@@ -37,11 +37,26 @@ public class HelloController {
     private final List<TreeWalker> walkers = new ArrayList<>();
     private final Random globalRng = new Random();
 
+//    @FXML
+//    public void initialize() {
+//        Platform.runLater(this::setupBackgroundGrid);
+//    }
     @FXML
     public void initialize() {
+        // Run initially to set up the first grid
         Platform.runLater(this::setupBackgroundGrid);
-    }
 
+        // Add listeners to redraw everything when the window is resized or maximized
+        if (backgroundAnimationPane != null) {
+            backgroundAnimationPane.widthProperty().addListener((obs, oldVal, newVal) -> {
+                setupBackgroundGrid();
+            });
+
+            backgroundAnimationPane.heightProperty().addListener((obs, oldVal, newVal) -> {
+                setupBackgroundGrid();
+            });
+        }
+    }
     private void setupBackgroundGrid() {
         if (backgroundAnimationPane == null) return;
 
@@ -51,14 +66,27 @@ public class HelloController {
         backgroundAnimationPane.getChildren().clear();
         walkers.clear();
 
-        // 1. Draw the background dot grid (Slightly larger dots: 2.0 radius)
-        for (double x = CELL_SIZE; x < width; x += CELL_SIZE) {
-            for (double y = CELL_SIZE; y < height; y += CELL_SIZE) {
-                Circle gridDot = new Circle(x, y, 2.0, Color.web("#ffffff", 0.05));
+//        // 1. Draw the background dot grid (Slightly larger dots: 2.0 radius)
+//        for (double x = CELL_SIZE; x < width; x += CELL_SIZE) {
+//            for (double y = CELL_SIZE; y < height; y += CELL_SIZE) {
+//                Circle gridDot = new Circle(x, y, 2.0, Color.web("#ffffff", 0.05));
+//                backgroundAnimationPane.getChildren().add(gridDot);
+//            }
+//        }
+        // --- NEW CODE ---
+        // 1. Draw the background dot grid based on exact grid columns/rows
+        int cols = (int) (width / CELL_SIZE);
+        int rows = (int) (height / CELL_SIZE);
+
+        // We loop up to cols-2 and rows-2.
+        // This naturally removes the last row/column near the edge
+        // AND aligns perfectly with the TreeWalker's start/end corners.
+        for (int c = 1; c <= cols -1; c++) {
+            for (int r = 1; r <= rows - 1; r++) {
+                Circle gridDot = new Circle(c * CELL_SIZE, r * CELL_SIZE, 2.0, Color.web("#ffffff", 0.05));
                 backgroundAnimationPane.getChildren().add(gridDot);
             }
         }
-
         // 2. Create multiple independent tree builders
         Color[] themeColors = {
                 Color.web("#38bdf8"), // Light Blue
@@ -122,8 +150,8 @@ public class HelloController {
             frontier = new ArrayList<>();
             treeGroup = new Group();
 
-            int startCol = leftToRight ? 1 : cols - 2;
-            int startRow = leftToRight ? 1 : rows - 2;
+            int startCol = leftToRight ? 1 : cols - 1;
+            int startRow = leftToRight ? 1 : rows - 1;
             endCol = leftToRight ? cols - 2 : 1;
             endRow = leftToRight ? rows - 2 : 1;
 
