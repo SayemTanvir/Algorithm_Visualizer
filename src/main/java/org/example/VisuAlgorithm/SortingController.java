@@ -11,17 +11,30 @@ import javafx.scene.control.RadioButton;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import javafx.embed.swing.SwingFXUtils;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.jcodec.api.awt.AWTSequenceEncoder;
 
 import javafx.animation.KeyValue;
 import javafx.animation.Interpolator;
@@ -43,6 +56,16 @@ public class SortingController {
     @FXML private Button playPauseBtn;
     @FXML private Button stepBackBtn;
     @FXML private Button skipBtn;
+
+    // --- Capture buttons ---
+    @FXML private Button screenshotBtn;
+    @FXML private Button recordBtn;
+
+    // Recording state
+    private boolean isRecording = false;
+    private ScheduledExecutorService recordingExecutor;
+    private List<BufferedImage> recordedFrames = new ArrayList<>();
+    private static final int RECORD_FPS = 30; // frames per second
 
     // Sort order radio buttons
     @FXML private RadioButton ascendingRadio;
@@ -97,6 +120,15 @@ public class SortingController {
         if (insertionSortBtn != null) allSortButtons.add(insertionSortBtn);
         if (quickSortBtn != null) allSortButtons.add(quickSortBtn);
         if (mergeSortBtn != null) allSortButtons.add(mergeSortBtn);
+
+        screenshotBtn.setText("📷 Snapshot");
+        recordBtn.setText("🎥 Record");
+
+        screenshotBtn.setPrefWidth(130);
+        screenshotBtn.setMinWidth(130);
+
+        recordBtn.setPrefWidth(130);
+        recordBtn.setMinWidth(130);
 
         sizeSlider.setMax(25);
         sizeSlider.setValue(10);
@@ -994,8 +1026,145 @@ public class SortingController {
         tl.play();
     }
 
+    // -------------------------------------------------------
+    // Screenshot: captures displayPane and saves to Downloads
+    // -------------------------------------------------------
+    @FXML
+    void takeScreenshot() {
+        WritableImage snapshot = displayPane.snapshot(null, null);
+        BufferedImage buffered = SwingFXUtils.fromFXImage(snapshot, null);
+
+        String downloadsDir = getDownloadsPath();
+        String timestamp    = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        File   outputFile   = new File(downloadsDir, "sorting_" + timestamp + ".png");
+
+        try {
+            ImageIO.write(buffered, "png", outputFile);
+            System.out.println("Screenshot saved: " + outputFile.getAbsolutePath());
+        } catch (IOException ex) {
+            System.err.println("Screenshot failed: " + ex.getMessage());
+        }
+    }
+
+    // -------------------------------------------------------
+    // Video Recording: captures frames and saves as animated GIF
+    // -------------------------------------------------------
+    @FXML
+    void toggleRecording() {
+        if (!isRecording) {
+            startRecording();
+        } else {
+            stopRecording();
+        }
+    }
+
+    private void startRecording() {
+        isRecording = true;
+        recordedFrames.clear();
+        recordBtn.setText("⏹");
+        recordBtn.setStyle(
+                "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 16px;" +
+                        "-fx-background-radius: 8; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 8;"
+        );
+
+        recordingExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "screen-recorder");
+            t.setDaemon(true);
+            return t;
+        });
+
+        recordingExecutor.scheduleAtFixedRate(() -> {
+            Platform.runLater(() -> {
+                if (!isRecording) return;
+                WritableImage frame = displayPane.snapshot(null, null);
+                BufferedImage buffered = SwingFXUtils.fromFXImage(frame, null);
+                synchronized (recordedFrames) {
+                    recordedFrames.add(buffered);
+                }
+            });
+        }, 0, 1000 / RECORD_FPS, TimeUnit.MILLISECONDS);
+
+        System.out.println("Recording started...");
+    }
+
+    private void stopRecording() {
+        isRecording = false;
+
+        if (recordingExecutor != null) {
+            recordingExecutor.shutdownNow();
+            recordingExecutor = null;
+        }
+
+        // Instantly revert to default record state
+        recordBtn.setText("🎥 Record");
+        recordBtn.setStyle("");
+
+        List<BufferedImage> frames;
+        synchronized (recordedFrames) {
+            frames = new ArrayList<>(recordedFrames);
+        }
+
+        if (frames.isEmpty()) {
+            return;
+        }
+
+        // Save frames as mp4 video on a background thread
+        List<BufferedImage> finalFrames = frames;
+        Thread saveThread = new Thread(() -> saveMp4Video(finalFrames), "mp4-saver");
+        saveThread.setDaemon(true);
+        saveThread.start();
+    }
+
+    private void saveMp4Video(List<BufferedImage> frames) {
+        String downloadsDir = getDownloadsPath();
+        String timestamp    = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        File   outputFile   = new File(downloadsDir, "sorting_rec_" + timestamp + ".mp4");
+
+        try {
+            // 1. Grab dimensions from the first frame
+            int originalWidth = frames.get(0).getWidth();
+            int originalHeight = frames.get(0).getHeight();
+
+            // 2. Force dimensions to be even numbers (required by H.264)
+            int evenWidth = (originalWidth % 2 == 0) ? originalWidth : originalWidth + 1;
+            int evenHeight = (originalHeight % 2 == 0) ? originalHeight : originalHeight + 1;
+
+            AWTSequenceEncoder encoder = AWTSequenceEncoder.createSequenceEncoder(outputFile, RECORD_FPS);
+
+            for (BufferedImage frame : frames) {
+                // 3. Create the BGR frame using the guaranteed even dimensions
+                BufferedImage bgrFrame = new BufferedImage(evenWidth, evenHeight, BufferedImage.TYPE_3BYTE_BGR);
+                java.awt.Graphics2D g = bgrFrame.createGraphics();
+
+                // 4. Draw the original frame onto the new even-dimensioned canvas
+                g.drawImage(frame, 0, 0, evenWidth, evenHeight, null);
+                g.dispose();
+
+                // Encode the converted frame
+                encoder.encodeImage(bgrFrame);
+            }
+
+            encoder.finish();
+            System.out.println("Video saved: " + outputFile.getAbsolutePath());
+        } catch (Exception ex) {
+            System.err.println("Video save failed: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    // -------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------
+    private String getDownloadsPath() {
+        String home = System.getProperty("user.home");
+        Path   dl   = Paths.get(home, "Downloads");
+        if (!dl.toFile().exists()) dl.toFile().mkdirs();
+        return dl.toString();
+    }
+
     @FXML
     void backToHome(ActionEvent event) throws IOException {
+        if (isRecording) stopRecording();
         stopAll();
         Launcher.switchScene("hello-view.fxml");
     }
