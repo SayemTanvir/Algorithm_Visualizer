@@ -21,7 +21,7 @@ public class Launcher extends Application {
         primaryStage = stage;
 
         FXMLLoader loader = new FXMLLoader(
-                getClass().getResource("hello-view.fxml")
+                getClass().getResource("intro-view.fxml")
         );
 
         mainScene = new Scene(loader.load(), 1000, 650);
