@@ -1,96 +1,96 @@
-VisuAlgorithm 🧠💻
-Welcome to VisuAlgorithm, an interactive Data Structures and Algorithms (DSA) visualizer built entirely in Java using JavaFX.
+🧠💻 VisuAlgorithm
+Interactive Data Structures & Algorithms Visualizer
+<p align="center"> <b>Visualize. Understand. Master DSA.</b><br> Built with ❤️ using Java & JavaFX </p>
+✨ Overview
 
-This academic project is designed to demystify complex data structures and algorithmic logic through real-time, step-by-step visual animations. By applying Object-Oriented Programming (OOP) principles, the application provides an interactive canvas where users can build structures from scratch, manipulate data, and watch algorithms execute frame by frame.
+VisuAlgorithm is an interactive desktop application designed to make Data Structures and Algorithms (DSA) intuitive and engaging through real-time visualizations.
 
-✨ Key Features
-Interactive Visualizations: Build graphs node-by-node, insert elements into a BST, or populate dynamic arrays directly on a pannable and zoomable canvas.
+Built as an academic project using Object-Oriented Programming (OOP) principles, it allows users to:
 
-Step-by-Step Playback Engine: Play, pause, step forward, and step backward through algorithm executions with adjustable playback speeds.
-
-Real-Time State Tracking: Live updates of adjacency lists, adjacency matrices, distance maps, priority queues, and call stacks as algorithms run.
-
-Robust Undo/Redo System: Built-in UndoStack across controllers to seamlessly revert insertions, deletions, and structural changes.
-
-Dynamic UI Context: Step-by-step textual explanations of algorithmic decisions, color-coded highlights for comparisons, and detailed data state panels.
-
+Construct data structures from scratch
+Interact with them dynamically
+Watch algorithms execute step-by-step with animations
+🚀 Features
+🎮 Interactive Visualizations
+Build graphs node-by-node
+Insert into BSTs dynamically
+Work on a pannable & zoomable canvas
+⏯️ Playback Engine
+▶ Play / ⏸ Pause
+⏭ Step Forward / ⏮ Step Backward
+⚡ Adjustable speed control
+📊 Real-Time State Tracking
+Adjacency List & Matrix updates
+Distance maps (Dijkstra)
+Priority queues & call stacks
+🔄 Undo / Redo System
+Global UndoStack support
+Revert insertions, deletions, and transformations seamlessly
+🎯 Smart UI Feedback
+Color-coded comparisons
+Step-by-step explanations
+Dynamic data panels
 🗂️ Supported Data Structures
-The application features dedicated interactive environments for the following data structures:
-
-Arrays: Fixed and Dynamic implementations.
-
-Linked Lists: Singly, Doubly, and Circular Linked Lists.
-
-Stacks & Queues: LIFO and FIFO visualizations.
-
-Trees: Binary Search Tree (BST).
-
-Graphs: Directed & Undirected, Weighted & Unweighted with custom node labeling.
-
+Category	Structures
+📦 Arrays	Fixed, Dynamic
+🔗 Linked Lists	Singly, Doubly, Circular
+📚 Stacks & Queues	LIFO, FIFO
+🌳 Trees	Binary Search Tree (BST)
+🌐 Graphs	Directed, Undirected, Weighted
 ⚙️ Algorithms Visualized
-Sorting
+🔢 Sorting Algorithms
 Bubble Sort
-
 Selection Sort
-
 Insertion Sort
-
 Merge Sort
-
 Quick Sort
-
-Searching (Arrays)
+🔍 Searching Algorithms
 Linear Search
-
 Binary Search
-
 Ternary Search
-
-Binary Search Tree (BST) Operations
-Traversals: Inorder, Preorder, Postorder, Level Order (BFS)
-
-Queries: Search, Find Predecessor, Find Successor
-
-Mutations: Visualized Insertions and Deletions (handling leaf, single-child, and two-child successor swaps)
-
-Graph Algorithms
-Traversals: Breadth-First Search (BFS), Depth-First Search (DFS)
-
-Minimum Spanning Trees: Prim's Algorithm, Kruskal's Algorithm
-
-Shortest Path: Dijkstra's Algorithm
-
-Directed Acyclic Graphs (DAG): Topological Sorting
-
+🌳 BST Operations
+Traversals: Inorder, Preorder, Postorder, Level Order
+Queries: Search, Predecessor, Successor
+Mutations: Insert & Delete (all cases handled)
+🌐 Graph Algorithms
+Traversals: BFS, DFS
+Minimum Spanning Tree: Prim’s, Kruskal’s
+Shortest Path: Dijkstra
+DAG: Topological Sort
 🛠️ Tech Stack
-Language: Java
-
-GUI Framework: JavaFX
-
-Architecture: MVC (Model-View-Controller) utilizing FXML for UI layouts.
-
-🚀 Getting Started
-Prerequisites
-Java Development Kit (JDK) 17 or higher.
-
-JavaFX SDK (configured via your IDE or build tool like Maven/Gradle).
-
-Installation
-Clone the repository:
-
-Bash
+Component	Technology
+💻 Language	Java
+🎨 GUI	JavaFX
+🧩 Architecture	MVC (Model-View-Controller)
+📄 UI Layout	FXML
+📦 Getting Started
+✅ Prerequisites
+Java Development Kit (JDK 17+)
+JavaFX SDK
+⚙️ Installation
 git clone https://github.com/your-username/VisuAlgorithm.git
-Open the project in your preferred IDE (IntelliJ IDEA, Eclipse, etc.).
+Open the project in IntelliJ / Eclipse / VS Code
+Configure JavaFX SDK
+Run:
+Launcher.java
 
-Ensure JavaFX libraries are added to your module path.
+or
 
-Run the Launcher.java or HelloApplication.java file to start the application.
+HelloApplication.java
+📸 Preview (Optional Section)
 
-👥 Meet the Team
-VisuAlgorithm was developed collaboratively as an Object-Oriented Programming course project by a team of four undergraduate Computer Science and Engineering students.
+(Add screenshots or GIFs here to make it even more attractive)
 
-[Your Name/GitHub Profile] * [Team Member 2 Name/Profile]
+👥 Team
 
-[Team Member 3 Name/Profile]
+This project was developed as part of an OOP course project by a team of CSE undergraduates:
 
-[Team Member 4 Name/Profile]
+👤 Your Name — Md. Takvir Hossain Tur
+👤 Team Member - Abu Sayem Mohammed Tanvir
+
+📜 License
+This project is for academic and educational purposes.
+
+💡 Final Note
+
+“Algorithms are not just logic — they are stories unfolding step by step.”
