@@ -279,8 +279,8 @@ Feel free to learn from it — just don't submit it as your own!
 
 <br/>
 
-![Made with Java](https://img.shields.io/badge/Made%20with-Java-ED8B00?style=flat-square&logo=openjdk)
 ![Built with Love](https://img.shields.io/badge/Built%20with-%E2%9D%A4%EF%B8%8F-red?style=flat-square)
+![Made with Java](https://img.shields.io/badge/Made%20with-Java-ED8B00?style=flat-square&logo=openjdk)
 ![CSE Project](https://img.shields.io/badge/CSE-OOP%20Project-6366F1?style=flat-square)
 
 </div>
