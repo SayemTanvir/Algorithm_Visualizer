@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=36&duration=3000&pause=1000&color=6366F1&center=true&vCenter=true&width=600&lines=VisuAlgorithm;Visualize.+Understand.+Master." alt="Typing SVG" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=36&duration=3000&pause=1000&color=6366F1&center=true&vCenter=true&width=750&lines=VisuAlgorithm;Visualize.+Understand.+Conquer." alt="Typing SVG" />
 
 <br/>
 
@@ -8,7 +8,7 @@
 
 <br/>
 
-![Java](https://img.shields.io/badge/Java-17+-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21+-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![JavaFX](https://img.shields.io/badge/JavaFX-GUI-4A90D9?style=for-the-badge&logo=java&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-MVC-6366F1?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-Academic-10B981?style=for-the-badge)
