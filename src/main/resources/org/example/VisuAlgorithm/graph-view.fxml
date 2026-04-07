@@ -29,6 +29,13 @@
                             <Font name="System Bold" size="26.0" />
                         </font>
                     </Label>
+
+                    <Region HBox.hgrow="ALWAYS" />
+
+                    <Button fx:id="screenshotBtn" onAction="#takeScreenshot" prefHeight="32.0"
+                            style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+                    <Button fx:id="recordBtn" onAction="#toggleRecording" prefHeight="32.0"
+                            style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
                 </children>
             </HBox>
 
@@ -101,11 +108,7 @@
         <VBox fx:id="algoStatePane"
               prefWidth="230" minWidth="230" maxWidth="230"
               visible="false" managed="false"
-              style="-fx-background-color: #ffffff;
-                     -fx-border-color: #e5e7eb;
-                     -fx-border-width: 0 1 0 0;
-                     -fx-padding: 15 10 15 10;
-                     -fx-spacing: 8;">
+              style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 1 0 0; -fx-padding: 15 10 15 10; -fx-spacing: 8;">
 
             <Label fx:id="algoNameLabel" text=""
                    wrapText="true"
@@ -116,34 +119,19 @@
                    style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
             <Label fx:id="currentStepLabel" text="—"
                    wrapText="true"
-                   style="-fx-font-size: 12px;
-                          -fx-font-weight: bold;
-                          -fx-text-fill: #b91c1c;
-                          -fx-background-color: #fee2e2;
-                          -fx-background-radius: 4;
-                          -fx-padding: 6 8 6 8;"/>
+                   style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #b91c1c; -fx-background-color: #fee2e2; -fx-background-radius: 4; -fx-padding: 6 8 6 8;"/>
             <Separator/>
 
             <Label fx:id="dsTitleLabel" text="Queue (Front → Back):"
                    style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
             <TextArea fx:id="dsArea" editable="false" prefHeight="105" maxHeight="105" wrapText="true"
-                      style="-fx-font-family: monospace;
-                             -fx-font-size: 11px;
-                             -fx-control-inner-background: #fef9c3;
-                             -fx-border-color: #fde047;
-                             -fx-border-radius: 3;
-                             -fx-text-fill: #374151;"/>
+                      style="-fx-font-family: monospace; -fx-font-size: 11px; -fx-control-inner-background: #fef9c3; -fx-border-color: #fde047; -fx-border-radius: 3; -fx-text-fill: #374151;"/>
             <Separator/>
 
             <Label text="✅ Visited / Processed:"
                    style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
             <TextArea fx:id="visitedArea" editable="false" prefHeight="75" maxHeight="75" wrapText="true"
-                      style="-fx-font-family: monospace;
-                             -fx-font-size: 11px;
-                             -fx-control-inner-background: #dcfce7;
-                             -fx-border-color: #86efac;
-                             -fx-border-radius: 3;
-                             -fx-text-fill: #374151;"/>
+                      style="-fx-font-family: monospace; -fx-font-size: 11px; -fx-control-inner-background: #dcfce7; -fx-border-color: #86efac; -fx-border-radius: 3; -fx-text-fill: #374151;"/>
 
             <Separator fx:id="extraSeparator" visible="false" managed="false"/>
             <Label fx:id="extraTitleLabel" text=""
@@ -151,23 +139,14 @@
                    style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
             <TextArea fx:id="extraArea" editable="false" prefHeight="105" maxHeight="105" wrapText="true"
                       visible="false" managed="false"
-                      style="-fx-font-family: monospace;
-                             -fx-font-size: 11px;
-                             -fx-control-inner-background: #fce7f3;
-                             -fx-border-color: #f9a8d4;
-                             -fx-border-radius: 3;
-                             -fx-text-fill: #374151;"/>
+                      style="-fx-font-family: monospace; -fx-font-size: 11px; -fx-control-inner-background: #fce7f3; -fx-border-color: #f9a8d4; -fx-border-radius: 3; -fx-text-fill: #374151;"/>
         </VBox>
     </left>
 
     <center>
         <Pane fx:id="canvasPane"
               onMouseClicked="#handleCanvasClick"
-              style="-fx-background-color: #ffffff;
-                     -fx-border-color: #e5e7eb;
-                     -fx-border-radius: 8;
-                     -fx-background-radius: 8;
-                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 8, 0, 0, 4);">
+              style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 8, 0, 0, 4);">
             <BorderPane.margin>
                 <Insets top="15.0" right="15.0" bottom="15.0" left="15.0" />
             </BorderPane.margin>
@@ -207,8 +186,8 @@
                         style="-fx-background-color: #f3f4f6; -fx-text-fill: #111827; -fx-background-radius: 6; -fx-cursor: hand;"/>
 
                 <Button fx:id="playPauseButton" text="▶" onAction="#togglePlayPause"
-                         prefHeight="35.0" minWidth="65.0"
-                         style="-fx-background-color: #3b82f6; -fx-text-fill: #ffffff; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;"/>
+                        prefHeight="35.0" minWidth="65.0"
+                        style="-fx-background-color: #3b82f6; -fx-text-fill: #ffffff; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;"/>
 
                 <Button onAction="#stepForward" text="⏭"
                         prefHeight="35.0" prefWidth="45.0"
