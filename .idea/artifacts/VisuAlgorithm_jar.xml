@@ -1,0 +1,20 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="VisuAlgorithm:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/VisuAlgorithm_jar</output-path>
+    <root id="archive" name="VisuAlgorithm.jar">
+      <element id="module-output" name="VisuAlgorithm" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-controls/25/javafx-controls-25-mac-aarch64.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/jcodec/jcodec/0.2.5/jcodec-0.2.5.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-fxml/25/javafx-fxml-25.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-graphics/25/javafx-graphics-25.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-graphics/25/javafx-graphics-25-mac-aarch64.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-swing/25/javafx-swing-25.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-base/25/javafx-base-25-mac-aarch64.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-controls/25/javafx-controls-25.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-base/25/javafx-base-25.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/jcodec/jcodec-javase/0.2.5/jcodec-javase-0.2.5.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-swing/25/javafx-swing-25-mac-aarch64.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/openjfx/javafx-fxml/25/javafx-fxml-25-mac-aarch64.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
