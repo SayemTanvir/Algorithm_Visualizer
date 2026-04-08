@@ -1,8 +1,10 @@
 package org.example.VisuAlgorithm;
 
-import java.util.*;
+import java.util.Random;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.animation.SequentialTransition;
+import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -11,17 +13,20 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.QuadCurve;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CircularLinkedListController {
 
@@ -32,38 +37,29 @@ public class CircularLinkedListController {
     @FXML private Label headerStatusLabel;
 
     private static class Node {
-        int data;
-        Node next;
-        Node(int data) { this.data = data; }
+        int data; Node next;
+        Node(int data){ this.data=data; }
     }
-
     private Node head;
 
-    // ── old linear-layout constants kept so nothing else breaks ──
-    private final double startX = 60;
-    private final double startY = 260;
-    private final double boxW = 80;
-    private final double boxH = 50;
-    private final double gap = 140;
+    private final Random rng  = new Random();
+    private Timeline anim = new Timeline();
 
-    private final Random random = new Random();
-    private Timeline currentTimeline;
-    private boolean isPaused = false;
-    private int currentStepIndex = 0;
+    @FXML public void initialize(){ redraw(-1,-1); }
+    @FXML private void onBack(){ stopAnim(); Launcher.switchScene("linked-list-view.fxml"); }
 
-    private int getRandomValue() {
-        return random.nextInt(90) + 10;
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Button handlers
+    // ══════════════════════════════════════════════════════════════════════════
 
-    @FXML
-    private void onRandom() {
-        head = null;
-        int count = random.nextInt(5) + 3;
+    @FXML private void onRandom(){
+        stopAnim(); head=null;
+        int n=rng.nextInt(4)+3;
+        SequentialTransition seq = new SequentialTransition();
 
         Timeline timeline = new Timeline();
-
-        for (int i = 0; i < count; i++) {
-            int value = getRandomValue();
+        for (int i = 0; i < n; i++) {
+            int value=rng.nextInt(90)+10;
             int step = i;
 
             timeline.getKeyFrames().add(
@@ -84,405 +80,156 @@ public class CircularLinkedListController {
         }
 
         timeline.play();
+        seq.play(); setStatus("Generated "+n+" random nodes");
     }
 
-    @FXML
-    public void initialize() {
-        redraw(-1, -1);
+    @FXML private void onInsertHead(){
+        Integer v=readVal();if(v==null)return; stopAnim(); animInsert(0,v);
+    }
+    @FXML private void onInsertTail(){
+        Integer v=readVal();if(v==null)return; stopAnim(); animInsert(size(),v);
+    }
+    @FXML private void onInsertAt(){
+        Integer v=readVal();if(v==null)return;
+        Integer i=readIdx();if(i==null)return;
+        if(i<0||i>size()){err("Index out of range [0.."+size()+"]");return;}
+        stopAnim(); animInsert(i,v);
+    }
+    @FXML private void onDeleteHead(){
+        if(head==null){err("List is empty");return;} stopAnim(); animDelete(0);
+    }
+    @FXML private void onDeleteTail(){
+        if(head==null){err("List is empty");return;} stopAnim(); animDelete(size()-1);
+    }
+    @FXML private void onDeleteAt(){
+        Integer i=readIdx();if(i==null)return;
+        if(i<0||i>=size()){err("Index out of range");return;} stopAnim(); animDelete(i);
+    }
+    @FXML private void onSearch(){
+        Integer v=readVal();if(v==null)return;
+        if(head==null){err("List is empty");return;} stopAnim(); animSearch(v);
+    }
+    @FXML private void onTraverse(){
+        if(head==null){err("List is empty");return;} stopAnim(); animTraverse();
+    }
+    @FXML private void onSort(){
+        if(head==null||head.next==head){err("Need ≥ 2 nodes");return;} stopAnim(); animSort();
+    }
+    @FXML private void onClear(){
+        stopAnim(); head=null; redraw(-1,-1); setStatus("List cleared");
     }
 
-    @FXML
-    private void onBack() {
-        Launcher.switchScene("linked-list-view.fxml");
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animations
+    // ══════════════════════════════════════════════════════════════════════════
 
-    private void goTo(String fxml) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxml));
-            Parent root = loader.load();
-            Stage stage = (Stage) canvas.getScene().getWindow();
-            stage.setScene(new Scene(root));
-        } catch (Exception e) {
-            setStatus("Navigation failed: " + e.getMessage());
+    private void animInsert(int idx, int val){
+        List<KeyFrame> kf=new ArrayList<>(); double t=0;
+        for(int i=0;i<idx;i++){
+            int fi=i;
+            kf.add(kfAt(t,()->{redraw(-1,fi);setStatus("ptr → index "+fi);})); t+=0.4;
         }
+        if(idx>0){
+            kf.add(kfAt(t,()->{redraw(idx-1,-1);setStatus("Locate predecessor at index "+(idx-1));})); t+=0.65;
+        }
+        kf.add(kfAt(t,()->{
+            if(idx>0)redraw(idx-1,-1); else redraw(-1,-1);
+            ghostNode(val); // Draw temporary floating node in center
+            setStatus("New node ["+val+"] ready to link");
+        })); t+=0.65;
+        kf.add(kfAt(t,()->{insertLogic(idx,val);redraw(idx,-1);setStatus("Inserted ["+val+"] at index "+idx+" ✓");}));
+        run(kf);
     }
 
-    @FXML
-    private void onInsertHead() {
-        Integer value = parseInt(valueField.getText());
-        if (value == null) return;
+    private void animDelete(int idx){
+        List<KeyFrame> kf=new ArrayList<>(); double t=0;
+        for(int i=0;i<idx;i++){
+            int fi=i;
+            kf.add(kfAt(t,()->{redraw(-1,fi);setStatus("ptr → index "+fi);})); t+=0.4;
+        }
+        kf.add(kfAt(t,()->{redraw(idx,-1);setStatus("Mark for deletion: index "+idx);})); t+=0.65;
+        kf.add(kfAt(t,()->{
+            int v=getAt(idx).data; deleteLogic(idx); redraw(-1,-1);
+            setStatus("Deleted ["+v+"] ✓");
+        }));
+        run(kf);
+    }
 
-        Node node = new Node(value);
+    private void animSearch(int target){
+        List<KeyFrame> kf=new ArrayList<>(); double t=0;
+        Node cur=head; int i=0; int found=-1;
+        do{
+            int fi=i;
+            kf.add(kfAt(t,()->{redraw(-1,fi);setStatus("Check index "+fi+"…");})); t+=0.5;
+            if(cur.data==target){found=i;break;}
+            cur=cur.next; i++;
+        } while(cur!=head);
 
-        if (head == null) {
-            head = node;
-            node.next = head;
+        if(found>=0){int ff=found;
+            kf.add(kfAt(t,()->{redraw(ff,-1);setStatus("✓ Found ["+target+"] at index "+ff);}));
         } else {
-            Node tail = getTail();
-            node.next = head;
-            tail.next = node;
-            head = node;
+            kf.add(kfAt(t,()->{redraw(-1,-1);setStatus("✗ ["+target+"] not found");}));
         }
-
-        redraw(0, -1);
-        setStatus("Inserted at head");
+        run(kf);
     }
 
-    @FXML
-    private void onInsertTail() {
-        Integer value = parseInt(valueField.getText());
-        if (value == null) return;
+    private void animTraverse(){
+        List<KeyFrame> kf=new ArrayList<>(); double t=0;
+        Node cur=head; int i=0;
+        do{
+            int fi=i; int fv=cur.data;
+            kf.add(kfAt(t,()->{redraw(-1,fi);setStatus("ptr → ["+fi+"] = "+fv);})); t+=0.5;
+            cur=cur.next; i++;
+        } while(cur!=head);
 
-        Node node = new Node(value);
+        // Highlight the back-arc (returns to head)
+        kf.add(kfAt(t,()->{
+            redraw(-1,0,true);   // highlight HEAD and loop-back arrow with traversal color
+            setStatus("Circular link → back to HEAD");
+        })); t+=0.6;
 
-        if (head == null) {
-            head = node;
-            node.next = head;
-        } else {
-            Node tail = getTail();
-            tail.next = node;
-            node.next = head;
-        }
-
-        redraw(getSize() - 1, -1);
-        setStatus("Inserted at tail");
+        int finalI = i;
+        kf.add(kfAt(t,()->{redraw(-1,-1);setStatus("Traversal complete — "+ finalI +" nodes ✓");}));
+        run(kf);
     }
 
-    @FXML
-    private void onInsertAt() {
-        Integer value = parseInt(valueField.getText());
-        Integer index = parseInt(indexField.getText());
-        if (value == null || index == null) return;
-
-        if (index < 0 || index > getSize()) {
-            setStatus("Index out of range");
-            showPopup("Index Out of Range", "Insertion index is outside the valid range.");
-            return;
-        }
-
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.0), e -> {
-                    redraw(-1, Math.max(0, index - 1));
-                    setStatus("Locating insertion point...");
-                }),
-                new KeyFrame(Duration.seconds(0.7), e -> {
-                    insertAtLogic(index, value);
-                    redraw(index, -1);
-                    setStatus("Inserted at index " + index);
-                })
-        );
-        timeline.play();
-    }
-
-    private void insertAtLogic(int index, int value) {
-        if (index == 0) {
-            Node node = new Node(value);
-            if (head == null) {
-                head = node;
-                node.next = head;
-            } else {
-                Node tail = getTail();
-                node.next = head;
-                tail.next = node;
-                head = node;
-            }
-            return;
-        }
-
-        Node temp = head;
-        int i = 0;
-        while (i < index - 1 && temp.next != head) {
-            temp = temp.next;
-            i++;
-        }
-
-        if (i != index - 1) return;
-
-        Node node = new Node(value);
-        node.next = temp.next;
-        temp.next = node;
-    }
-
-    @FXML
-    private void onDeleteHead() {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot delete head because the list is empty.");
-            return;
-        }
-
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.0), e -> {
-                    redraw(0, -1);
-                    setStatus("Deleting head...");
-                }),
-                new KeyFrame(Duration.seconds(0.6), e -> {
-                    if (head.next == head) {
-                        head = null;
-                    } else {
-                        Node tail = getTail();
-                        head = head.next;
-                        tail.next = head;
-                    }
-                    redraw(-1, -1);
-                    setStatus("Deleted head");
-                })
-        );
-        timeline.play();
-    }
-
-    @FXML
-    private void onDeleteTail() {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot delete tail because the list is empty.");
-            return;
-        }
-        playDeleteAnimation(getSize() - 1);
-    }
-
-    @FXML
-    private void onDeleteAt() {
-        Integer index = parseInt(indexField.getText());
-        if (index == null) return;
-
-        if (index < 0 || index >= getSize()) {
-            setStatus("Index out of range");
-            showPopup("Index Out of Range", "Delete index is outside the valid range.");
-            return;
-        }
-
-        playDeleteAnimation(index);
-    }
-
-    private void playDeleteAnimation(int index) {
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.0), e -> {
-                    redraw(index, -1);
-                    setStatus("Deleting index " + index);
-                }),
-                new KeyFrame(Duration.seconds(0.7), e -> {
-                    deleteAtLogic(index);
-                    redraw(-1, -1);
-                    setStatus("Deleted index " + index);
-                })
-        );
-        timeline.play();
-    }
-
-    private void deleteAtLogic(int index) {
-        if (head == null) return;
-
-        if (index == 0) {
-            if (head.next == head) head = null;
-            else {
-                Node tail = getTail();
-                head = head.next;
-                tail.next = head;
-            }
-            return;
-        }
-
-        Node temp = head;
-        int i = 0;
-        while (i < index - 1 && temp.next != head) {
-            temp = temp.next;
-            i++;
-        }
-
-        if (temp.next == head || i != index - 1) return;
-        temp.next = temp.next.next;
-    }
-
-    @FXML
-    private void onSearch() {
-        Integer value = parseInt(valueField.getText());
-        if (value == null) return;
-
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot search because the circular linked list is empty.");
-            return;
-        }
-
-        Timeline timeline = new Timeline();
-        Node temp = head;
-        int index = 0;
-        int found = -1;
-
-        do {
-            int current = index;
-            int currentValue = temp.data;
-
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(index * 0.6), e -> {
-                        redraw(-1, current);
-                        setStatus("Checking index " + current);
-                    })
-            );
-
-            if (currentValue == value) {
-                found = index;
-                break;
-            }
-
-            temp = temp.next;
-            index++;
-        } while (temp != head);
-
-        if (found != -1) {
-            int finalFound = found;
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds((found + 1) * 0.6), e -> {
-                        redraw(finalFound, -1);
-                        setStatus("Found at index " + finalFound);
-                    })
-            );
-        } else {
-            int end = Math.max(1, getSize());
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(end * 0.6), e -> {
-                        redraw(-1, -1);
-                        setStatus("Value not found");
-                        showPopup("Search Result", "Value not found in the circular linked list.");
-                    })
-            );
-        }
-
-        timeline.play();
-    }
-
-    @FXML
-    private void onTraverse() {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot traverse because the circular linked list is empty.");
-            return;
-        }
-
-        Timeline timeline = new Timeline();
-        Node temp = head;
-        int index = 0;
-
-        do {
-            int current = index;
-            int value = temp.data;
-
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(index * 0.5), e -> {
-                        redraw(-1, current);
-                        setStatus("Visited node " + value + " at index " + current);
-                    })
-            );
-
-            temp = temp.next;
-            index++;
-        } while (temp != head);
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(index * 0.5), e -> {
-                    redraw(-1, -1);
-                    setStatus("Traversal complete");
-                })
-        );
-
-        timeline.play();
-    }
-
-    @FXML
-    private void onSort() {
-        if (head == null || head.next == head) {
-            setStatus("Nothing to sort");
-            return;
-        }
-
-        Timeline timeline = new Timeline();
-        double time = 0.0;
-        int n = getSize();
-
-        for (int i = 0; i < n - 1; i++) {
-            Node a = head;
-            int index = 0;
-
-            for (int j = 0; j < n - 1; j++) {
-                Node b = a.next;
-                int idxA = index;
-                int idxB = (index + 1) % n;
-
-                timeline.getKeyFrames().add(
-                        new KeyFrame(Duration.seconds(time), e -> {
-                            redraw(idxA, idxB);
-                            setStatus("Comparing index " + idxA + " and " + idxB);
-                        })
-                );
-                time += 0.5;
-
-                if (a.data > b.data) {
-                    int tempVal = a.data;
-                    a.data = b.data;
-                    b.data = tempVal;
-
-                    timeline.getKeyFrames().add(
-                            new KeyFrame(Duration.seconds(time), e -> {
-                                redraw(idxA, idxB);
-                                setStatus("Swapped index " + idxA + " and " + idxB);
-                            })
-                    );
-                    time += 0.5;
+    private void animSort(){
+        List<KeyFrame> kf=new ArrayList<>(); double t=0;
+        int n=size();
+        for(int pass=0;pass<n-1;pass++){
+            Node a=head; int ai=0;
+            for(int j=0;j<n-1;j++){
+                Node b=a.next; int fa=ai,fb=(ai+1)%n;
+                kf.add(kfAt(t,()->{redraw(fa,fb);setStatus("Compare ["+fa+"] vs ["+fb+"]");})); t+=0.38;
+                if(a.data>b.data){
+                    int tmp=a.data;a.data=b.data;b.data=tmp;
+                    kf.add(kfAt(t,()->{redraw(fa,fb);setStatus("Swap ["+fa+"] ↔ ["+fb+"]");})); t+=0.38;
                 }
-
-                a = a.next;
-                index++;
+                a=a.next; ai++;
             }
         }
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(time), e -> {
-                    redraw(-1, -1);
-                    setStatus("Sorting complete");
-                })
-        );
-
-        timeline.play();
+        kf.add(kfAt(t,()->{redraw(-1,-1);setStatus("Sort complete ✓");}));
+        run(kf);
     }
 
-    @FXML
-    private void onClear() {
-        head = null;
-        redraw(-1, -1);
-        setStatus("List cleared");
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Redraw & UI Visuals
+    // ══════════════════════════════════════════════════════════════════════════
 
-    // ──────────────────────────────────────────────────────────────
-    //  HELPERS
-    // ──────────────────────────────────────────────────────────────
-    private Node getTail() {
-        Node temp = head;
-        while (temp.next != head) temp = temp.next;
-        return temp;
-    }
+    private void redraw(int primary, int secondary){ redraw(primary, secondary, false); }
 
-    private int getSize() {
-        if (head == null) return 0;
-        int count = 0;
-        Node temp = head;
-        do { count++; temp = temp.next; } while (temp != head);
-        return count;
-    }
-
-
-    // ──────────────────────────────────────────────────────────────
-    private void redraw(int primaryIndex, int secondaryIndex) {
+    private void redraw(int primaryIndex, int secondaryIndex, boolean arcHighlight) {
         canvas.getChildren().clear();
         canvas.setPrefWidth(1400);
         canvas.setPrefHeight(900);
 
-        int size = getSize();
+        int size = size();
 
         if (head == null) {
-            Text empty = makeText(430, 400, "Circular Linked List is empty", 22);
-            empty.setFill(Color.web("#64748b"));
-            canvas.getChildren().add(empty);
+            Text t = new Text(350, 180, "Circular Linked List is empty");
+            t.setFont(Font.font("System", 22));
+            t.setFill(Color.web("#64748b"));
+            canvas.getChildren().add(t);
             return;
         }
 
@@ -491,10 +238,9 @@ public class CircularLinkedListController {
         double radius  = 200;
         double nodeR   = 38;
 
-        // background guide ring
+        // Background guide ring
         Circle ring = new Circle(centerX, centerY, radius);
         ring.setFill(Color.TRANSPARENT);
-        ring.setStroke(Color.web("#cbd5e1"));
         ring.setStrokeWidth(2);
         canvas.getChildren().add(ring);
 
@@ -508,7 +254,6 @@ public class CircularLinkedListController {
 
         // ── draw arrows first (so circles sit on top) ──
         if (size == 1) {
-            // single-node self-loop: small arc below the node
             QuadCurve loop = new QuadCurve();
             loop.setStartX(nx[0] + nodeR * 0.6);
             loop.setStartY(ny[0] + nodeR * 0.6);
@@ -517,13 +262,15 @@ public class CircularLinkedListController {
             loop.setEndX(nx[0] - nodeR * 0.6);
             loop.setEndY(ny[0] + nodeR * 0.6);
             loop.setFill(null);
-            loop.setStroke(Color.web("#7c3aed"));
+            loop.setStroke(Color.web(arcHighlight ? "#3b82f6" : "#38bdf8", 0.8));
             loop.setStrokeWidth(2.5);
             canvas.getChildren().add(loop);
         } else {
             for (int i = 0; i < size; i++) {
                 int next = (i + 1) % size;
-                drawArrowBetweenNodes(nx[i], ny[i], nx[next], ny[next], nodeR);
+                boolean highlightThisArrow = (arcHighlight && i == size - 1);
+                String arrowColor = highlightThisArrow ? "#3b82f6" : "#38bdf8"; // Traverse Blue if looping back
+                drawArrowBetweenNodes(nx[i], ny[i], nx[next], ny[next], nodeR, arrowColor);
             }
         }
 
@@ -533,20 +280,29 @@ public class CircularLinkedListController {
             double x = nx[i];
             double y = ny[i];
 
-            Color fill = Color.WHITE;
-            if (i == secondaryIndex) fill = Color.web("#93c5fd");
-            if (i == primaryIndex)   fill = Color.web("#fde68a");
+            // Setup colors based on selection status
+            // ONLY the fill changes. The outline remains cyan (#38bdf8).
+            String fillHex = "#15152c";
+            String strokeHex = "#38bdf8"; // Always Default Cyan
+
+            if (i == secondaryIndex) {
+                fillHex = "#3b82f6"; // Traverse fill (Blue)
+            }
+            if (i == primaryIndex) {
+                fillHex = "#f97316"; // Highlight fill (Orange)
+            }
 
             Circle circle = new Circle(x, y, nodeR);
-            circle.setFill(fill);
-            circle.setStroke(Color.web("#60a5fa"));
-            circle.setStrokeWidth(2.5);
+            circle.setFill(Color.web(fillHex));
+            circle.setStroke(Color.web(strokeHex));
+            circle.setStrokeWidth(3.0);
+            circle.setEffect(new DropShadow(15, Color.web(strokeHex, 0.5))); // Glow matches the cyan outline
 
-            // value text centred inside circle
             String valStr = String.valueOf(temp.data);
-            Text dataText = makeText(x - (valStr.length() > 1 ? 10 : 6), y + 7, valStr, 18);
-
-            canvas.getChildren().addAll(circle, dataText);
+            Text t = new Text(x - (valStr.length() > 1 ? 10 : 6), y + 7, valStr);
+            t.setFont(Font.font("System", FontWeight.BOLD, 18));
+            t.setFill(Color.WHITE);
+            canvas.getChildren().addAll(circle, t);
 
             // ── labels pushed outside the ring ──
             double angle    = 2 * Math.PI * i / size - Math.PI / 2;
@@ -554,29 +310,22 @@ public class CircularLinkedListController {
             double lx = centerX + labelDist * Math.cos(angle);
             double ly = centerY + labelDist * Math.sin(angle);
 
-            // index  [i]
-            Text idxText = makeText(lx - 8, ly + 5, "[" + i + "]", 12);
-            idxText.setFill(Color.web("#475569"));
+            Text idxText = new Text(lx - 8, ly + 5, "[" + i + "]");
+            idxText.setFont(Font.font("System", 13));
+            idxText.setFill(Color.web("#93c5fd"));
             canvas.getChildren().add(idxText);
 
-            // HEAD label
             if (i == 0) {
-                Text headText = makeText(lx - 20, ly - 14, "HEAD", 13);
-                headText.setFill(Color.web("#0f766e"));
+                Text headText = new Text(lx - 20, ly - 14, "HEAD");
+                headText.setFont(Font.font("System", 14));
+                headText.setFill(Color.web("#2dd4bf"));
                 canvas.getChildren().add(headText);
             }
 
-            // TAIL label
-            if (i == size - 1 && size > 1) {
-                Text tailText = makeText(lx - 16, ly + 24, "TAIL", 13);
-                tailText.setFill(Color.web("#dc2626"));
-                canvas.getChildren().add(tailText);
-            }
-
-            // single-node is both HEAD and TAIL
-            if (size == 1) {
-                Text tailText = makeText(lx - 16, ly + 24, "TAIL", 13);
-                tailText.setFill(Color.web("#dc2626"));
+            if (i == size - 1 || size == 1) {
+                Text tailText = new Text(lx - 16, ly + 24, "TAIL");
+                tailText.setFont(Font.font("System", 14));
+                tailText.setFill(Color.web("#f43f5e"));
                 canvas.getChildren().add(tailText);
             }
 
@@ -584,34 +333,25 @@ public class CircularLinkedListController {
         }
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  DRAW ARROW  ← REPLACES the old createArrowHead() method.
-    //  Draws a straight line with arrowhead between two circle edges.
-    // ──────────────────────────────────────────────────────────────
-    private void drawArrowBetweenNodes(double x1, double y1,
-                                       double x2, double y2,
-                                       double nodeRadius) {
+    private void drawArrowBetweenNodes(double x1, double y1, double x2, double y2, double nodeRadius, String colorHex) {
         double dx   = x2 - x1;
         double dy   = y2 - y1;
         double dist = Math.sqrt(dx * dx + dy * dy);
         double ux   = dx / dist;
         double uy   = dy / dist;
 
-        // start/end at circle edges, not centres
-        double sx = x1 + ux * nodeRadius;
-        double sy = y1 + uy * nodeRadius;
-        double ex = x2 - ux * nodeRadius;
-        double ey = y2 - uy * nodeRadius;
+        double sx = x1 + ux * (nodeRadius + 2);
+        double sy = y1 + uy * (nodeRadius + 2);
+        double ex = x2 - ux * (nodeRadius + 2);
+        double ey = y2 - uy * (nodeRadius + 2);
 
         Line line = new Line(sx, sy, ex, ey);
-        line.setStroke(Color.web("#64748b"));
+        line.setStroke(Color.web(colorHex, 0.8));
         line.setStrokeWidth(2.5);
         canvas.getChildren().add(line);
 
-        // arrowhead triangle at (ex, ey) pointing in direction (ux, uy)
         double aLen = 11;
         double aWid = 5.5;
-        // perpendicular unit vector
         double px = -uy;
         double py =  ux;
 
@@ -621,61 +361,66 @@ public class CircularLinkedListController {
                 ex - ux * aLen + px * aWid,     ey - uy * aLen + py * aWid,
                 ex - ux * aLen - px * aWid,     ey - uy * aLen - py * aWid
         );
-        arrow.setFill(Color.web("#475569"));
+        arrow.setFill(Color.web(colorHex, 0.9));
         canvas.getChildren().add(arrow);
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  UNCHANGED HELPERS below this line
-    // ──────────────────────────────────────────────────────────────
-    private Text makeText(double x, double y, String value, int size) {
-        Text t = new Text(x, y, value);
-        t.setFont(Font.font(size));
-        t.setFill(Color.web("#1e293b"));
-        return t;
+    // Ghost node drawn directly in the center of the ring for insertion visual
+    private void ghostNode(int val) {
+        double centerX = 600;
+        double centerY = 380;
+        double nodeR = 38;
+
+        Color strokeCol = Color.web("#38bdf8"); // Default outline (Cyan)
+        Color fillCol = Color.web("#a855f7"); // NEW node fill color (Purple)
+
+        Circle circle = new Circle(centerX, centerY, nodeR);
+        circle.setFill(fillCol);
+        circle.setStroke(strokeCol);
+        circle.setStrokeWidth(3.0);
+        circle.setEffect(new DropShadow(15, strokeCol)); // Glow matches the outline
+
+        String valStr = String.valueOf(val);
+        Text t = new Text(centerX - (valStr.length() > 1 ? 10 : 6), centerY + 7, valStr);
+        t.setFont(Font.font("System", FontWeight.BOLD, 18));
+        t.setFill(Color.WHITE);
+
+        Text label = new Text(centerX - 35, centerY + nodeR + 25, "NEW NODE");
+        label.setFont(Font.font("System", FontWeight.BOLD, 12));
+        label.setFill(fillCol); // Text matches the purple fill
+
+        canvas.getChildren().addAll(circle, t, label);
     }
 
-    private Integer parseInt(String s) {
-        try {
-            if (s == null || s.trim().isEmpty()) {
-                setStatus("Input empty");
-                showPopup("Input Error", "Please enter a value first.");
-                return null;
-            }
-            return Integer.parseInt(s.trim());
-        } catch (Exception e) {
-            setStatus("Invalid number");
-            showPopup("Input Error", "Please enter a valid integer.");
-            return null;
-        }
+    // ── Data model ─────────────────────────────────────────────────────────────
+    private void insertLogic(int idx,int val){
+        Node n=new Node(val);
+        if(head==null){head=n;n.next=head;return;}
+        if(idx==0){Node tail=getTail();n.next=head;tail.next=n;head=n;return;}
+        Node t=head; for(int i=0;i<idx-1&&t.next!=head;i++)t=t.next;
+        n.next=t.next; t.next=n;
     }
-
-    private void showPopup(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-
-        if (canvas != null && canvas.getScene() != null) {
-            Stage stage = (Stage) canvas.getScene().getWindow();
-            alert.initOwner(stage);
-        }
-
-        DialogPane dialogPane = alert.getDialogPane();
-        try {
-            dialogPane.getStylesheets().add(
-                    getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm()
-            );
-            dialogPane.getStyleClass().add("custom-alert");
-        } catch (Exception e) {
-            System.out.println("Could not load CSS for Alert: " + e.getMessage());
-        }
-
-        alert.showAndWait();
+    private void deleteLogic(int idx){
+        if(head==null)return;
+        if(head.next==head){head=null;return;}
+        Node tail=getTail();
+        if(idx==0){head=head.next;tail.next=head;return;}
+        Node t=head; for(int i=0;i<idx-1;i++)t=t.next;
+        t.next=t.next.next;
+        if(idx==size())tail.next=head; // fix if tail deleted
     }
+    private Node getTail(){Node t=head;while(t.next!=head)t=t.next;return t;}
+    private Node getAt(int idx){Node t=head;for(int i=0;i<idx;i++)t=t.next;return t;}
+    private int size(){if(head==null)return 0;int c=0;Node t=head;do{c++;t=t.next;}while(t!=head);return c;}
 
-    private void setStatus(String msg) {
-        statusLabel.setText(msg);
-        headerStatusLabel.setText(msg);
-    }
+    // ── Anim utilities ────────────────────────────────────────────────────────
+    private KeyFrame kfAt(double s,Runnable r){return new KeyFrame(Duration.seconds(s),e->r.run());}
+    private PauseTransition pause(double s,Runnable r){PauseTransition p=new PauseTransition(Duration.seconds(s));p.setOnFinished(e->r.run());return p;}
+    private void run(List<KeyFrame> kf){anim=new Timeline();anim.getKeyFrames().addAll(kf);anim.play();}
+    private void stopAnim(){if(anim!=null)anim.stop();}
+
+    private Integer readVal(){try{return Integer.parseInt(valueField.getText().trim());}catch(Exception e){err("Enter a valid integer in Value");return null;}}
+    private Integer readIdx(){try{return Integer.parseInt(indexField.getText().trim());}catch(Exception e){err("Enter a valid integer in Index");return null;}}
+    private void err(String m){setStatus("⚠ "+m);}
+    private void setStatus(String m){statusLabel.setText(m);headerStatusLabel.setText(m);}
 }

@@ -118,8 +118,8 @@ public class LinkedListController {
             treeGroup = new Group();
 
             // Set coordinates for Top-Right to Bottom-Left pathfinding
-            int startCol = startTopRight ? cols - 2 : 1;
-            int startRow = startTopRight ? 1 : rows - 2;
+            int startCol = startTopRight ? cols : 1;
+            int startRow = startTopRight ? 1 : rows ;
             endCol = startTopRight ? 1 : cols - 2;
             endRow = startTopRight ? rows - 2 : 1;
 

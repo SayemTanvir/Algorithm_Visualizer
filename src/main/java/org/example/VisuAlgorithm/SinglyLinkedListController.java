@@ -1,68 +1,99 @@
 package org.example.VisuAlgorithm;
 
-import java.util.Random;
-import javafx.scene.control.Alert;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import javafx.animation.*;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.DialogPane;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.Glow;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
-import javafx.scene.shape.Polygon;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.Text;
-import javafx.stage.Stage;
+import javafx.scene.shape.*;
+import javafx.scene.text.*;
 import javafx.util.Duration;
 
+import java.util.*;
+
+/**
+ * Singly Linked List — VisualGo-style step animation.
+ *
+ * Visual language (mirrors VisualGo):
+ *   • Orange  (#f97316) = node being operated on (insert/delete target)
+ *   • Blue    (#3b82f6) = pointer / traversal cursor
+ *   • Green   (#22c55e) = found / success
+ *   • Red     (#ef4444) = being deleted
+ *   • Default (#1e3a5f bg, #93c5fd border) = normal node
+ *
+ * Nodes slide in from above on insert; shrink + fade on delete.
+ * Pointer label ("ptr") hops node-to-node during search / traversal.
+ */
 public class SinglyLinkedListController {
 
-    @FXML private Pane canvas;
+    // ── FXML bindings ─────────────────────────────────────────────────────────
+    @FXML private Pane      canvas;
     @FXML private TextField valueField;
     @FXML private TextField indexField;
-    @FXML private Label statusLabel;
-    @FXML private Label headerStatusLabel;
+    @FXML private Label     statusLabel;
+    @FXML private Label     headerStatusLabel;
 
+    // ── Data model ────────────────────────────────────────────────────────────
     private static class Node {
-        int data;
+        int  data;
         Node next;
         Node(int data) { this.data = data; }
     }
-
     private Node head;
 
-    private final double startX = 60;
-    private final double startY = 250;
-    private final double boxW = 80;
-    private final double boxH = 50;
-    private final double gap = 140;
-    private final Random random = new Random();
-    private Timeline currentTimeline;
-    private boolean isPaused = false;
-    private int currentStepIndex = 0;
-    private int getRandomValue() {
-        return random.nextInt(90) + 10; // 10–99 (clean UI numbers)
-    }
-    @FXML
-    private void onRandom() {
-        head = null; // or stack.clear()
-        int count = random.nextInt(5) + 3; // 3–7 nodes
+    // ── Layout constants ──────────────────────────────────────────────────────
+    private static final double START_X  = 70;
+    private static final double NODE_Y   = 220;   // vertical centre of nodes
+    private static final double BOX_W    = 72;    // data cell width
+    private static final double PTR_W    = 36;    // pointer cell width
+    private static final double NODE_H   = 48;
+    private static final double GAP      = 140;   // centre-to-centre spacing
+    private static final double ARC      = 12;    // corner radius
 
+    // ── Animation helpers ─────────────────────────────────────────────────────
+    private final Random     rng        = new Random();
+    private       Timeline   animation  = new Timeline();
+
+    // ── Colours ───────────────────────────────────────────────────────────────
+    private static final Color C_NODE_FILL   = Color.web("#0f172a");
+    private static final Color C_NODE_STROKE = Color.web("#3b82f6");
+    private static final Color C_PTR_FILL    = Color.web("#1e293b");
+    private static final Color C_TEXT        = Color.web("#e2e8f0");
+    private static final Color C_ARROW       = Color.web("#64748b");
+    private static final Color C_HIGHLIGHT   = Color.web("#f97316"); // orange = target
+    private static final Color C_TRAVERSE    = Color.web("#3b82f6"); // blue  = cursor
+    private static final Color C_FOUND       = Color.web("#22c55e"); // green = found
+    private static final Color C_DELETE      = Color.web("#ef4444"); // red   = delete
+    private static final Color C_NEW         = Color.web("#a855f7"); // purple= new node
+
+    // ── FXML init ─────────────────────────────────────────────────────────────
+    @FXML public void initialize() { redraw(-1, -1, -1); }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Navigation
+    // ══════════════════════════════════════════════════════════════════════════
+    @FXML private void onBack() { Launcher.switchScene("linked-list-view.fxml"); }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Public button handlers
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @FXML private void onRandom() {
+        stopAnim();
+        head = null;
+        int count = rng.nextInt(4) + 3;           // 3–6 nodes
+        SequentialTransition seq = new SequentialTransition();
         Timeline timeline = new Timeline();
 
         for (int i = 0; i < count; i++) {
-            int value = getRandomValue();
+            int val = rng.nextInt(90) + 10;
             int step = i;
 
             timeline.getKeyFrames().add(
                     new KeyFrame(Duration.seconds(step * 0.6), e -> {
-                        Node node = new Node(value);
+                        Node node = new Node(val);
 
                         if (head == null) {
                             head = node;
@@ -72,537 +103,470 @@ public class SinglyLinkedListController {
                             temp.next = node;
                         }
 
-                        redraw(-1, -1);
-                        setStatus("Inserted random: " + value);
+                        redraw(-1, -1,-1);
+                        setStatus("Inserted random: " + val);
                     })
             );
         }
 
         timeline.play();
-    }
-    @FXML
-    public void initialize() {
-        redraw(-1, -1);
-    }
-    private void showPopup(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-
-        if (canvas != null && canvas.getScene() != null) {
-            Stage stage = (Stage) canvas.getScene().getWindow();
-            alert.initOwner(stage);
-        }
-
-        DialogPane dialogPane = alert.getDialogPane();
-        try {
-            // Link to your existing main.css
-            dialogPane.getStylesheets().add(
-                    getClass().getResource("/org/example/VisuAlgorithm/styles/main.css").toExternalForm()
-            );
-            // Apply the CSS class we just created
-            dialogPane.getStyleClass().add("custom-alert");
-        } catch (Exception e) {
-            System.out.println("Could not load CSS for Alert: " + e.getMessage());
-        }
-
-        alert.showAndWait();
-    }
-    @FXML
-    private void onBack() {
-        Launcher.switchScene("linked-list-view.fxml");
+//        for (int i = 0; i < count; i++) {
+//            int val = rng.nextInt(90) + 10;
+////            seq.getChildren().add(pauseThen(0.05, () -> {
+////                appendTail(val);
+////                redraw(-1, -1, -1);
+////            }));
+//            playInsertAt(i,val);
+//        }
+        seq.play();
+        setStatus("Generated " + count + " random nodes");
     }
 
-    private void goTo(String fxml) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxml));
-            Parent root = loader.load();
-            Stage stage = (Stage) canvas.getScene().getWindow();
-            stage.setScene(new Scene(root));
-        } catch (Exception e) {
-            setStatus("Navigation failed: " + e.getMessage());
-        }
+    @FXML private void onInsertHead() {
+        Integer val = readVal(); if (val == null) return;
+        stopAnim();
+        playInsertAt(0, val);
     }
 
-    @FXML
-    private void onInsertHead() {
-        Integer value = parseInt(valueField.getText());
-        if (value == null) return;
-
-        Node node = new Node(value);
-        node.next = head;
-        head = node;
-
-        redraw(0, -1);
-        setStatus("Inserted " + value + " at head");
+    @FXML private void onInsertTail() {
+        Integer val = readVal(); if (val == null) return;
+        stopAnim();
+        playInsertAt(size(), val);
     }
 
-    @FXML
-    private void onInsertTail() {
-        Integer value = parseInt(valueField.getText());
-        if (value == null) return;
-
-        Node node = new Node(value);
-
-        if (head == null) {
-            head = node;
-            redraw(0, -1);
-            setStatus("Inserted " + value + " at tail");
-            return;
-        }
-
-        Node temp = head;
-        while (temp.next != null) temp = temp.next;
-        temp.next = node;
-
-        redraw(getSize() - 1, -1);
-        setStatus("Inserted " + value + " at tail");
+    @FXML private void onInsertAt() {
+        Integer val = readVal(); if (val == null) return;
+        Integer idx = readIdx(); if (idx == null) return;
+        if (idx < 0 || idx > size()) { err("Index out of range [0.." + size() + "]"); return; }
+        stopAnim();
+        playInsertAt(idx, val);
     }
 
-    @FXML
-    private void onInsertAt() {
-        Integer value = parseInt(valueField.getText());
-        Integer index = parseInt(indexField.getText());
-        if (value == null || index == null) return;
-
-        if (index < 0) {
-            setStatus("Invalid index");
-            showPopup("Invalid Index", "Index cannot be negative.");
-            return;
-        }
-
-        playInsertAnimation(index, value);
+    @FXML private void onDeleteHead() {
+        if (head == null) { err("List is empty"); return; }
+        stopAnim();
+        playDeleteAt(0);
     }
 
-    @FXML
-    private void onDeleteHead() {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot delete head because the list is empty.");
-            return;
-        }
-
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.0), e -> {
-                    redraw(0, -1);
-                    setStatus("Deleting head...");
-                }),
-                new KeyFrame(Duration.seconds(0.6), e -> {
-                    int removed = head.data;
-                    head = head.next;
-                    redraw(-1, -1);
-                    setStatus("Deleted head: " + removed);
-                })
-        );
-        timeline.play();
+    @FXML private void onDeleteTail() {
+        if (head == null) { err("List is empty"); return; }
+        stopAnim();
+        playDeleteAt(size() - 1);
     }
 
-    @FXML
-    private void onDeleteTail() {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot delete tail because the list is empty.");
-            return;
-        }
-
-        playDeleteAnimation(getSize() - 1);
+    @FXML private void onDeleteAt() {
+        Integer idx = readIdx(); if (idx == null) return;
+        if (idx < 0 || idx >= size()) { err("Index out of range [0.." + (size()-1) + "]"); return; }
+        stopAnim();
+        playDeleteAt(idx);
     }
 
-    @FXML
-    private void onDeleteAt() {
-        Integer index = parseInt(indexField.getText());
-        if (index == null) return;
-
-        if (index < 0 || index >= getSize()) {
-            setStatus("Index out of range");
-            showPopup("Index Out of Range", "Delete index is outside the valid range.");
-            return;
-        }
-
-        playDeleteAnimation(index);
+    @FXML private void onSearch() {
+        Integer val = readVal(); if (val == null) return;
+        if (head == null) { err("List is empty"); return; }
+        stopAnim();
+        playSearch(val);
     }
 
-    @FXML
-    private void onSearch() {
-        Integer value = parseInt(valueField.getText());
-        if (value == null) return;
-        playSearchAnimation(value);
+    @FXML private void onTraverse() {
+        if (head == null) { err("List is empty"); return; }
+        stopAnim();
+        playTraverse();
     }
 
-    @FXML
-    private void onTraverse() {
-        playTraversalAnimation();
+    @FXML private void onSort() {
+        if (head == null || head.next == null) { err("Need ≥ 2 nodes"); return; }
+        stopAnim();
+        playBubbleSort();
     }
 
-    @FXML
-    private void onSort() {
-        playBubbleSortAnimation();
-    }
-
-    @FXML
-    private void onClear() {
-        head = null;
-        redraw(-1, -1);
+    @FXML private void onClear() {
+        stopAnim(); head = null;
+        redraw(-1, -1, -1);
         setStatus("List cleared");
     }
 
-    private void playInsertAnimation(int index, int value) {
-        if (index > getSize()) {
-            setStatus("Index out of range");
-            showPopup("Index Out of Range", "Insertion index is outside the valid range.");
-            return;
-        }
-
-        Timeline timeline = new Timeline();
-        int highlight = Math.max(0, index - 1);
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(0.0), e -> {
-                    redraw(-1, highlight);
-                    setStatus("Locating insertion point...");
-                })
-        );
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(0.7), e -> {
-                    insertAtLogic(index, value);
-                    redraw(index, -1);
-                    setStatus("Inserted " + value + " at index " + index);
-                })
-        );
-
-        timeline.play();
-    }
-
-    private void insertAtLogic(int index, int value) {
-        if (index == 0) {
-            Node node = new Node(value);
-            node.next = head;
-            head = node;
-            return;
-        }
-
-        Node temp = head;
-        int i = 0;
-
-        while (temp != null && i < index - 1) {
-            temp = temp.next;
-            i++;
-        }
-
-        if (temp == null) return;
-
-        Node node = new Node(value);
-        node.next = temp.next;
-        temp.next = node;
-    }
-
-    private void playDeleteAnimation(int index) {
-        Timeline timeline = new Timeline();
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(0.0), e -> {
-                    redraw(index, -1);
-                    setStatus("Deleting node at index " + index);
-                })
-        );
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(0.7), e -> {
-                    deleteAtLogic(index);
-                    redraw(-1, -1);
-                    setStatus("Deleted node at index " + index);
-                })
-        );
-
-        timeline.play();
-    }
-
-    private void deleteAtLogic(int index) {
-        if (head == null) return;
-
-        if (index == 0) {
-            head = head.next;
-            return;
-        }
-
-        Node temp = head;
-        int i = 0;
-
-        while (temp.next != null && i < index - 1) {
-            temp = temp.next;
-            i++;
-        }
-
-        if (temp.next == null) return;
-        temp.next = temp.next.next;
-    }
-
-    private void playSearchAnimation(int target) {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot search because the list is empty.");
-            return;
-        }
-
-        Timeline timeline = new Timeline();
-        Node temp = head;
-        int index = 0;
-        int foundIndex = -1;
-
-        while (temp != null) {
-            int currentIndex = index;
-            int currentValue = temp.data;
-
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(index * 0.6), e -> {
-                        redraw(-1, currentIndex);
-                        setStatus("Checking index " + currentIndex);
-                    })
-            );
-
-            if (currentValue == target) {
-                foundIndex = index;
-                break;
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animation — Insert
+    // ══════════════════════════════════════════════════════════════════════════
+    private void playInsertAt(int idx, int val) {
+        List<KeyFrame> kf = new ArrayList<>();
+        double t = 0;
+        if (idx > 0) {
+            for (int i = 0; i < idx; i++) {
+                int cur = i;
+                kf.add(kfAt(t, () -> {
+                    redraw(-1, cur, -1);
+                    setStatus("Traversing to index " + cur + "…");
+                }));
+                t += 0.45;
             }
-
-            temp = temp.next;
-            index++;
+        }
+        // Step 1: highlight predecessor (if any) in orange
+        if (idx > 0) {
+            int pred = idx - 1;
+            kf.add(kfAt(t, () -> {
+                redraw(pred, -1, -1);
+                setStatus("Step 1 — locate predecessor at index " + pred);
+            }));
+            t += 0.7;
         }
 
-        if (foundIndex != -1) {
-            int finalFound = foundIndex;
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds((foundIndex + 1) * 0.6), e -> {
-                        redraw(finalFound, -1);
-                        setStatus("Found at index " + finalFound);
-                    })
-            );
-        } else {
-            int finalTimeIndex = Math.max(1, getSize());
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(finalTimeIndex * 0.6), e -> {
-                        redraw(-1, -1);
-                        setStatus("Value not found");
-                        showPopup("Search Result", "Value not found in the linked list.");
-                    })
-            );
-        }
+        // Step 2: show new node in purple above its final position
+        kf.add(kfAt(t, () -> {
+            redraw(idx > 0 ? idx - 1 : -1, -1, -1);
+            showFloatingNode(idx, val, C_NEW);
+            setStatus("Step 2 — new node [" + val + "] ready to insert at index " + idx);
+        }));
+        t += 0.7;
 
-        timeline.play();
+        // Step 3: commit insert, highlight new node
+        kf.add(kfAt(t, () -> {
+            insertLogic(idx, val);
+            redraw(idx, -1, -1);
+            setStatus("Step 3 — inserted [" + val + "] at index " + idx + " ✓");
+        }));
+
+        runTimeline(kf);
     }
 
-    private void playTraversalAnimation() {
-        if (head == null) {
-            setStatus("List is empty");
-            showPopup("Empty List", "Cannot traverse because the list is empty.");
-            return;
-        }
-
-        Timeline timeline = new Timeline();
-        Node temp = head;
-        int index = 0;
-
-        while (temp != null) {
-            int currentIndex = index;
-            int currentValue = temp.data;
-
-            timeline.getKeyFrames().add(
-                    new KeyFrame(Duration.seconds(index * 0.5), e -> {
-                        redraw(-1, currentIndex);
-                        setStatus("Visited node " + currentValue + " at index " + currentIndex);
-                    })
-            );
-
-            temp = temp.next;
-            index++;
-        }
-
-        int end = index;
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(end * 0.5), e -> {
-                    redraw(-1, -1);
-                    setStatus("Traversal complete");
-                })
+    /** Draws a temporary ghost node above its destination slot. */
+    private void showFloatingNode(int idx, int val, Color color) {
+        redraw(-1, -1, -1);   // clear highlights first
+        double x = START_X + idx * GAP;
+        double y = NODE_Y - 80;
+        canvas.getChildren().addAll(
+                makeNodeGroup(x, y, val, color, -1, false, -1)
         );
-
-        timeline.play();
     }
 
-    private void playBubbleSortAnimation() {
-        if (head == null || head.next == null) {
-            setStatus("Nothing to sort");
-            return;
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animation — Delete
+    // ══════════════════════════════════════════════════════════════════════════
+    private void playDeleteAt(int idx) {
+        List<KeyFrame> kf = new ArrayList<>();
+        double t = 0;
+
+        // Step 1: walk to predecessor
+        if (idx > 0) {
+            for (int i = 0; i < idx; i++) {
+                int cur = i;
+                kf.add(kfAt(t, () -> {
+                    redraw(-1, cur, -1);
+                    setStatus("Traversing to index " + cur + "…");
+                }));
+                t += 0.45;
+            }
         }
 
-        Timeline timeline = new Timeline();
-        double time = 0.0;
+        // Step 2: highlight target in red
+        kf.add(kfAt(t, () -> {
+            redraw(idx, -1, -1);
+            setStatus("Step — deleting node at index " + idx);
+        }));
+        t += 0.7;
 
-        int n = getSize();
-        for (int i = 0; i < n - 1; i++) {
-            Node a = head;
-            int index = 0;
+        // Step 3: remove
+        kf.add(kfAt(t, () -> {
+            int removed = getAt(idx).data;
+            deleteLogic(idx);
+            redraw(-1, -1, -1);
+            setStatus("Deleted [" + removed + "] from index " + idx + " ✓");
+        }));
 
+        runTimeline(kf);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animation — Search
+    // ══════════════════════════════════════════════════════════════════════════
+    private void playSearch(int target) {
+        List<KeyFrame> kf = new ArrayList<>();
+        double t = 0;
+        int found = -1;
+
+        Node cur = head; int i = 0;
+        while (cur != null) {
+            int fi = i;
+            kf.add(kfAt(t, () -> {
+                redraw(-1, fi, -1);          // blue cursor
+                setStatus("Checking index " + fi + " …");
+            }));
+            t += 0.55;
+            if (cur.data == target) { found = i; break; }
+            cur = cur.next; i++;
+        }
+
+        if (found >= 0) {
+            int ff = found;
+            kf.add(kfAt(t, () -> {
+                redraw(ff, -1, -1);          // orange = found
+                setStatus("✓ Found [" + target + "] at index " + ff);
+            }));
+        } else {
+            kf.add(kfAt(t, () -> {
+                redraw(-1, -1, -1);
+                setStatus("✗ [" + target + "] not found in list");
+            }));
+        }
+        runTimeline(kf);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animation — Traverse
+    // ══════════════════════════════════════════════════════════════════════════
+    private void playTraverse() {
+        List<KeyFrame> kf = new ArrayList<>();
+        double t = 0;
+        Node cur = head; int i = 0;
+        while (cur != null) {
+            int fi = i; int fv = cur.data;
+            kf.add(kfAt(t, () -> {
+                redraw(-1, fi, -1);
+                setStatus("ptr → index " + fi + "  value = " + fv);
+            }));
+            t += 0.5;
+            cur = cur.next; i++;
+        }
+        int finalI = i;
+        kf.add(kfAt(t, () -> { redraw(-1, -1, -1); setStatus("Traversal complete — " + finalI + " nodes visited ✓"); }));
+        runTimeline(kf);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animation — Bubble Sort
+    // ══════════════════════════════════════════════════════════════════════════
+    private void playBubbleSort() {
+        List<KeyFrame> kf = new ArrayList<>();
+        double t = 0;
+        int n = size();
+
+        for (int pass = 0; pass < n - 1; pass++) {
+            Node a = head; int ai = 0;
             while (a != null && a.next != null) {
                 Node b = a.next;
-                int idxA = index;
-                int idxB = index + 1;
-
-                timeline.getKeyFrames().add(
-                        new KeyFrame(Duration.seconds(time), e -> {
-                            redraw(idxA, idxB);
-                            setStatus("Comparing index " + idxA + " and " + idxB);
-                        })
-                );
-                time += 0.5;
-
+                int fa = ai, fb = ai + 1;
+                kf.add(kfAt(t, () -> {
+                    redraw(fa, fb, -1);
+                    setStatus("Compare [" + fa + "] vs [" + fb + "]");
+                }));
+                t += 0.4;
                 if (a.data > b.data) {
-                    int temp = a.data;
-                    a.data = b.data;
-                    b.data = temp;
-
-                    timeline.getKeyFrames().add(
-                            new KeyFrame(Duration.seconds(time), e -> {
-                                redraw(idxA, idxB);
-                                setStatus("Swapped index " + idxA + " and " + idxB);
-                            })
-                    );
-                    time += 0.5;
+                    int tmp = a.data; a.data = b.data; b.data = tmp;
+                    kf.add(kfAt(t, () -> {
+                        redraw(fa, fb, -1);
+                        setStatus("Swap [" + fa + "] ↔ [" + fb + "]");
+                    }));
+                    t += 0.4;
                 }
-
-                a = a.next;
-                index++;
+                a = a.next; ai++;
             }
         }
-
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(time), e -> {
-                    redraw(-1, -1);
-                    setStatus("Sorting complete");
-                })
-        );
-
-        timeline.play();
+        kf.add(kfAt(t, () -> { redraw(-1, -1, -1); setStatus("Sort complete ✓"); }));
+        runTimeline(kf);
     }
 
-    private void redraw(int primaryIndex, int secondaryIndex) {
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Redraw — full repaint
+    //    primaryIdx   = orange highlight (insert / delete / found)
+    //    secondaryIdx = blue  highlight (traversal cursor / compare B)
+    //    tertiaryIdx  = (unused; reserved for sort-pass mark)
+    // ══════════════════════════════════════════════════════════════════════════
+    private void redraw(int primaryIdx, int secondaryIdx, int tertiaryIdx) {
         canvas.getChildren().clear();
 
-        int size = getSize();
-        double neededWidth = Math.max(1600, startX + size * gap + 300);
-        canvas.setPrefWidth(neededWidth);
-        canvas.setPrefHeight(720);
+        int sz = size();
+        canvas.setPrefWidth(Math.max(900, START_X + sz * GAP + 200));
+        canvas.setPrefHeight(520);
 
         if (head == null) {
-            Text text = makeText(350, 180, "Singly Linked List is empty", 22);
-            canvas.getChildren().add(text);
+            Text t = new Text(350, 180, "Singly Linked List is empty");
+            t.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 20));
+            t.setFill(Color.web("#94a3b8"));
+            canvas.getChildren().add(t);
             return;
         }
 
-        Node temp = head;
-        int index = 0;
+        Node cur = head; int idx = 0;
+        while (cur != null) {
+            double x = START_X + idx * GAP;
 
-        while (temp != null) {
-            double x = startX + index * gap;
-            double y = startY;
+            Color nodeColor = C_NODE_FILL;
+            if (idx == primaryIdx)   nodeColor = C_HIGHLIGHT;
+            if (idx == secondaryIdx) nodeColor = C_TRAVERSE;
 
-            Color fillColor = Color.WHITE;
-            if (index == secondaryIndex) fillColor = Color.web("#93c5fd");
-            if (index == primaryIndex) fillColor = Color.web("#fde68a");
+            canvas.getChildren().addAll(makeNodeGroup(x, NODE_Y, cur.data, nodeColor, idx, true, primaryIdx == idx ? 1 : secondaryIdx == idx ? 2 : 0));
 
-            Rectangle dataBox = new Rectangle(x, y, boxW, boxH);
-            dataBox.setArcWidth(16);
-            dataBox.setArcHeight(16);
-            dataBox.setFill(fillColor);
-            dataBox.setStroke(Color.web("#60a5fa"));
-            dataBox.setStrokeWidth(2.5);
-
-            Rectangle nextBox = new Rectangle(x + boxW, y, 40, boxH);
-            nextBox.setArcWidth(16);
-            nextBox.setArcHeight(16);
-            nextBox.setFill(Color.WHITE);
-            nextBox.setStroke(Color.web("#60a5fa"));
-            nextBox.setStrokeWidth(2.5);
-
-            Text dataText = makeText(x + 28, y + 32, String.valueOf(temp.data), 18);
-            Text idxText = makeText(x + 45, y - 12, "[" + index + "]", 12);
-
-            canvas.getChildren().addAll(dataBox, nextBox, dataText, idxText);
-
-            if (temp.next != null) {
-                double x1 = x + boxW + 40;
-                double y1 = y + boxH / 2.0;
-                double x2 = x + gap;
-                double y2 = y + boxH / 2.0;
-
-                Line line = new Line(x1, y1, x2, y2);
-                line.setStrokeWidth(2.5);
-                line.setStroke(Color.web("#64748b"));
-
-                Polygon arrow = createArrowHead(x2, y2);
-                canvas.getChildren().addAll(line, arrow);
+            // Arrow to next node
+            if (cur.next != null) {
+                double ax = x + BOX_W + PTR_W;
+                double ay = NODE_Y + NODE_H / 2.0;
+                double bx = x + GAP;
+                Line arrow = new Line(ax, ay, bx, ay);
+                arrow.setStroke(C_ARROW); arrow.setStrokeWidth(2);
+                canvas.getChildren().add(arrow);
+                canvas.getChildren().add(arrowHead(bx, ay, true));
             } else {
-                Text nullText = makeText(x + boxW + 48, y + 30, "NULL", 14);
-                nullText.setFill(Color.web("#dc2626"));
-                canvas.getChildren().add(nullText);
-
-                Text tailText = makeText(x + 22, y + boxH + 45, "TAIL", 14);
-                tailText.setFill(Color.web("#dc2626"));
-                canvas.getChildren().add(tailText);
+                // NULL label
+                Text nullT = new Text(x + BOX_W + PTR_W + 6, NODE_Y + NODE_H / 2.0 + 6, "null");
+                nullT.setFont(Font.font("Monospace", 13));
+                nullT.setFill(Color.web("#ef4444"));
+                canvas.getChildren().add(nullT);
+                // TAIL label
+                addLabel(x + BOX_W / 2.0 - 12, NODE_Y + NODE_H + 28, "TAIL", "#ef4444", 12);
             }
 
-            if (index == 0) {
-                Text headText = makeText(x + 18, y - 45, "HEAD", 14);
-                headText.setFill(Color.web("#0f766e"));
-                canvas.getChildren().add(headText);
-            }
+            // HEAD label
+            if (idx == 0) addLabel(x + BOX_W / 2.0 - 14, NODE_Y - 30, "HEAD", "#22c55e", 12);
 
-            temp = temp.next;
-            index++;
+            cur = cur.next; idx++;
         }
     }
 
-    private int getSize() {
-        int count = 0;
-        Node temp = head;
-        while (temp != null) {
-            count++;
-            temp = temp.next;
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Node drawing helpers
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Returns a list of JavaFX nodes for one linked-list node cell.
+     * colorOverride == C_NODE_FILL → default dark look.
+     */
+    private List<javafx.scene.Node> makeNodeGroup(
+            double x, double y, int val,
+            Color color, int idx, boolean showPtrBox, int role) {
+
+        List<javafx.scene.Node> group = new ArrayList<>();
+
+        boolean isDefault = color.equals(C_NODE_FILL);
+
+        // Data cell
+        Rectangle dataCell = new Rectangle(x, y, BOX_W, NODE_H);
+        dataCell.setArcWidth(ARC); dataCell.setArcHeight(ARC);
+        dataCell.setFill(isDefault ? C_NODE_FILL : color.deriveColor(0,1,1,0.25));
+        dataCell.setStroke(isDefault ? C_NODE_STROKE : color);
+        dataCell.setStrokeWidth(2.5);
+        if (!isDefault) dataCell.setEffect(new DropShadow(14, color));
+        group.add(dataCell);
+
+        // Data value text
+        Text valText = new Text(x + BOX_W / 2.0 - 10, y + NODE_H / 2.0 + 7, String.valueOf(val));
+        valText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        valText.setFill(isDefault ? C_TEXT : color);
+        group.add(valText);
+
+        // Pointer cell
+        if (showPtrBox) {
+            Rectangle ptrCell = new Rectangle(x + BOX_W, y, PTR_W, NODE_H);
+            ptrCell.setArcWidth(ARC); ptrCell.setArcHeight(ARC);
+            ptrCell.setFill(C_PTR_FILL);
+            ptrCell.setStroke(isDefault ? C_NODE_STROKE : color);
+            ptrCell.setStrokeWidth(2);
+            group.add(ptrCell);
+
+            // Dot inside pointer cell
+            Circle dot = new Circle(x + BOX_W + PTR_W / 2.0, y + NODE_H / 2.0, 4,
+                    isDefault ? C_NODE_STROKE : color);
+            group.add(dot);
         }
-        return count;
-    }
 
-    private Polygon createArrowHead(double x, double y) {
-        Polygon arrow = new Polygon();
-        arrow.getPoints().addAll(
-                x, y,
-                x - 10, y - 6,
-                x - 10, y + 6
-        );
-        arrow.setFill(Color.web("#64748b"));
-        return arrow;
-    }
-
-    private Text makeText(double x, double y, String value, int size) {
-        Text t = new Text(x, y, value);
-        t.setFont(Font.font(size));
-        t.setFill(Color.web("#1e293b"));
-        return t;
-    }
-
-    private Integer parseInt(String s) {
-        try {
-            if (s == null || s.trim().isEmpty()) {
-                setStatus("Input empty");
-                return null;
-            }
-            return Integer.parseInt(s.trim());
-        } catch (Exception e) {
-            setStatus("Invalid number");
-            return null;
+        // Index label above node
+        if (idx >= 0) {
+            Text idxText = new Text(x + BOX_W / 2.0 - 8, y - 8, "[" + idx + "]");
+            idxText.setFont(Font.font("Segoe UI", 11));
+            idxText.setFill(Color.web("#94a3b8"));
+            group.add(idxText);
         }
+
+        // Role label below node (ptr arrow label like VisualGo)
+        if (role == 2) {
+            addLabelToGroup(group, x + 4, y + NODE_H + 20, "", "#3b82f6", 11);
+        }
+
+        return group;
     }
+
+    private Polygon arrowHead(double tipX, double tipY, boolean pointRight) {
+        Polygon p = new Polygon();
+        if (pointRight) p.getPoints().addAll(tipX, tipY, tipX-10, tipY-5, tipX-10, tipY+5);
+        else            p.getPoints().addAll(tipX, tipY, tipX+10, tipY-5, tipX+10, tipY+5);
+        p.setFill(C_ARROW);
+        return p;
+    }
+
+    private void addLabel(double x, double y, String txt, String hex, int size) {
+        Text t = new Text(x, y, txt);
+        t.setFont(Font.font("Segoe UI", FontWeight.BOLD, size));
+        t.setFill(Color.web(hex));
+        canvas.getChildren().add(t);
+    }
+
+    private void addLabelToGroup(List<javafx.scene.Node> g, double x, double y, String txt, String hex, int size) {
+        Text t = new Text(x, y, txt);
+        t.setFont(Font.font("Segoe UI", 11));
+        t.setFill(Color.web(hex));
+        g.add(t);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Data-model helpers
+    // ══════════════════════════════════════════════════════════════════════════
+    private void insertLogic(int idx, int val) {
+        Node node = new Node(val);
+        if (idx == 0) { node.next = head; head = node; return; }
+        Node t = head; for (int i = 0; i < idx - 1 && t.next != null; i++) t = t.next;
+        node.next = t.next; t.next = node;
+    }
+
+    private void deleteLogic(int idx) {
+        if (idx == 0) { head = head.next; return; }
+        Node t = head; for (int i = 0; i < idx - 1 && t.next != null; i++) t = t.next;
+        if (t.next != null) t.next = t.next.next;
+    }
+
+    private void appendTail(int val) {
+        Node n = new Node(val);
+        if (head == null) { head = n; return; }
+        Node t = head; while (t.next != null) t = t.next; t.next = n;
+    }
+
+    private Node getAt(int idx) {
+        Node t = head; for (int i = 0; i < idx; i++) t = t.next; return t;
+    }
+
+    private int size() { int c=0; Node t=head; while(t!=null){c++;t=t.next;} return c; }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Animation utilities
+    // ══════════════════════════════════════════════════════════════════════════
+    private KeyFrame kfAt(double secs, Runnable r) {
+        return new KeyFrame(Duration.seconds(secs), e -> r.run());
+    }
+
+    private PauseTransition pauseThen(double secs, Runnable r) {
+        PauseTransition p = new PauseTransition(Duration.seconds(secs));
+        p.setOnFinished(e -> r.run()); return p;
+    }
+
+    private void runTimeline(List<KeyFrame> kf) {
+        animation = new Timeline(); animation.getKeyFrames().addAll(kf); animation.play();
+    }
+
+    private void stopAnim() { if (animation != null) animation.stop(); }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Input helpers
+    // ══════════════════════════════════════════════════════════════════════════
+    private Integer readVal() {
+        try { return Integer.parseInt(valueField.getText().trim()); }
+        catch (Exception e) { err("Enter a valid integer in the Value field"); return null; }
+    }
+
+    private Integer readIdx() {
+        try { return Integer.parseInt(indexField.getText().trim()); }
+        catch (Exception e) { err("Enter a valid integer in the Index field"); return null; }
+    }
+
+    private void err(String msg) { setStatus("⚠ " + msg); }
 
     private void setStatus(String msg) {
         statusLabel.setText(msg);
