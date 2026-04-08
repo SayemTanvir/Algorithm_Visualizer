@@ -37,6 +37,13 @@
                 <Label fx:id="headerStatusLabel"
                        text="Ready."
                        style="-fx-text-fill: #dbeafe;"/>
+
+                <Region prefWidth="15"/>
+
+                <Button fx:id="screenshotBtn" onAction="#takeScreenshot" prefHeight="32.0"
+                        style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+                <Button fx:id="recordBtn" onAction="#toggleRecording" prefHeight="32.0"
+                        style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
             </HBox>
 
             <VBox spacing="10" style="-fx-background-color: #f8fafc;">

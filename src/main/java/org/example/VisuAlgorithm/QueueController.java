@@ -1,7 +1,7 @@
 package org.example.VisuAlgorithm;
 
 import java.util.Random;
-
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -16,6 +16,23 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+
+// Capture/Recording imports
+import javafx.scene.image.WritableImage;
+import javafx.embed.swing.SwingFXUtils;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture; // <-- Added for streaming sync
+import org.jcodec.api.awt.AWTSequenceEncoder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,6 +105,16 @@ public class QueueController {
 
     @FXML
     private HBox priorityTypeBox;
+
+    // --- Capture buttons ---
+    @FXML private Button screenshotBtn;
+    @FXML private Button recordBtn;
+
+    // Recording state
+    private boolean isRecording = false;
+    private ScheduledExecutorService recordingExecutor;
+    private AWTSequenceEncoder encoder; // <-- Replaced List with direct Encoder
+    private static final int RECORD_FPS = 30; // frames per second
 
     // ---------- Modes ----------
     private enum Mode {QUEUE, DEQUE, PRIORITY_QUEUE, CIRCULAR_QUEUE}
@@ -203,6 +230,15 @@ public class QueueController {
 
     @FXML
     public void initialize() {
+        screenshotBtn.setText("📷 Snapshot");
+        recordBtn.setText("🎥 Record");
+
+        screenshotBtn.setPrefWidth(130);
+        screenshotBtn.setMinWidth(130);
+
+        recordBtn.setPrefWidth(130);
+        recordBtn.setMinWidth(130);
+
         setMode(Mode.QUEUE);
         redraw();
         setStatus("Ready.");
@@ -211,6 +247,7 @@ public class QueueController {
     // ================= BACK =================
     @FXML
     private void onBack() {
+        if (isRecording) stopRecording();
         Launcher.switchScene("hello-view.fxml"); // change if your menu fxml name is different
     }
 
@@ -774,5 +811,147 @@ public class QueueController {
     private void setStatus(String msg) {
         statusLabel.setText(msg);
         headerStatusLabel.setText(msg);
+    }
+
+    // ==========================================================================
+    // CAPTURE & RECORDING LOGIC (STREAMING FIX)
+    // ==========================================================================
+    @FXML
+    void takeScreenshot() {
+        WritableImage snapshot = canvas.snapshot(null, null);
+        BufferedImage buffered = SwingFXUtils.fromFXImage(snapshot, null);
+
+        String downloadsDir = getDownloadsPath();
+        String timestamp    = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        File   outputFile   = new File(downloadsDir, "queue_" + timestamp + ".png");
+
+        try {
+            ImageIO.write(buffered, "png", outputFile);
+            System.out.println("Screenshot saved: " + outputFile.getAbsolutePath());
+            buffered.flush(); // Prevent memory leak here too!
+        } catch (IOException ex) {
+            System.err.println("Screenshot failed: " + ex.getMessage());
+        }
+    }
+
+    @FXML
+    void toggleRecording() {
+        if (!isRecording) {
+            startRecording();
+        } else {
+            stopRecording();
+        }
+    }
+
+    private void startRecording() {
+        isRecording = true;
+        recordBtn.setText("⏹");
+        recordBtn.setStyle(
+                "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px;" +
+                        "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
+        );
+
+        // 1. Initialize the video file and encoder IMMEDIATELY
+        try {
+            String downloadsDir = getDownloadsPath();
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            File outputFile = new File(downloadsDir, "queue_rec_" + timestamp + ".mp4");
+
+            encoder = AWTSequenceEncoder.createSequenceEncoder(outputFile, RECORD_FPS);
+            System.out.println("Recording started... Streaming to: " + outputFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Failed to start video encoder: " + e.getMessage());
+            isRecording = false;
+            return;
+        }
+
+        // 2. Start the background capture loop
+        recordingExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "screen-recorder");
+            t.setDaemon(true);
+            return t;
+        });
+
+        recordingExecutor.scheduleAtFixedRate(() -> {
+            if (!isRecording) return;
+
+            try {
+                // Fetch the snapshot from the JavaFX Application Thread and WAIT for it.
+                // This ensures we don't capture faster than we can encode.
+                CompletableFuture<BufferedImage> futureFrame = new CompletableFuture<>();
+                Platform.runLater(() -> {
+                    try {
+                        WritableImage frame = canvas.snapshot(null, null);
+                        futureFrame.complete(SwingFXUtils.fromFXImage(frame, null));
+                    } catch (Exception e) {
+                        futureFrame.completeExceptionally(e);
+                    }
+                });
+
+                // Blocks the background thread until JavaFX hands over the frame
+                BufferedImage buffered = futureFrame.get();
+
+                // Process and encode immediately
+                int w = buffered.getWidth();
+                int h = buffered.getHeight();
+                int evenW = (w % 2 == 0) ? w : w + 1;
+                int evenH = (h % 2 == 0) ? h : h + 1;
+
+                BufferedImage bgrFrame = new BufferedImage(evenW, evenH, BufferedImage.TYPE_3BYTE_BGR);
+                java.awt.Graphics2D g = bgrFrame.createGraphics();
+                g.drawImage(buffered, 0, 0, evenW, evenH, null);
+                g.dispose();
+
+                // Encode the frame right into the file
+                encoder.encodeImage(bgrFrame);
+
+                // CRITICAL: Clear out the image data to prevent OutOfMemoryError
+                bgrFrame.flush();
+                buffered.flush();
+
+            } catch (Exception e) {
+                System.err.println("Dropped frame during recording: " + e.getMessage());
+            }
+        }, 0, 1000 / RECORD_FPS, TimeUnit.MILLISECONDS);
+    }
+
+    private void stopRecording() {
+        isRecording = false;
+
+        // 1. Stop the capture timer loop
+        if (recordingExecutor != null) {
+            recordingExecutor.shutdown();
+            try {
+                // Wait briefly for the last frame to finish encoding
+                recordingExecutor.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            recordingExecutor = null;
+        }
+
+        // 2. Finalize the MP4 file
+        if (encoder != null) {
+            try {
+                encoder.finish();
+                System.out.println("Recording stopped and video saved successfully.");
+            } catch (IOException e) {
+                System.err.println("Failed to finalize video: " + e.getMessage());
+            }
+            encoder = null;
+        }
+
+        // 3. Reset UI button
+        Platform.runLater(() -> {
+            recordBtn.setText("🎥 Record");
+            recordBtn.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;");
+        });
+    }
+
+    private String getDownloadsPath() {
+        String home = System.getProperty("user.home");
+        Path   dl   = Paths.get(home, "Downloads");
+        if (!dl.toFile().exists()) dl.toFile().mkdirs();
+        return dl.toString();
     }
 }

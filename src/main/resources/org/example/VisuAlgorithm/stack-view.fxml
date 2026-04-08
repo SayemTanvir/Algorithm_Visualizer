@@ -20,7 +20,6 @@
     <top>
         <VBox spacing="0">
 
-            <!-- Header -->
             <HBox alignment="CENTER_LEFT"
                   spacing="12"
                   style="-fx-background-color: linear-gradient(to right, #1e293b, #334155);">
@@ -44,9 +43,15 @@
                 <Label fx:id="headerStatusLabel"
                        text="Ready."
                        textFill="#dbeafe"/>
+
+                <Region prefWidth="15"/>
+
+                <Button fx:id="screenshotBtn" onAction="#takeScreenshot" prefHeight="32.0"
+                        style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+                <Button fx:id="recordBtn" onAction="#toggleRecording" prefHeight="32.0"
+                        style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
             </HBox>
 
-            <!-- Controls -->
             <VBox spacing="10" style="-fx-background-color: white;">
                 <padding>
                     <Insets top="12" right="16" bottom="12" left="16"/>

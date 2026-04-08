@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture; // <-- Added for streaming sync
 import org.jcodec.api.awt.AWTSequenceEncoder;
 
 import javafx.animation.KeyValue;
@@ -64,7 +65,7 @@ public class SortingController {
     // Recording state
     private boolean isRecording = false;
     private ScheduledExecutorService recordingExecutor;
-    private List<BufferedImage> recordedFrames = new ArrayList<>();
+    private AWTSequenceEncoder encoder; // <-- Replaced List with direct Encoder
     private static final int RECORD_FPS = 30; // frames per second
 
     // Sort order radio buttons
@@ -1041,14 +1042,15 @@ public class SortingController {
         try {
             ImageIO.write(buffered, "png", outputFile);
             System.out.println("Screenshot saved: " + outputFile.getAbsolutePath());
+            buffered.flush(); // Prevent memory leak here too
         } catch (IOException ex) {
             System.err.println("Screenshot failed: " + ex.getMessage());
         }
     }
 
-    // -------------------------------------------------------
-    // Video Recording: captures frames and saves as animated GIF
-    // -------------------------------------------------------
+    // ==========================================================================
+    // CAPTURE & RECORDING LOGIC (STREAMING FIX)
+    // ==========================================================================
     @FXML
     void toggleRecording() {
         if (!isRecording) {
@@ -1060,13 +1062,27 @@ public class SortingController {
 
     private void startRecording() {
         isRecording = true;
-        recordedFrames.clear();
         recordBtn.setText("⏹");
         recordBtn.setStyle(
                 "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 16px;" +
                         "-fx-background-radius: 8; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 8;"
         );
 
+        // 1. Initialize the video file and encoder IMMEDIATELY
+        try {
+            String downloadsDir = getDownloadsPath();
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            File outputFile = new File(downloadsDir, "sorting_rec_" + timestamp + ".mp4");
+
+            encoder = AWTSequenceEncoder.createSequenceEncoder(outputFile, RECORD_FPS);
+            System.out.println("Recording started... Streaming to: " + outputFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Failed to start video encoder: " + e.getMessage());
+            isRecording = false;
+            return;
+        }
+
+        // 2. Start the background capture loop
         recordingExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "screen-recorder");
             t.setDaemon(true);
@@ -1074,82 +1090,79 @@ public class SortingController {
         });
 
         recordingExecutor.scheduleAtFixedRate(() -> {
-            Platform.runLater(() -> {
-                if (!isRecording) return;
-                WritableImage frame = displayPane.snapshot(null, null);
-                BufferedImage buffered = SwingFXUtils.fromFXImage(frame, null);
-                synchronized (recordedFrames) {
-                    recordedFrames.add(buffered);
-                }
-            });
-        }, 0, 1000 / RECORD_FPS, TimeUnit.MILLISECONDS);
+            if (!isRecording) return;
 
-        System.out.println("Recording started...");
+            try {
+                // Fetch the snapshot from the JavaFX Application Thread and WAIT for it.
+                // This ensures we don't capture faster than we can encode.
+                CompletableFuture<BufferedImage> futureFrame = new CompletableFuture<>();
+                Platform.runLater(() -> {
+                    try {
+                        WritableImage frame = displayPane.snapshot(null, null);
+                        futureFrame.complete(SwingFXUtils.fromFXImage(frame, null));
+                    } catch (Exception e) {
+                        futureFrame.completeExceptionally(e);
+                    }
+                });
+
+                // Blocks the background thread until JavaFX hands over the frame
+                BufferedImage buffered = futureFrame.get();
+
+                // Process and encode immediately
+                int w = buffered.getWidth();
+                int h = buffered.getHeight();
+                int evenW = (w % 2 == 0) ? w : w + 1;
+                int evenH = (h % 2 == 0) ? h : h + 1;
+
+                BufferedImage bgrFrame = new BufferedImage(evenW, evenH, BufferedImage.TYPE_3BYTE_BGR);
+                java.awt.Graphics2D g = bgrFrame.createGraphics();
+                g.drawImage(buffered, 0, 0, evenW, evenH, null);
+                g.dispose();
+
+                // Encode the frame right into the file
+                encoder.encodeImage(bgrFrame);
+
+                // CRITICAL: Clear out the image data to prevent OutOfMemoryError
+                bgrFrame.flush();
+                buffered.flush();
+
+            } catch (Exception e) {
+                System.err.println("Dropped frame during recording: " + e.getMessage());
+            }
+        }, 0, 1000 / RECORD_FPS, TimeUnit.MILLISECONDS);
     }
 
     private void stopRecording() {
         isRecording = false;
 
+        // 1. Stop the capture timer loop
         if (recordingExecutor != null) {
-            recordingExecutor.shutdownNow();
+            recordingExecutor.shutdown();
+            try {
+                // Wait briefly for the last frame to finish encoding
+                recordingExecutor.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             recordingExecutor = null;
         }
 
-        // Instantly revert to default record state
-        recordBtn.setText("🎥 Record");
-        recordBtn.setStyle("");
-
-        List<BufferedImage> frames;
-        synchronized (recordedFrames) {
-            frames = new ArrayList<>(recordedFrames);
-        }
-
-        if (frames.isEmpty()) {
-            return;
-        }
-
-        // Save frames as mp4 video on a background thread
-        List<BufferedImage> finalFrames = frames;
-        Thread saveThread = new Thread(() -> saveMp4Video(finalFrames), "mp4-saver");
-        saveThread.setDaemon(true);
-        saveThread.start();
-    }
-
-    private void saveMp4Video(List<BufferedImage> frames) {
-        String downloadsDir = getDownloadsPath();
-        String timestamp    = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        File   outputFile   = new File(downloadsDir, "sorting_rec_" + timestamp + ".mp4");
-
-        try {
-            // 1. Grab dimensions from the first frame
-            int originalWidth = frames.get(0).getWidth();
-            int originalHeight = frames.get(0).getHeight();
-
-            // 2. Force dimensions to be even numbers (required by H.264)
-            int evenWidth = (originalWidth % 2 == 0) ? originalWidth : originalWidth + 1;
-            int evenHeight = (originalHeight % 2 == 0) ? originalHeight : originalHeight + 1;
-
-            AWTSequenceEncoder encoder = AWTSequenceEncoder.createSequenceEncoder(outputFile, RECORD_FPS);
-
-            for (BufferedImage frame : frames) {
-                // 3. Create the BGR frame using the guaranteed even dimensions
-                BufferedImage bgrFrame = new BufferedImage(evenWidth, evenHeight, BufferedImage.TYPE_3BYTE_BGR);
-                java.awt.Graphics2D g = bgrFrame.createGraphics();
-
-                // 4. Draw the original frame onto the new even-dimensioned canvas
-                g.drawImage(frame, 0, 0, evenWidth, evenHeight, null);
-                g.dispose();
-
-                // Encode the converted frame
-                encoder.encodeImage(bgrFrame);
+        // 2. Finalize the MP4 file
+        if (encoder != null) {
+            try {
+                encoder.finish();
+                System.out.println("Recording stopped and video saved successfully.");
+            } catch (IOException e) {
+                System.err.println("Failed to finalize video: " + e.getMessage());
             }
-
-            encoder.finish();
-            System.out.println("Video saved: " + outputFile.getAbsolutePath());
-        } catch (Exception ex) {
-            System.err.println("Video save failed: " + ex.getMessage());
-            ex.printStackTrace();
+            encoder = null;
         }
+
+        // 3. Reset UI button
+        Platform.runLater(() -> {
+            recordBtn.setText("🎥 Record");
+            recordBtn.setStyle("");
+        });
     }
 
     // -------------------------------------------------------
