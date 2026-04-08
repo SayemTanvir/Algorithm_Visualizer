@@ -24,8 +24,16 @@
             </Label>
 
             <Pane HBox.hgrow="ALWAYS"/>
+
             <Label fx:id="modeLabel" text="Mode: Fixed Array"
                    style="-fx-text-fill: #cbd5e1; -fx-font-weight: bold;"/>
+
+            <Region prefWidth="15"/>
+
+            <Button fx:id="screenshotBtn" onAction="#takeScreenshot" prefHeight="32.0"
+                    style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+            <Button fx:id="recordBtn" onAction="#toggleRecording" prefHeight="32.0"
+                    style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
         </HBox>
     </top>
 
@@ -103,7 +111,7 @@
     </left>
 
     <center>
-        <VBox spacing="15" alignment="TOP_CENTER">
+        <VBox fx:id="capturePane" spacing="15" alignment="TOP_CENTER">
             <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
 
             <Label fx:id="statusLabel" text="Create an array to start" textFill="#2563eb">
