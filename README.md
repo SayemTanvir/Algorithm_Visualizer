@@ -1,4 +1,4 @@
-<div align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=36&duration=3000&pause=1000&color=6366F1&center=true&vCenter=true&width=750&lines=VisuAlgorithm;Visualize.+Understand.+Conquer." alt="Typing SVG" /></div>
+<div align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=36&duration=3000&pause=1000&color=6366F1&center=true&vCenter=true&width=750&lines=VisuAlgorithm;Visualize.+Understand.+Master." alt="Typing SVG" /></div>
 
 An interactive desktop application for visualizing Data Structures & Algorithms — built with Java & JavaFX
 
