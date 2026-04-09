@@ -1,0 +1,55 @@
+/*
+ * splash.css  —  VisuAlgorithm Intro / Splash Screen Styles
+ * Place at: src/main/resources/org/example/VisuAlgorithm/styles/splash.css
+ *
+ * JavaFX CSS reference: https://openjfx.io/javadoc/21/javafx.graphics/javafx/scene/doc-files/cssref.html
+ */
+
+/* ── Root / background ─────────────────────────────────────────────────────── */
+.splash-root {
+    /*
+     * JavaFX radial-gradient syntax:
+     *   radial-gradient(focus-angle <a>, focus-distance <d>, center <cx> <cy>,
+     *                   radius <r>, <stop1>, <stop2>, ...)
+     * A simple two-stop radial gives a "spotlight" look on the dark background.
+     */
+    -fx-background-color:
+        radial-gradient(
+            focus-angle 0deg,
+            focus-distance 0%,
+            center 50% 38%,
+            radius 72%,
+            #0d1b2e,
+            #000810
+        );
+}
+
+/* ── App title ─────────────────────────────────────────────────────────────── */
+.splash-title {
+    -fx-font-family: "Segoe UI", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    -fx-font-size: 50px;
+    -fx-font-weight: 900;          /* heaviest weight available */
+    -fx-text-fill: white;
+
+    /*
+     * JavaFX dropshadow() shorthand:
+     *   dropshadow(<blur-type>, <color>, <radius>, <spread>, <dx>, <dy>)
+     * We use gaussian with a cyan tint to simulate a neon glow.
+     */
+    -fx-effect: dropshadow(gaussian, rgba(0, 212, 255, 0.85), 26, 0.30, 0, 0);
+}
+
+/* ── Tagline / subtitle ────────────────────────────────────────────────────── */
+.splash-sub {
+    -fx-font-family: "Segoe UI", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    -fx-font-size: 15px;
+    -fx-font-style: italic;
+    -fx-text-fill: rgba(148, 220, 255, 0.82);
+}
+
+/* ── Animated dots hint ────────────────────────────────────────────────────── */
+.splash-hint {
+    -fx-font-size: 16px;
+    -fx-text-fill: rgba(0, 212, 255, 0.55);
+    /* Controller applies a FadeTransition pulse on this label */
+}

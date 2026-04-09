@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.VisuAlgorithm.graphController"
+            style="-fx-background-color: #f4f6f8;">
+
+    <fx:define>
+        <ToggleGroup fx:id="toolGroup"/>
+    </fx:define>
+
+    <top>
+        <VBox>
+            <HBox alignment="CENTER_LEFT" prefHeight="60.0" spacing="20.0"
+                  style="-fx-background-color: linear-gradient(to right, #1e293b, #334155); -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);">
+                <padding>
+                    <Insets left="20.0" right="20.0" top="12.0" bottom="12.0" />
+                </padding>
+                <children>
+                    <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBackButton" prefHeight="32.0"
+                            style="-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;"
+                            text="← Back" />
+                    <Label text="Graph" textFill="white">
+                        <font>
+                            <Font name="System Bold" size="26.0" />
+                        </font>
+                    </Label>
+
+                    <Region HBox.hgrow="ALWAYS" />
+
+                    <Button fx:id="screenshotBtn" onAction="#takeScreenshot" prefHeight="32.0"
+                            style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+                    <Button fx:id="recordBtn" onAction="#toggleRecording" prefHeight="32.0"
+                            style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+                </children>
+            </HBox>
+
+            <StackPane>
+                <ToolBar fx:id="buildToolbar"
+                         style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1 0; -fx-padding: 12 15;">
+
+                    <ToggleButton text="Node" fx:id="nodeTool" toggleGroup="$toolGroup" selected="true"
+                                  style="-fx-cursor: hand;"/>
+                    <ToggleButton text="Edge" fx:id="edgeTool" toggleGroup="$toolGroup"
+                                  style="-fx-cursor: hand;"/>
+
+                    <Separator/>
+
+                    <CheckBox text="Directed" fx:id="directedCheck" style="-fx-text-fill: #374151; -fx-font-weight: bold;"/>
+                    <CheckBox text="Weighted" fx:id="weightedCheck" style="-fx-text-fill: #374151; -fx-font-weight: bold;"/>
+                    <TextField fx:id="weightField" prefWidth="60" promptText="1"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4;"/>
+
+                    <Separator/>
+
+                    <CheckBox text="Custom Node" fx:id="customNodeCheck" style="-fx-text-fill: #374151; -fx-font-weight: bold;"/>
+                    <TextField fx:id="nodeValueField" prefWidth="60" promptText="Val"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4;"/>
+
+                    <Separator/>
+
+                    <Button text="Delete" onAction="#deleteSelected"
+                            style="-fx-background-color: #fee2e2; -fx-text-fill: #b91c1c; -fx-border-color: #f87171; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Random" onAction="#generateRandomGraph"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Clear" onAction="#clearGraph"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+
+                    <Separator/>
+
+                    <Button text="Algorithms ➔" onAction="#switchToAlgoMode"
+                            style="-fx-background-color: #3b82f6; -fx-text-fill: #ffffff; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;"/>
+
+                    <Separator/>
+
+                    <ToggleButton fx:id="dataToggleBuild" text="📊 Data" onAction="#toggleDataPane"
+                                  style="-fx-cursor: hand;"/>
+                </ToolBar>
+
+                <ToolBar fx:id="algoToolbar" visible="false"
+                         style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1 0; -fx-padding: 12 15;">
+                    <Button text="⬅ Build Mode" onAction="#switchToBuildMode"
+                            style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: #374151; -fx-cursor: hand; -fx-font-weight: bold;"/>
+
+                    <Separator/>
+
+                    <ComboBox fx:id="algoComboBox" promptText="Select Algorithm"
+                              style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4; -fx-cursor: hand;"/>
+                    <TextField fx:id="startNodeField" promptText="Start Node" prefWidth="80"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4;"/>
+                    <TextField fx:id="endNodeField" promptText="End (Dijkstra)" prefWidth="100"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4;"/>
+
+                    <Separator/>
+
+                    <ToggleButton fx:id="dataToggleAlgo" text="📊 Data" onAction="#toggleDataPane"
+                                  style="-fx-cursor: hand;"/>
+                </ToolBar>
+            </StackPane>
+        </VBox>
+    </top>
+
+    <left>
+        <VBox fx:id="algoStatePane"
+              prefWidth="230" minWidth="230" maxWidth="230"
+              visible="false" managed="false"
+              style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 1 0 0; -fx-padding: 15 10 15 10; -fx-spacing: 8;">
+
+            <Label fx:id="algoNameLabel" text=""
+                   wrapText="true"
+                   style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2563eb;"/>
+            <Separator/>
+
+            <Label text="⚡ Current Step:"
+                   style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
+            <Label fx:id="currentStepLabel" text="—"
+                   wrapText="true"
+                   style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #b91c1c; -fx-background-color: #fee2e2; -fx-background-radius: 4; -fx-padding: 6 8 6 8;"/>
+            <Separator/>
+
+            <Label fx:id="dsTitleLabel" text="Queue (Front → Back):"
+                   style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
+            <TextArea fx:id="dsArea" editable="false" prefHeight="105" maxHeight="105" wrapText="true"
+                      style="-fx-font-family: monospace; -fx-font-size: 11px; -fx-control-inner-background: #fef9c3; -fx-border-color: #fde047; -fx-border-radius: 3; -fx-text-fill: #374151;"/>
+            <Separator/>
+
+            <Label text="✅ Visited / Processed:"
+                   style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
+            <TextArea fx:id="visitedArea" editable="false" prefHeight="75" maxHeight="75" wrapText="true"
+                      style="-fx-font-family: monospace; -fx-font-size: 11px; -fx-control-inner-background: #dcfce7; -fx-border-color: #86efac; -fx-border-radius: 3; -fx-text-fill: #374151;"/>
+
+            <Separator fx:id="extraSeparator" visible="false" managed="false"/>
+            <Label fx:id="extraTitleLabel" text=""
+                   visible="false" managed="false"
+                   style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6b7280;"/>
+            <TextArea fx:id="extraArea" editable="false" prefHeight="105" maxHeight="105" wrapText="true"
+                      visible="false" managed="false"
+                      style="-fx-font-family: monospace; -fx-font-size: 11px; -fx-control-inner-background: #fce7f3; -fx-border-color: #f9a8d4; -fx-border-radius: 3; -fx-text-fill: #374151;"/>
+        </VBox>
+    </left>
+
+    <center>
+        <Pane fx:id="canvasPane"
+              onMouseClicked="#handleCanvasClick"
+              style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 8, 0, 0, 4);">
+            <BorderPane.margin>
+                <Insets top="15.0" right="15.0" bottom="15.0" left="15.0" />
+            </BorderPane.margin>
+        </Pane>
+    </center>
+
+    <right>
+        <VBox fx:id="dataPane" prefWidth="250" visible="false" managed="false"
+              style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 0 1;">
+            <Label text="Graph Data (Tap to Expand)"
+                   style="-fx-font-weight: bold; -fx-padding: 15; -fx-text-fill: #111827;"/>
+            <TitledPane text="Adjacency List" expanded="false" VBox.vgrow="ALWAYS"
+                        style="-fx-text-fill: #374151;">
+                <TextArea fx:id="adjListArea" editable="false" wrapText="true"
+                          style="-fx-font-family: monospace; -fx-control-inner-background: #f9fafb;"/>
+            </TitledPane>
+            <TitledPane text="Adjacency Matrix" expanded="false" VBox.vgrow="ALWAYS"
+                        style="-fx-text-fill: #374151;">
+                <TextArea fx:id="adjMatrixArea" editable="false"
+                          style="-fx-font-family: monospace; -fx-control-inner-background: #f9fafb;"/>
+            </TitledPane>
+        </VBox>
+    </right>
+
+    <bottom>
+        <VBox>
+            <ToolBar style="-fx-background-color: linear-gradient(to right, #1e293b, #334155); -fx-alignment: center; -fx-padding: 10;">
+                <Label fx:id="resultLabel" text=""
+                       style="-fx-font-weight: bold; -fx-font-size: 15px; -fx-text-fill: #ffffff;"/>
+            </ToolBar>
+
+            <ToolBar fx:id="playbackToolbar" visible="false" managed="false"
+                     style="-fx-background-color: #ffffff; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0; -fx-alignment: center; -fx-padding: 12 20; -fx-spacing: 15;">
+
+                <Button onAction="#stepBackward" text="⏮"
+                        prefHeight="35.0" prefWidth="45.0"
+                        style="-fx-background-color: #f3f4f6; -fx-text-fill: #111827; -fx-background-radius: 6; -fx-cursor: hand;"/>
+
+                <Button fx:id="playPauseButton" text="▶" onAction="#togglePlayPause"
+                        prefHeight="35.0" minWidth="65.0"
+                        style="-fx-background-color: #3b82f6; -fx-text-fill: #ffffff; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-weight: bold;"/>
+
+                <Button onAction="#stepForward" text="⏭"
+                        prefHeight="35.0" prefWidth="45.0"
+                        style="-fx-background-color: #f3f4f6; -fx-text-fill: #111827; -fx-background-radius: 6; -fx-cursor: hand;"/>
+
+                <Pane prefWidth="20.0" />
+                <Button text="↺ Reset Algorithm" onAction="#resetAlgorithmState"
+                        prefHeight="35.0"
+                        style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand;"/>
+
+                <Pane prefWidth="20.0" />
+                <Label text="Speed:" style="-fx-font-weight: bold; -fx-text-fill: #4b5563; -fx-font-size: 14px;"/>
+                <Slider fx:id="speedSlider" min="0.1" max="3.0" value="1.0" prefHeight="35.0" prefWidth="150.0"/>
+            </ToolBar>
+        </VBox>
+    </bottom>
+
+</BorderPane>

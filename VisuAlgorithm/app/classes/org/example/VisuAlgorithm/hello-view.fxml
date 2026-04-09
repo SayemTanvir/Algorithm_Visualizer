@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.geometry.Insets?>
+
+<StackPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.example.VisuAlgorithm.HelloController"
+           styleClass="root">
+
+    <!-- 👇 Animated DSA graph background layer (managed by controller) -->
+    <Pane fx:id="backgroundAnimationPane" pickOnBounds="false"/>
+
+    <!-- 👇 MAIN DASHBOARD CONTENT -->
+    <VBox alignment="TOP_CENTER" spacing="32">
+        <padding>
+            <Insets top="42" left="0" right="0" bottom="0"/>
+        </padding>
+        <Label styleClass="dashboard-title" text="VisuAlgorithm"/>
+        <Label styleClass="dashboard-subtitle" text="Data Structures &amp; Algorithm Visualizations"/>
+
+        <FlowPane alignment="CENTER" hgap="32" vgap="32" prefWrapLength="960" style="-fx-padding:22;">
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoSorting">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/sorting.png"/>
+                    </image>
+                </ImageView>
+                <Label text="Sorting" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="Bubble • Merge • Quick • Insertion" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoArray">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/array.png"/>
+                    </image>
+                </ImageView>
+                <Label text="Array" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="Fixed &amp; Dynamic" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoLinkedList">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/linked_list.png"/>
+                    </image>
+                </ImageView>
+                <Label text="Linked List" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="Single • Double • Circular" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoStack">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/stack.png"/>
+                    </image>
+                </ImageView>
+                <Label text="Stack" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="Push • Pop • Peek" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoQueue">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/queue.png"/>
+                    </image>
+                </ImageView>
+                <Label text="Queue" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="Queue • Deque • Priority" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoGraph">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/graph.png"/>
+                    </image>
+                </ImageView>
+                <Label text="Graph" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="DFS • BFS • Dijkstra" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+            <VBox styleClass="card" spacing="10" alignment="CENTER" onMouseClicked="#gotoBST">
+                <ImageView fitHeight="90" fitWidth="160">
+                    <image>
+                        <Image url="@/Images/bst.png"/>
+                    </image>
+                </ImageView>
+                <Label text="BST" style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#8ac7ff;"/>
+                <Label text="Search • Traversal • Delete" style="-fx-text-fill:#ffd580"/>
+            </VBox>
+        </FlowPane>
+    </VBox>
+</StackPane>
