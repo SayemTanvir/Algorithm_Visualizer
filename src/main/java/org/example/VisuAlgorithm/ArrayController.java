@@ -43,7 +43,7 @@ public class ArrayController {
 
     // UI
     @FXML private VBox capturePane; // Main center area for snapshots/video
-    @FXML private HBox arrayBox;
+    @FXML private HBox arrayBox;    // The actual array container
     @FXML private Label statusLabel;
     @FXML private Label sizeCapLabel;
     @FXML private Label stepLabel; // Detailed step explanation label
@@ -633,138 +633,6 @@ public class ArrayController {
         seq.play();
     }
 
-    // ------------ Merge Sort (correct animation) ------------
-    @FXML
-    void mergeSort() {
-        if (runningAnimation) return;
-        if (!ensureCreated()) return;
-        stepLabel.setText("");
-
-        if (!dynamicMode) {
-            if (fixedLast <= 0) { flashStatus("Need at least 2 elements!", true); return; }
-            for (int i = 0; i <= fixedLast; i++) {
-                if (fixed[i] == null) { flashStatus("Fill array first (no empty slots).", true); return; }
-            }
-
-            int n = fixedLast + 1;
-
-            double[] sim = new double[n];
-            for (int i = 0; i < n; i++) sim[i] = fixed[i];
-
-            List<WriteStep> steps = new ArrayList<>();
-            recordMergeSort(sim, 0, n - 1, steps);
-
-            double[] display = new double[n];
-            for (int i = 0; i < n; i++) display[i] = fixed[i];
-
-            SequentialTransition seq = new SequentialTransition();
-            runningAnimation = true;
-
-            for (WriteStep s : steps) {
-                seq.getChildren().add(step(0.18, () -> {
-                    display[s.index] = s.value;
-                    drawWorking(display, false);
-
-                    clearColors();
-                    colorRange(s.l, s.r, "#34495e");
-                    colorCell(s.index, "#e67e22");
-                    statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
-                }));
-            }
-
-            seq.getChildren().add(step(0.20, () -> {
-                for (int i = 0; i < n; i++) fixed[i] = sim[i];
-                drawFixed();
-                clearColors();
-                statusLabel.setText("Sorting DONE ✅");
-                stepLabel.setText("Merge sort completed successfully.");
-                runningAnimation = false;
-            }));
-
-            seq.play();
-
-        } else {
-            if (dynSize <= 1) { flashStatus("Need at least 2 elements!", true); return; }
-
-            int n = dynSize;
-
-            double[] sim = new double[n];
-            System.arraycopy(dyn, 0, sim, 0, n);
-
-            List<WriteStep> steps = new ArrayList<>();
-            recordMergeSort(sim, 0, n - 1, steps);
-
-            double[] display = new double[n];
-            System.arraycopy(dyn, 0, display, 0, n);
-
-            SequentialTransition seq = new SequentialTransition();
-            runningAnimation = true;
-
-            for (WriteStep s : steps) {
-                seq.getChildren().add(step(0.18, () -> {
-                    display[s.index] = s.value;
-                    drawWorking(display, true);
-
-                    clearColors();
-                    colorRange(s.l, s.r, "#34495e");
-                    colorCell(s.index, "#e67e22");
-                    statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
-                    stepLabel.setText("Merging: placing " + formatNum(s.value) + " at sorted position " + s.index + ".");
-                }));
-            }
-
-            seq.getChildren().add(step(0.20, () -> {
-                System.arraycopy(sim, 0, dyn, 0, n);
-                drawDynamic();
-                clearColors();
-                statusLabel.setText("Sorting DONE ✅");
-                stepLabel.setText("Merge sort completed successfully.");
-                runningAnimation = false;
-            }));
-
-            seq.play();
-        }
-    }
-
-    private void recordMergeSort(double[] a, int l, int r, List<WriteStep> steps) {
-        if (l >= r) return;
-        int m = l + (r - l) / 2;
-        recordMergeSort(a, l, m, steps);
-        recordMergeSort(a, m + 1, r, steps);
-        recordMerge(a, l, m, r, steps);
-    }
-
-    private void recordMerge(double[] a, int l, int m, int r, List<WriteStep> steps) {
-        int n1 = m - l + 1;
-        int n2 = r - m;
-
-        double[] L = new double[n1];
-        double[] R = new double[n2];
-        System.arraycopy(a, l, L, 0, n1);
-        System.arraycopy(a, m + 1, R, 0, n2);
-
-        int i = 0, j = 0, k = l;
-
-        while (i < n1 && j < n2) {
-            double val = (L[i] <= R[j]) ? L[i++] : R[j++];
-            a[k] = val;
-            steps.add(new WriteStep(k, val, l, r));
-            k++;
-        }
-        while (i < n1) {
-            double val = L[i++];
-            a[k] = val;
-            steps.add(new WriteStep(k, val, l, r));
-            k++;
-        }
-        while (j < n2) {
-            double val = R[j++];
-            a[k] = val;
-            steps.add(new WriteStep(k, val, l, r));
-            k++;
-        }
-    }
-
     // ------------ Sorted check ------------
     private boolean isSortedNonDecreasing() {
         if (!ensureCreated()) return false;
@@ -1015,7 +883,7 @@ public class ArrayController {
         SnapshotParameters params = new SnapshotParameters();
         params.setFill(Color.web("#0f172a")); // Dark theme background
 
-        WritableImage snapshot = capturePane.snapshot(params, null);
+        WritableImage snapshot = arrayBox.snapshot(params, null); // target changed to arrayBox
         BufferedImage buffered = SwingFXUtils.fromFXImage(snapshot, null);
 
         String downloadsDir = getDownloadsPath();
@@ -1025,7 +893,7 @@ public class ArrayController {
         try {
             ImageIO.write(buffered, "png", outputFile);
             System.out.println("Screenshot saved: " + outputFile.getAbsolutePath());
-            buffered.flush(); // Prevent memory leak here too!
+            buffered.flush();
         } catch (IOException ex) {
             System.err.println("Screenshot failed: " + ex.getMessage());
         }
@@ -1049,10 +917,10 @@ public class ArrayController {
                         "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
         );
 
-        // LOCK RESOLUTION based on the starting size of the capturePane
+        // LOCK RESOLUTION based on the starting size of the arrayBox
         SnapshotParameters initParams = new SnapshotParameters();
         initParams.setFill(Color.web("#0f172a"));
-        WritableImage initSnap = capturePane.snapshot(initParams, null);
+        WritableImage initSnap = arrayBox.snapshot(initParams, null); // target changed to arrayBox
 
         final int lockedW = ((int) initSnap.getWidth() % 2 == 0) ? (int) initSnap.getWidth() : (int) initSnap.getWidth() + 1;
         final int lockedH = ((int) initSnap.getHeight() % 2 == 0) ? (int) initSnap.getHeight() : (int) initSnap.getHeight() + 1;
@@ -1121,7 +989,7 @@ public class ArrayController {
                     SnapshotParameters params = new SnapshotParameters();
                     params.setFill(Color.web("#0f172a"));
 
-                    WritableImage fxFrame = capturePane.snapshot(params, null);
+                    WritableImage fxFrame = arrayBox.snapshot(params, null); // target changed to arrayBox
                     BufferedImage buffered = SwingFXUtils.fromFXImage(fxFrame, null);
 
                     if (!frameQueue.offer(buffered)) {
@@ -1149,6 +1017,17 @@ public class ArrayController {
                 e.printStackTrace();
             }
             recordingExecutor = null;
+        }
+
+        // 2. Finalize the MP4 file
+        if (encoder != null) {
+            try {
+                encoder.finish();
+                System.out.println("Recording stopped and video saved successfully.");
+            } catch (IOException e) {
+                System.err.println("Failed to finalize video: " + e.getMessage());
+            }
+            encoder = null;
         }
 
         // 3. Reset UI button
