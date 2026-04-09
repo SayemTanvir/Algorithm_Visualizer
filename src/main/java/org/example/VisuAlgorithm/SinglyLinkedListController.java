@@ -13,9 +13,11 @@ import javafx.util.Duration;
 
 // Capture/Recording imports
 import javafx.scene.image.WritableImage;
+import javafx.scene.SnapshotParameters;
 import javafx.embed.swing.SwingFXUtils;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -26,6 +28,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
 import org.jcodec.api.awt.AWTSequenceEncoder;
 
 import java.util.*;
@@ -44,9 +48,11 @@ public class SinglyLinkedListController {
     @FXML private Button recordBtn;
 
     // Recording state
-    private boolean isRecording = false;
+    private volatile boolean isRecording = false;
+    private volatile boolean isCapturing = false; // Anti-flood flag
     private ScheduledExecutorService recordingExecutor;
     private AWTSequenceEncoder encoder;
+    private BlockingQueue<BufferedImage> frameQueue;
     private static final int RECORD_FPS = 30; // frames per second
 
     // ── Data model ────────────────────────────────────────────────────────────
@@ -409,11 +415,14 @@ public class SinglyLinkedListController {
     private void setStatus(String msg) { statusLabel.setText(msg); headerStatusLabel.setText(msg); }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  CAPTURE & RECORDING LOGIC (STREAMING FIX)
+    //  CAPTURE & RECORDING LOGIC (LOCKED RESOLUTION & ANTI-FLOOD)
     // ══════════════════════════════════════════════════════════════════════════
     @FXML
     void takeScreenshot() {
-        WritableImage snapshot = canvas.snapshot(null, null);
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.web("#0f172a")); // Dark theme background
+
+        WritableImage snapshot = canvas.snapshot(params, null);
         BufferedImage buffered = SwingFXUtils.fromFXImage(snapshot, null);
 
         String downloadsDir = getDownloadsPath();
@@ -423,8 +432,8 @@ public class SinglyLinkedListController {
         try {
             ImageIO.write(buffered, "png", outputFile);
             System.out.println("Screenshot saved: " + outputFile.getAbsolutePath());
-            setStatus("Screenshot saved: " + outputFile.getName() + " ✓");
-            buffered.flush(); // Prevent memory leak
+            setStatus("Screenshot saved! ✓");
+            buffered.flush();
         } catch (IOException ex) {
             System.err.println("Screenshot failed: " + ex.getMessage());
             err("Failed to save screenshot.");
@@ -442,20 +451,28 @@ public class SinglyLinkedListController {
 
     private void startRecording() {
         isRecording = true;
+        isCapturing = false;
         recordBtn.setText("⏹");
         recordBtn.setStyle(
                 "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px;" +
                         "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
         );
 
-        // 1. Initialize the video file and encoder IMMEDIATELY
+        // LOCK RESOLUTION based on the starting size of the canvas
+        SnapshotParameters initParams = new SnapshotParameters();
+        initParams.setFill(Color.web("#0f172a"));
+        WritableImage initSnap = canvas.snapshot(initParams, null);
+
+        final int lockedW = ((int) initSnap.getWidth() % 2 == 0) ? (int) initSnap.getWidth() : (int) initSnap.getWidth() + 1;
+        final int lockedH = ((int) initSnap.getHeight() % 2 == 0) ? (int) initSnap.getHeight() : (int) initSnap.getHeight() + 1;
+
         try {
             String downloadsDir = getDownloadsPath();
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             File outputFile = new File(downloadsDir, "singly_linked_list_rec_" + timestamp + ".mp4");
 
             encoder = AWTSequenceEncoder.createSequenceEncoder(outputFile, RECORD_FPS);
-            System.out.println("Recording started... Streaming to: " + outputFile.getAbsolutePath());
+            System.out.println("Recording started... Streaming to: " + outputFile.getAbsolutePath() + " at " + lockedW + "x" + lockedH);
             setStatus("Recording started...");
         } catch (IOException e) {
             System.err.println("Failed to start video encoder: " + e.getMessage());
@@ -464,47 +481,66 @@ public class SinglyLinkedListController {
             return;
         }
 
-        // 2. Start the background capture loop
+        frameQueue = new ArrayBlockingQueue<>(30);
+
         recordingExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "screen-recorder");
             t.setDaemon(true);
             return t;
         });
 
-        recordingExecutor.scheduleAtFixedRate(() -> {
-            if (!isRecording) return;
-
+        Thread encoderThread = new Thread(() -> {
             try {
-                CompletableFuture<BufferedImage> futureFrame = new CompletableFuture<>();
-                Platform.runLater(() -> {
-                    try {
-                        WritableImage frame = canvas.snapshot(null, null);
-                        futureFrame.complete(SwingFXUtils.fromFXImage(frame, null));
-                    } catch (Exception e) {
-                        futureFrame.completeExceptionally(e);
+                while (isRecording || !frameQueue.isEmpty()) {
+                    BufferedImage frame = frameQueue.poll(100, TimeUnit.MILLISECONDS);
+                    if (frame != null) {
+
+                        BufferedImage bgrFrame = new BufferedImage(lockedW, lockedH, BufferedImage.TYPE_3BYTE_BGR);
+                        Graphics2D g = bgrFrame.createGraphics();
+
+                        g.setColor(new java.awt.Color(15, 23, 42)); // #0f172a
+                        g.fillRect(0, 0, lockedW, lockedH);
+
+                        g.drawImage(frame, 0, 0, null); // Draw into locked boundary
+                        g.dispose();
+
+                        encoder.encodeImage(bgrFrame);
+
+                        bgrFrame.flush();
+                        frame.flush();
                     }
-                });
-
-                BufferedImage buffered = futureFrame.get();
-
-                int w = buffered.getWidth();
-                int h = buffered.getHeight();
-                int evenW = (w % 2 == 0) ? w : w + 1;
-                int evenH = (h % 2 == 0) ? h : h + 1;
-
-                BufferedImage bgrFrame = new BufferedImage(evenW, evenH, BufferedImage.TYPE_3BYTE_BGR);
-                java.awt.Graphics2D g = bgrFrame.createGraphics();
-                g.drawImage(buffered, 0, 0, evenW, evenH, null);
-                g.dispose();
-
-                encoder.encodeImage(bgrFrame);
-
-                bgrFrame.flush();
-                buffered.flush();
-
+                }
+                encoder.finish();
+                System.out.println("Video saved successfully.");
+                Platform.runLater(() -> setStatus("Recording saved! ✓"));
             } catch (Exception e) {
-                System.err.println("Dropped frame during recording: " + e.getMessage());
+                e.printStackTrace();
             }
+        });
+        encoderThread.setDaemon(true);
+        encoderThread.start();
+
+        recordingExecutor.scheduleAtFixedRate(() -> {
+            if (!isRecording || isCapturing) return;
+            isCapturing = true;
+
+            Platform.runLater(() -> {
+                try {
+                    SnapshotParameters params = new SnapshotParameters();
+                    params.setFill(Color.web("#0f172a"));
+
+                    WritableImage fxFrame = canvas.snapshot(params, null);
+                    BufferedImage buffered = SwingFXUtils.fromFXImage(fxFrame, null);
+
+                    if (!frameQueue.offer(buffered)) {
+                        buffered.flush();
+                    }
+                } catch (Exception e) {
+                    System.err.println("Capture error: " + e.getMessage());
+                } finally {
+                    isCapturing = false;
+                }
+            });
         }, 0, 1000 / RECORD_FPS, TimeUnit.MILLISECONDS);
     }
 
@@ -519,18 +555,6 @@ public class SinglyLinkedListController {
                 e.printStackTrace();
             }
             recordingExecutor = null;
-        }
-
-        if (encoder != null) {
-            try {
-                encoder.finish();
-                System.out.println("Recording stopped and video saved successfully.");
-                setStatus("Recording stopped and saved! ✓");
-            } catch (IOException e) {
-                System.err.println("Failed to finalize video: " + e.getMessage());
-                err("Failed to save recording.");
-            }
-            encoder = null;
         }
 
         Platform.runLater(() -> {
