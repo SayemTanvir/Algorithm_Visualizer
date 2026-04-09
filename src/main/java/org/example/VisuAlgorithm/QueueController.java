@@ -236,14 +236,18 @@ public class QueueController {
 
     @FXML
     public void initialize() {
-        screenshotBtn.setText("📷 Snapshot");
-        recordBtn.setText("🎥 Record");
+        // Null checks to prevent NullPointerException crashes if buttons aren't linked in FXML
+        if (screenshotBtn != null) {
+            screenshotBtn.setText("📷 Snapshot");
+            screenshotBtn.setPrefWidth(130);
+            screenshotBtn.setMinWidth(130);
+        }
 
-        screenshotBtn.setPrefWidth(130);
-        screenshotBtn.setMinWidth(130);
-
-        recordBtn.setPrefWidth(130);
-        recordBtn.setMinWidth(130);
+        if (recordBtn != null) {
+            recordBtn.setText("🎥 Record");
+            recordBtn.setPrefWidth(130);
+            recordBtn.setMinWidth(130);
+        }
 
         setMode(Mode.QUEUE);
         redraw();
@@ -274,13 +278,15 @@ public class QueueController {
     // ================= MODE =================
     @FXML
     private void onModeChanged() {
-        if (rbQueue.isSelected()) setMode(Mode.QUEUE);
-        else if (rbDeque.isSelected()) setMode(Mode.DEQUE);
-        else if (rbPriority.isSelected()) setMode(Mode.PRIORITY_QUEUE);
+        if (rbQueue != null && rbQueue.isSelected()) setMode(Mode.QUEUE);
+        else if (rbDeque != null && rbDeque.isSelected()) setMode(Mode.DEQUE);
+        else if (rbPriority != null && rbPriority.isSelected()) setMode(Mode.PRIORITY_QUEUE);
         else setMode(Mode.CIRCULAR_QUEUE);
     }
 
     private void updateCanvasSize() {
+        if (canvas == null) return;
+
         if (mode == Mode.CIRCULAR_QUEUE) {
             canvas.setPrefWidth(1400);
             canvas.setPrefHeight(900);
@@ -324,18 +330,20 @@ public class QueueController {
         show(popFrontBtn, dequeMode);
         show(popRearBtn, dequeMode);
 
-        if (mode == Mode.QUEUE) {
-            peekBtn.setText("Front");
-            modeHintLabel.setText("Queue: insert at rear, remove from front.");
-        } else if (mode == Mode.DEQUE) {
-            peekBtn.setText("Front");
-            modeHintLabel.setText("Deque: you can push/pop from both front and rear.");
-        } else if (mode == Mode.PRIORITY_QUEUE) {
-            peekBtn.setText("Peek");
-            modeHintLabel.setText("Priority Queue: element order depends on priority.");
-        } else {
-            peekBtn.setText("Front");
-            modeHintLabel.setText("Circular Queue: fixed-size queue using wrap-around indexing.");
+        if (modeHintLabel != null) {
+            if (mode == Mode.QUEUE) {
+                if (peekBtn != null) peekBtn.setText("Front");
+                modeHintLabel.setText("Queue: insert at rear, remove from front.");
+            } else if (mode == Mode.DEQUE) {
+                if (peekBtn != null) peekBtn.setText("Front");
+                modeHintLabel.setText("Deque: you can push/pop from both front and rear.");
+            } else if (mode == Mode.PRIORITY_QUEUE) {
+                if (peekBtn != null) peekBtn.setText("Peek");
+                modeHintLabel.setText("Priority Queue: element order depends on priority.");
+            } else {
+                if (peekBtn != null) peekBtn.setText("Front");
+                modeHintLabel.setText("Circular Queue: fixed-size queue using wrap-around indexing.");
+            }
         }
 
         redraw();
@@ -344,7 +352,7 @@ public class QueueController {
 
     @FXML
     private void onPriorityTypeChanged() {
-        isMaxPriority = rbMaxPriority.isSelected();
+        if (rbMaxPriority != null) isMaxPriority = rbMaxPriority.isSelected();
         sortPriorityQueue();
         redraw();
         setStatus("Priority type: " + (isMaxPriority ? "Max" : "Min"));
@@ -358,13 +366,17 @@ public class QueueController {
     }
 
     private void show(Control c, boolean visible) {
-        c.setVisible(visible);
-        c.setManaged(visible);
+        if (c != null) {
+            c.setVisible(visible);
+            c.setManaged(visible);
+        }
     }
 
     private void show(HBox c, boolean visible) {
-        c.setVisible(visible);
-        c.setManaged(visible);
+        if (c != null) {
+            c.setVisible(visible);
+            c.setManaged(visible);
+        }
     }
 
     // ================= NORMAL QUEUE =================
@@ -379,7 +391,7 @@ public class QueueController {
             return;
         }
 
-        Integer value = parseInt(valueField.getText());
+        Integer value = parseInt(valueField != null ? valueField.getText() : "");
         if (value == null) return;
 
         dequeData.add(value);
@@ -440,7 +452,7 @@ public class QueueController {
     // ================= DEQUE =================
     @FXML
     private void onPushFront() {
-        Integer value = parseInt(valueField.getText());
+        Integer value = parseInt(valueField != null ? valueField.getText() : "");
         if (value == null) return;
 
         dequeData.add(0, value);
@@ -450,7 +462,7 @@ public class QueueController {
 
     @FXML
     private void onPushRear() {
-        Integer value = parseInt(valueField.getText());
+        Integer value = parseInt(valueField != null ? valueField.getText() : "");
         if (value == null) return;
 
         dequeData.add(value);
@@ -484,8 +496,8 @@ public class QueueController {
 
     // ================= PRIORITY QUEUE =================
     private void enqueuePriority() {
-        Integer value = parseInt(valueField.getText());
-        Integer priority = parseInt(priorityField.getText());
+        Integer value = parseInt(valueField != null ? valueField.getText() : "");
+        Integer priority = parseInt(priorityField != null ? priorityField.getText() : "");
         if (value == null || priority == null) return;
 
         priorityData.add(new PQNode(value, priority));
@@ -521,7 +533,7 @@ public class QueueController {
     // ================= CIRCULAR QUEUE =================
     @FXML
     private void onSetCapacity() {
-        Integer cap = parseInt(capacityField.getText());
+        Integer cap = parseInt(capacityField != null ? capacityField.getText() : "");
         if (cap == null) return;
 
         if (cap <= 0) {
@@ -550,7 +562,7 @@ public class QueueController {
             return;
         }
 
-        Integer value = parseInt(valueField.getText());
+        Integer value = parseInt(valueField != null ? valueField.getText() : "");
         if (value == null) return;
 
         if (circularSize == 0) {
@@ -606,6 +618,7 @@ public class QueueController {
 
     // ================= DRAW =================
     private void redraw() {
+        if (canvas == null) return;
         updateCanvasSize();
         canvas.getChildren().clear();
 
@@ -653,11 +666,11 @@ public class QueueController {
             Text emptyText = makeText(320, 180, mode == Mode.DEQUE ? "Deque is empty" : "Queue is empty", 22);
             emptyText.setFill(Color.web("#64748b"));
             canvas.getChildren().add(emptyText);
-            frontLabel.setText("-1");
-            rearLabel.setText("-1");
+            if (frontLabel != null) frontLabel.setText("-1");
+            if (rearLabel != null) rearLabel.setText("-1");
         } else {
-            frontLabel.setText("0");
-            rearLabel.setText(String.valueOf(dequeData.size() - 1));
+            if (frontLabel != null) frontLabel.setText("0");
+            if (rearLabel != null) rearLabel.setText(String.valueOf(dequeData.size() - 1));
         }
     }
 
@@ -693,11 +706,11 @@ public class QueueController {
             Text emptyText = makeText(300, 180, "Priority Queue is empty", 22);
             emptyText.setFill(Color.web("#64748b"));
             canvas.getChildren().add(emptyText);
-            frontLabel.setText("-1");
-            rearLabel.setText("-1");
+            if (frontLabel != null) frontLabel.setText("-1");
+            if (rearLabel != null) rearLabel.setText("-1");
         } else {
-            frontLabel.setText("0");
-            rearLabel.setText(String.valueOf(priorityData.size() - 1));
+            if (frontLabel != null) frontLabel.setText("0");
+            if (rearLabel != null) rearLabel.setText(String.valueOf(priorityData.size() - 1));
         }
     }
 
@@ -710,8 +723,8 @@ public class QueueController {
             Text txt = makeText(260, 180, "Set circular queue capacity first", 22);
             txt.setFill(Color.web("#64748b"));
             canvas.getChildren().add(txt);
-            frontLabel.setText("-1");
-            rearLabel.setText("-1");
+            if (frontLabel != null) frontLabel.setText("-1");
+            if (rearLabel != null) rearLabel.setText("-1");
             return;
         }
 
@@ -759,11 +772,11 @@ public class QueueController {
             Text emptyText = makeText(560, 610, "Circular Queue is empty", 18);
             emptyText.setFill(Color.web("#64748b"));
             canvas.getChildren().add(emptyText);
-            frontLabel.setText("-1");
-            rearLabel.setText("-1");
+            if (frontLabel != null) frontLabel.setText("-1");
+            if (rearLabel != null) rearLabel.setText("-1");
         } else {
-            frontLabel.setText(String.valueOf(front));
-            rearLabel.setText(String.valueOf(rear));
+            if (frontLabel != null) frontLabel.setText(String.valueOf(front));
+            if (rearLabel != null) rearLabel.setText(String.valueOf(rear));
         }
     }
 
@@ -815,8 +828,8 @@ public class QueueController {
     }
 
     private void setStatus(String msg) {
-        statusLabel.setText(msg);
-        headerStatusLabel.setText(msg);
+        if (statusLabel != null) statusLabel.setText(msg);
+        if (headerStatusLabel != null) headerStatusLabel.setText(msg);
     }
 
     // ==========================================================================
@@ -824,6 +837,7 @@ public class QueueController {
     // ==========================================================================
     @FXML
     void takeScreenshot() {
+        if (canvas == null) return;
         SnapshotParameters params = new SnapshotParameters();
         params.setFill(Color.WHITE); // White background
 
@@ -855,21 +869,31 @@ public class QueueController {
     }
 
     private void startRecording() {
+        if (canvas == null) return;
         isRecording = true;
         isCapturing = false;
-        recordBtn.setText("⏹");
-        recordBtn.setStyle(
-                "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px;" +
-                        "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
-        );
+
+        if (recordBtn != null) {
+            recordBtn.setText("⏹");
+            recordBtn.setStyle(
+                    "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px;" +
+                            "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
+            );
+        }
 
         // LOCK RESOLUTION based on the starting size of the canvas
         SnapshotParameters initParams = new SnapshotParameters();
         initParams.setFill(Color.WHITE);
         WritableImage initSnap = canvas.snapshot(initParams, null);
 
-        final int lockedW = ((int) initSnap.getWidth() % 2 == 0) ? (int) initSnap.getWidth() : (int) initSnap.getWidth() + 1;
-        final int lockedH = ((int) initSnap.getHeight() % 2 == 0) ? (int) initSnap.getHeight() : (int) initSnap.getHeight() + 1;
+        // Safety bound: if the snapshot width is wildly small, fall back to a reasonable size
+        int rawW = (int) initSnap.getWidth();
+        int rawH = (int) initSnap.getHeight();
+        if (rawW < 10) rawW = 1400; // Fallback to canvas prefWidth
+        if (rawH < 10) rawH = 900;  // Fallback to canvas prefHeight
+
+        final int lockedW = (rawW % 2 == 0) ? rawW : rawW + 1;
+        final int lockedH = (rawH % 2 == 0) ? rawH : rawH + 1;
 
         try {
             String downloadsDir = getDownloadsPath();
@@ -938,7 +962,7 @@ public class QueueController {
                     BufferedImage buffered = SwingFXUtils.fromFXImage(fxFrame, null);
 
                     if (!frameQueue.offer(buffered)) {
-                        buffered.flush();
+                        buffered.flush(); // Queue full, drop frame to save RAM
                     }
                 } catch (Exception e) {
                     System.err.println("Capture error: " + e.getMessage());
@@ -952,6 +976,7 @@ public class QueueController {
     private void stopRecording() {
         isRecording = false;
 
+        // Note: We DO NOT call encoder.finish() here anymore. The background thread does it safely!
         if (recordingExecutor != null) {
             recordingExecutor.shutdown();
             try {
@@ -963,8 +988,10 @@ public class QueueController {
         }
 
         Platform.runLater(() -> {
-            recordBtn.setText("🎥 Record");
-            recordBtn.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;");
+            if (recordBtn != null) {
+                recordBtn.setText("🎥 Record");
+                recordBtn.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;");
+            }
         });
     }
 
