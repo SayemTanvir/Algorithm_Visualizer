@@ -125,7 +125,7 @@ The easiest way to run the app without a formal installation process.
 4. **To Run:** Double-click the **VisuAlgorithm.exe** (Windows) or the provided run script
 5. **Create a Desktop Shortcut:** Right-click the .exe file inside the extracted folder, select Show more options → Send to → Desktop (create shortcut)
 
-### 🪟 Windows Installation (.exe or .msi)
+### 🪟 Windows Installation (.exe)
 
 1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm-Setup.exe**
 2. Double-click the downloaded file to run the installer
@@ -135,10 +135,10 @@ The easiest way to run the app without a formal installation process.
 
 **Note:** If Windows SmartScreen blocks the app, click "More Info" → "Run Anyway"
 
-### 🍏 macOS Installation (.app or .dmg)
+### 🍏 macOS Installation (.app)
 
-1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm.dmg**
-2. Double-click the .dmg file to mount it
+1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm.app(zipped)**
+2. Extract it
 3. Drag and drop the **VisuAlgorithm.app** icon into your **Applications** folder
 4. **Creating a Desktop Shortcut (Alias):** Right-click the app in your Applications folder and select "Make Alias", then drag the alias to your desktop
 5. **Running for the first time:** macOS Gatekeeper may block the app since it's from an "unidentified developer"
