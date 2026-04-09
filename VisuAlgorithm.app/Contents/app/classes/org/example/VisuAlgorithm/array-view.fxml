@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.VisuAlgorithm.ArrayController"
+            prefHeight="650.0" prefWidth="1000.0"
+            style="-fx-background-color: #f4f6f8;">
+
+    <top>
+        <HBox spacing="15" alignment="CENTER_LEFT"
+              style="-fx-background-color: linear-gradient(to right, #1e293b, #334155); -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);">
+            <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
+
+            <Button text="← Back" onAction="#backHome"
+                    style="-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;"
+                    prefHeight="32"/>
+
+            <Label text="Array" textFill="white">
+                <font><Font name="System Bold" size="22"/></font>
+            </Label>
+
+            <Pane HBox.hgrow="ALWAYS"/>
+
+            <Label fx:id="modeLabel" text="Mode: Fixed Array"
+                   style="-fx-text-fill: #cbd5e1; -fx-font-weight: bold;"/>
+
+            <Region prefWidth="15"/>
+
+            <Button fx:id="screenshotBtn" onAction="#takeScreenshot" prefHeight="32.0"
+                    style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+            <Button fx:id="recordBtn" onAction="#toggleRecording" prefHeight="32.0"
+                    style="-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;"/>
+        </HBox>
+    </top>
+
+    <left>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                    style="-fx-background: transparent; -fx-background-color: transparent;">
+            <content>
+                <VBox fx:id="controlPanel" spacing="12" prefWidth="250"
+                      style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 1 0 0;">
+                    <padding><Insets top="20" right="15" bottom="20" left="15"/></padding>
+
+                    <Label text="Array Mode" textFill="#4b5563">
+                        <font><Font name="System Bold" size="13"/></font>
+                    </Label>
+                    <RadioButton fx:id="fixedBtn" text="Fixed Array" selected="true" onAction="#switchMode" textFill="#111827"/>
+                    <RadioButton fx:id="dynamicBtn" text="Dynamic Array" onAction="#switchMode" textFill="#111827"/>
+
+                    <Separator style="-fx-padding: 5 0;"/>
+
+                    <Label text="Initialization" textFill="#4b5563">
+                        <font><Font name="System Bold" size="13"/></font>
+                    </Label>
+                    <TextField fx:id="sizeField" promptText="Size (e.g. 10)"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4; -fx-text-fill: #111827;"/>
+                    <Button text="Create" onAction="#createArray" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Random Fill" onAction="#randomFill" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+
+                    <Separator style="-fx-padding: 5 0;"/>
+
+                    <Label text="Operations" textFill="#4b5563">
+                        <font><Font name="System Bold" size="13"/></font>
+                    </Label>
+                    <TextField fx:id="indexField" promptText="Index"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4; -fx-text-fill: #111827;"/>
+                    <TextField fx:id="valueField" promptText="Value"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4; -fx-text-fill: #111827;"/>
+
+                    <Button text="Get(index)" onAction="#getValue" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Set(index, value)" onAction="#setValue" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Insert(index, value)" onAction="#insertAt" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Sort" onAction="#mergeSort" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+
+                    <Button text="Delete(index)" onAction="#deleteAt" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #fee2e2; -fx-text-fill: #b91c1c; -fx-border-color: #f87171; -fx-border-radius: 6; -fx-cursor: hand;"/>
+
+                    <Separator style="-fx-padding: 5 0;"/>
+
+                    <Label text="Searching" textFill="#4b5563">
+                        <font><Font name="System Bold" size="13"/></font>
+                    </Label>
+                    <TextField fx:id="searchField" promptText="Search Value"
+                               style="-fx-background-color: #ffffff; -fx-border-color: #d1d5db; -fx-border-radius: 4; -fx-text-fill: #111827;"/>
+                    <Button text="Linear Search" onAction="#linearSearch" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Binary Search (sorted)" onAction="#binarySearch" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                    <Button text="Ternary Search (sorted)" onAction="#ternarySearch" maxWidth="1.7976931348623157E308"
+                            style="-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;"/>
+
+                    <Separator style="-fx-padding: 5 0;"/>
+
+                    <Label text="Animation Speed" textFill="#4b5563">
+                        <font><Font name="System Bold" size="13"/></font>
+                    </Label>
+                    <Slider fx:id="speedSlider" min="0.2" max="2.5" value="1.0" showTickLabels="true"/>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </left>
+
+    <center>
+        <VBox fx:id="capturePane" spacing="15" alignment="TOP_CENTER">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+
+            <Label fx:id="statusLabel" text="Create an array to start" textFill="#2563eb">
+                <font><Font name="System Bold" size="18"/></font>
+            </Label>
+
+            <VBox VBox.vgrow="ALWAYS"
+                  style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 8, 0, 0, 4);">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <ScrollPane fitToHeight="true" fitToWidth="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                            style="-fx-background: transparent; -fx-background-color: transparent;">
+                    <content>
+                        <HBox fx:id="arrayBox" spacing="8" alignment="CENTER"/>
+                    </content>
+                </ScrollPane>
+            </VBox>
+
+            <Label fx:id="sizeCapLabel" text="" textFill="#6b7280">
+                <font><Font name="System Italic" size="13"/></font>
+            </Label>
+
+            <VBox alignment="CENTER"
+                  style="-fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 5, 0, 0, 2);"
+                  minHeight="80">
+                <padding><Insets top="15" right="15" bottom="15" left="15"/></padding>
+                <Label fx:id="stepLabel" text="" textFill="#374151" wrapText="true" textAlignment="CENTER">
+                    <font><Font name="System Bold" size="15"/></font>
+                </Label>
+            </VBox>
+        </VBox>
+    </center>
+
+</BorderPane>

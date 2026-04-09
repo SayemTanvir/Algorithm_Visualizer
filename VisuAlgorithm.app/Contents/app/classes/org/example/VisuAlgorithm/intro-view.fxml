@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+
+<!--
+    VisuAlgorithm — Splash / Intro Screen
+    ──────────────────────────────────────
+    Layers (bottom → top):
+      1. bgPane       — floating low-opacity DSA shapes (built in controller)
+      2. logoPane     — assembling logo shapes        (built in controller)
+      3. textGroup    — app name + tagline            (fades in after logo lands)
+
+    The controller animates every shape; this file only declares the containers
+    and the text labels.  All logo geometry is created programmatically so
+    positions can be calculated relative to the window size.
+-->
+
+<StackPane fx:id="rootPane"
+           xmlns="http://javafx.com/javafx/17"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.example.VisuAlgorithm.IntroController"
+           prefWidth="1366" prefHeight="768"
+           stylesheets="@styles/splash.css"
+           styleClass="splash-root">
+
+    <!-- ① Animated background particles -->
+    <Pane fx:id="bgPane" pickOnBounds="false"/>
+
+    <!-- ② Logo assembly canvas (nodes, edges, array cells added by controller) -->
+    <Pane fx:id="logoPane" pickOnBounds="false"/>
+
+    <!--
+        ③ Text group — sits below the logo.
+           translateY shifts the StackPane-centred VBox downward so the text
+           clears the bottom of the array strip (≈ y 453) and lands near y 530.
+           Controller sets opacity=0 initially and fades it in.
+    -->
+    <VBox fx:id="textGroup"
+          alignment="CENTER"
+          spacing="10"
+          translateY="161"
+          pickOnBounds="false">
+
+        <!-- Main app title — fx:id used for the DropShadow glow effect -->
+        <Label fx:id="titleLabel"
+               text="VISUALGORITHM"
+               styleClass="splash-title"/>
+
+        <!-- Tagline -->
+        <Label fx:id="subLabel"
+               text="Data Structures &amp; Algorithms · Visualized"
+               styleClass="splash-sub"/>
+
+        <!-- Subtle animated dots, pulsed by controller -->
+        <Label fx:id="hintLabel"
+               text="● ● ●"
+               styleClass="splash-hint"/>
+    </VBox>
+
+</StackPane>
