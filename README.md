@@ -127,7 +127,7 @@ The easiest way to run the app without a formal installation process.
 
 ### 🪟 Windows Installation (.exe)
 
-1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm-Setup.exe**
+1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm.exe**
 2. Double-click the downloaded file to run the installer
 3. Follow the installation wizard
 4. Check the box to "Create a Desktop Shortcut" during installation
@@ -137,7 +137,7 @@ The easiest way to run the app without a formal installation process.
 
 ### 🍏 macOS Installation (.app)
 
-1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm.app(zipped)**
+1. Go to the [Releases Page](https://github.com/SayemTanvir/Algorithm_Visualizer/releases) and download **VisuAlgorithm.app.zip**
 2. Extract it
 3. Drag and drop the **VisuAlgorithm.app** icon into your **Applications** folder
 4. **Creating a Desktop Shortcut (Alias):** Right-click the app in your Applications folder and select "Make Alias", then drag the alias to your desktop
