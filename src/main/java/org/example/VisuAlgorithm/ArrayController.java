@@ -43,7 +43,7 @@ public class ArrayController {
 
     // UI
     @FXML private VBox capturePane; // Main center area for snapshots/video
-    @FXML private HBox arrayBox;    // The actual array container
+    @FXML private HBox arrayBox;
     @FXML private Label statusLabel;
     @FXML private Label sizeCapLabel;
     @FXML private Label stepLabel; // Detailed step explanation label
@@ -102,25 +102,17 @@ public class ArrayController {
 
     @FXML
     public void initialize() {
-        if (screenshotBtn != null) {
-            screenshotBtn.setText("📷 Snapshot");
-            screenshotBtn.setPrefWidth(130);
-            screenshotBtn.setMinWidth(130);
-        }
+        screenshotBtn.setText("📷 Snapshot");
+        recordBtn.setText("🎥 Record");
+        screenshotBtn.setPrefWidth(130);
+        screenshotBtn.setMinWidth(130);
+        recordBtn.setPrefWidth(130);
+        recordBtn.setMinWidth(130);
 
-        if (recordBtn != null) {
-            recordBtn.setText("🎥 Record");
-            recordBtn.setPrefWidth(130);
-            recordBtn.setMinWidth(130);
-        }
-
-        if (fixedBtn != null && dynamicBtn != null) {
-            modeGroup = new ToggleGroup();
-            fixedBtn.setToggleGroup(modeGroup);
-            dynamicBtn.setToggleGroup(modeGroup);
-            fixedBtn.setSelected(true);
-        }
-
+        modeGroup = new ToggleGroup();
+        fixedBtn.setToggleGroup(modeGroup);
+        dynamicBtn.setToggleGroup(modeGroup);
+        fixedBtn.setSelected(true);
         switchMode();
     }
 
@@ -134,11 +126,11 @@ public class ArrayController {
     // ------------ Mode ------------
     @FXML
     void switchMode() {
-        if (dynamicBtn != null) dynamicMode = dynamicBtn.isSelected();
-        if (modeLabel != null) modeLabel.setText(dynamicMode ? "Mode: Dynamic Array" : "Mode: Fixed Array");
+        dynamicMode = dynamicBtn.isSelected();
+        modeLabel.setText(dynamicMode ? "Mode: Dynamic Array" : "Mode: Fixed Array");
         clearAll();
-        if (statusLabel != null) statusLabel.setText("Create an array to start");
-        if (sizeCapLabel != null) sizeCapLabel.setText("");
+        statusLabel.setText("Create an array to start");
+        sizeCapLabel.setText("");
     }
 
     private void clearAll() {
@@ -147,15 +139,15 @@ public class ArrayController {
         dyn = null;
         dynSize = 0;
         dynCap = 0;
-        if (arrayBox != null) arrayBox.getChildren().clear();
-        if (stepLabel != null) stepLabel.setText("");
+        arrayBox.getChildren().clear();
+        stepLabel.setText("");
     }
 
     // ------------ Create / Random ------------
     @FXML
     void createArray() {
         if (runningAnimation) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         String inputText = sizeField.getText();
         int n = (inputText == null || inputText.trim().isEmpty()) ? 10 : parseInt(inputText, -1);
@@ -179,7 +171,7 @@ public class ArrayController {
     void randomFill() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         if (!dynamicMode) {
             for (int i = 0; i < fixed.length; i++) fixed[i] = rnd.nextInt(90)/1.0 + 10;
@@ -199,7 +191,7 @@ public class ArrayController {
     void getValue() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
         if (!inRangeRead(idx)) return;
@@ -212,7 +204,7 @@ public class ArrayController {
     void setValue() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
         Double val = parseDoubleValue(valueField.getText());
@@ -238,7 +230,7 @@ public class ArrayController {
     void insertAt() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
         Double val = parseDoubleValue(valueField.getText());
@@ -260,7 +252,7 @@ public class ArrayController {
                     drawFixed();
                     colorCell(to, "#3498db");
                     colorCell(from, "#3498db");
-                    if (statusLabel != null) statusLabel.setText("Shift: " + from + " -> " + to);
+                    statusLabel.setText("Shift: " + from + " -> " + to);
                 }));
             }
 
@@ -269,7 +261,7 @@ public class ArrayController {
                 fixedLast++;
                 drawFixed();
                 colorCell(insertPos, "#2ecc71");
-                if (statusLabel != null) statusLabel.setText("Inserted " + formatNum(val) + " at " + insertPos);
+                statusLabel.setText("Inserted " + formatNum(val) + " at " + insertPos);
             }));
 
             seq.getChildren().add(step(0.10, () -> runningAnimation = false));
@@ -286,8 +278,8 @@ public class ArrayController {
                 int newCap = Math.max(1, dynCap * 2);
 
                 seq.getChildren().add(step(0.30, () -> {
-                    if (statusLabel != null) statusLabel.setText("Resize: capacity " + dynCap + " -> " + newCap);
-                    if (sizeCapLabel != null) sizeCapLabel.setText("size=" + dynSize + "  capacity=" + newCap + " (copying...)");
+                    statusLabel.setText("Resize: capacity " + dynCap + " -> " + newCap);
+                    sizeCapLabel.setText("size=" + dynSize + "  capacity=" + newCap + " (copying...)");
                 }));
 
                 seq.getChildren().add(step(0.30, () -> {
@@ -306,7 +298,7 @@ public class ArrayController {
                     drawDynamic();
                     colorCell(to, "#3498db");
                     colorCell(from, "#3498db");
-                    if (statusLabel != null) statusLabel.setText("Shift: " + from + " -> " + to);
+                    statusLabel.setText("Shift: " + from + " -> " + to);
                 }));
             }
 
@@ -315,7 +307,7 @@ public class ArrayController {
                 dynSize++;
                 drawDynamic();
                 colorCell(idx, "#2ecc71");
-                if (statusLabel != null) statusLabel.setText("Inserted " + formatNum(val) + " at " + idx);
+                statusLabel.setText("Inserted " + formatNum(val) + " at " + idx);
             }));
 
             seq.getChildren().add(step(0.10, () -> runningAnimation = false));
@@ -327,7 +319,7 @@ public class ArrayController {
     void deleteAt() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         int idx = parseInt(indexField.getText(), -1);
 
@@ -338,7 +330,7 @@ public class ArrayController {
             runningAnimation = true;
 
             seq.getChildren().add(step(0.20, () -> {
-                if (statusLabel != null) statusLabel.setText("Delete at " + idx);
+                statusLabel.setText("Delete at " + idx);
                 colorCell(idx, "#e74c3c");
             }));
 
@@ -349,7 +341,7 @@ public class ArrayController {
                     drawFixed();
                     colorCell(to, "#3498db");
                     colorCell(from, "#3498db");
-                    if (statusLabel != null) statusLabel.setText("Shift: " + from + " -> " + to);
+                    statusLabel.setText("Shift: " + from + " -> " + to);
                 }));
             }
 
@@ -357,7 +349,7 @@ public class ArrayController {
                 fixed[fixedLast] = null;
                 fixedLast--;
                 drawFixed();
-                if (statusLabel != null) statusLabel.setText("Deleted!");
+                statusLabel.setText("Deleted!");
             }));
 
             seq.getChildren().add(step(0.10, () -> runningAnimation = false));
@@ -370,7 +362,7 @@ public class ArrayController {
             runningAnimation = true;
 
             seq.getChildren().add(step(0.20, () -> {
-                if (statusLabel != null) statusLabel.setText("Delete at " + idx);
+                statusLabel.setText("Delete at " + idx);
                 colorCell(idx, "#e74c3c");
             }));
 
@@ -387,7 +379,7 @@ public class ArrayController {
             seq.getChildren().add(step(0.20, () -> {
                 dynSize--;
                 drawDynamic();
-                if (statusLabel != null) statusLabel.setText("Deleted!");
+                statusLabel.setText("Deleted!");
             }));
 
             // Shrink capacity by half if size/capacity <= 0.25
@@ -396,8 +388,8 @@ public class ArrayController {
                 int newCap = Math.max(1, dynCap / 2);
 
                 seq.getChildren().add(step(0.30, () -> {
-                    if (statusLabel != null) statusLabel.setText("Shrink: capacity " + dynCap + " -> " + newCap);
-                    if (sizeCapLabel != null) sizeCapLabel.setText("size=" + futureSize + "  capacity=" + newCap + " (copying...)");
+                    statusLabel.setText("Shrink: capacity " + dynCap + " -> " + newCap);
+                    sizeCapLabel.setText("size=" + futureSize + "  capacity=" + newCap + " (copying...)");
                 }));
 
                 seq.getChildren().add(step(0.30, () -> {
@@ -419,7 +411,7 @@ public class ArrayController {
     void linearSearch() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         Double target = parseDoubleValue(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
@@ -434,17 +426,15 @@ public class ArrayController {
             seq.getChildren().add(step(0.25, () -> {
                 clearColors();
                 colorCell(idx, "#f1c40f");
-                if (statusLabel != null) statusLabel.setText("Checking index " + idx);
+                statusLabel.setText("Checking index " + idx);
 
                 double val = dynamicMode ? dyn[idx] : (fixed[idx] != null ? fixed[idx] : 0);
                 boolean isNull = (!dynamicMode && fixed[idx] == null);
 
-                if (stepLabel != null) {
-                    if (isNull) {
-                        stepLabel.setText("Checking index " + idx + ": Cell is empty.");
-                    } else {
-                        stepLabel.setText("Checking index " + idx + ". Value is " + formatNum(val) + ".");
-                    }
+                if (isNull) {
+                    stepLabel.setText("Checking index " + idx + ": Cell is empty.");
+                } else {
+                    stepLabel.setText("Checking index " + idx + ". Value is " + formatNum(val) + ".");
                 }
             }));
 
@@ -457,8 +447,8 @@ public class ArrayController {
                 seq.getChildren().add(step(0.25, () -> {
                     clearColors();
                     colorCell(idx, "#2ecc71");
-                    if (statusLabel != null) statusLabel.setText("FOUND at index " + idx);
-                    if (stepLabel != null) stepLabel.setText("Match found! Target " + formatNum(target) + " is at index " + idx + ".");
+                    statusLabel.setText("FOUND at index " + idx);
+                    stepLabel.setText("Match found! Target " + formatNum(target) + " is at index " + idx + ".");
                 }));
                 break;
             }
@@ -467,8 +457,8 @@ public class ArrayController {
         seq.getChildren().add(step(0.18, () -> {
             if (!found[0]) {
                 clearColors();
-                if (statusLabel != null) statusLabel.setText("NOT FOUND ❌");
-                if (stepLabel != null) stepLabel.setText("Reached the end of the array. Value is not present.");
+                statusLabel.setText("NOT FOUND ❌");
+                stepLabel.setText("Reached the end of the array. Value is not present.");
                 showInfoPopup("Not Found", "Value " + formatNum(target) + " is not in the array.");
             }
         }));
@@ -480,7 +470,7 @@ public class ArrayController {
     void binarySearch() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         Double target = parseDoubleValue(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
@@ -507,8 +497,8 @@ public class ArrayController {
                 colorCell(fLow, "#9b59b6");
                 colorCell(fHigh, "#9b59b6");
                 colorCell(fMid, "#f1c40f");
-                if (statusLabel != null) statusLabel.setText("low=" + fLow + " mid=" + fMid + " high=" + fHigh);
-                if (stepLabel != null) stepLabel.setText("Search space: [" + fLow + " .. " + fHigh + "]. Mid is " + fMid + ".\nComparing mid value " + formatNum(midVal) + " with target " + formatNum(target) + ".");
+                statusLabel.setText("low=" + fLow + " mid=" + fMid + " high=" + fHigh);
+                stepLabel.setText("Search space: [" + fLow + " .. " + fHigh + "]. Mid is " + fMid + ".\nComparing mid value " + formatNum(midVal) + " with target " + formatNum(target) + ".");
             }));
 
             if (eq(midVal, target)) {
@@ -516,21 +506,21 @@ public class ArrayController {
                 seq.getChildren().add(step(0.30, () -> {
                     clearColors();
                     colorCell(fMid, "#2ecc71");
-                    if (statusLabel != null) statusLabel.setText("FOUND at index " + fMid);
-                    if (stepLabel != null) stepLabel.setText("Match found! " + formatNum(midVal) + " == " + formatNum(target) + ".");
+                    statusLabel.setText("FOUND at index " + fMid);
+                    stepLabel.setText("Match found! " + formatNum(midVal) + " == " + formatNum(target) + ".");
                 }));
                 break;
             } else if (midVal < target) {
                 low = mid + 1;
                 final int newLow = low;
                 seq.getChildren().add(step(0.30, () -> {
-                    if (stepLabel != null) stepLabel.setText(formatNum(midVal) + " < " + formatNum(target) + ".\nTarget must be in the right half. Updating low = " + newLow + ".");
+                    stepLabel.setText(formatNum(midVal) + " < " + formatNum(target) + ".\nTarget must be in the right half. Updating low = " + newLow + ".");
                 }));
             } else {
                 high = mid - 1;
                 final int newHigh = high;
                 seq.getChildren().add(step(0.30, () -> {
-                    if (stepLabel != null) stepLabel.setText(formatNum(midVal) + " > " + formatNum(target) + ".\nTarget must be in the left half. Updating high = " + newHigh + ".");
+                    stepLabel.setText(formatNum(midVal) + " > " + formatNum(target) + ".\nTarget must be in the left half. Updating high = " + newHigh + ".");
                 }));
             }
         }
@@ -538,8 +528,8 @@ public class ArrayController {
         seq.getChildren().add(step(0.20, () -> {
             if (!found[0]) {
                 clearColors();
-                if (statusLabel != null) statusLabel.setText("NOT FOUND ❌");
-                if (stepLabel != null) stepLabel.setText("Search space exhausted (low > high). Value is not in the array.");
+                statusLabel.setText("NOT FOUND ❌");
+                stepLabel.setText("Search space exhausted (low > high). Value is not in the array.");
                 showInfoPopup("Not Found", "Value " + formatNum(target) + " is not in the array.");
             }
         }));
@@ -551,7 +541,7 @@ public class ArrayController {
     void ternarySearch() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         Double target = parseDoubleValue(searchField.getText());
         if (target == null) { flashStatus("Invalid search value!", true); return; }
@@ -583,8 +573,8 @@ public class ArrayController {
                 colorCell(fHigh, "#9b59b6");
                 colorCell(fMid1, "#f1c40f");
                 colorCell(fMid2, "#f1c40f");
-                if (statusLabel != null) statusLabel.setText("low=" + fLow + " mid1=" + fMid1 + " mid2=" + fMid2 + " high=" + fHigh);
-                if (stepLabel != null) stepLabel.setText("Search space: [" + fLow + " .. " + fHigh + "]. Checking mid1 (" + fMid1 + ") = " + formatNum(v1) + " and mid2 (" + fMid2 + ") = " + formatNum(v2) + ".");
+                statusLabel.setText("low=" + fLow + " mid1=" + fMid1 + " mid2=" + fMid2 + " high=" + fHigh);
+                stepLabel.setText("Search space: [" + fLow + " .. " + fHigh + "]. Checking mid1 (" + fMid1 + ") = " + formatNum(v1) + " and mid2 (" + fMid2 + ") = " + formatNum(v2) + ".");
             }));
 
             if (eq(v1, target)) {
@@ -592,8 +582,8 @@ public class ArrayController {
                 seq.getChildren().add(step(0.30, () -> {
                     clearColors();
                     colorCell(fMid1, "#2ecc71");
-                    if (statusLabel != null) statusLabel.setText("FOUND at index " + fMid1);
-                    if (stepLabel != null) stepLabel.setText("Target " + formatNum(target) + " found at mid1!");
+                    statusLabel.setText("FOUND at index " + fMid1);
+                    stepLabel.setText("Target " + formatNum(target) + " found at mid1!");
                 }));
                 break;
             }
@@ -603,8 +593,8 @@ public class ArrayController {
                 seq.getChildren().add(step(0.30, () -> {
                     clearColors();
                     colorCell(fMid2, "#2ecc71");
-                    if (statusLabel != null) statusLabel.setText("FOUND at index " + fMid2);
-                    if (stepLabel != null) stepLabel.setText("Target " + formatNum(target) + " found at mid2!");
+                    statusLabel.setText("FOUND at index " + fMid2);
+                    stepLabel.setText("Target " + formatNum(target) + " found at mid2!");
                 }));
                 break;
             }
@@ -613,20 +603,20 @@ public class ArrayController {
                 high = mid1 - 1;
                 final int newHigh = high;
                 seq.getChildren().add(step(0.35, () -> {
-                    if (stepLabel != null) stepLabel.setText(formatNum(target) + " < " + formatNum(v1) + " (mid1).\nTarget is in the first third. Updating high = " + newHigh + ".");
+                    stepLabel.setText(formatNum(target) + " < " + formatNum(v1) + " (mid1).\nTarget is in the first third. Updating high = " + newHigh + ".");
                 }));
             } else if (target > v2) {
                 low = mid2 + 1;
                 final int newLow = low;
                 seq.getChildren().add(step(0.35, () -> {
-                    if (stepLabel != null) stepLabel.setText(formatNum(target) + " > " + formatNum(v2) + " (mid2).\nTarget is in the last third. Updating low = " + newLow + ".");
+                    stepLabel.setText(formatNum(target) + " > " + formatNum(v2) + " (mid2).\nTarget is in the last third. Updating low = " + newLow + ".");
                 }));
             } else {
                 low = mid1 + 1;
                 high = mid2 - 1;
                 final int newLow = low, newHigh = high;
                 seq.getChildren().add(step(0.35, () -> {
-                    if (stepLabel != null) stepLabel.setText("Target is between mid1 and mid2.\nDiscarding outer thirds. Updating low = " + newLow + ", high = " + newHigh + ".");
+                    stepLabel.setText("Target is between mid1 and mid2.\nDiscarding outer thirds. Updating low = " + newLow + ", high = " + newHigh + ".");
                 }));
             }
         }
@@ -634,8 +624,8 @@ public class ArrayController {
         seq.getChildren().add(step(0.20, () -> {
             if (!found[0]) {
                 clearColors();
-                if (statusLabel != null) statusLabel.setText("NOT FOUND ❌");
-                if (stepLabel != null) stepLabel.setText("Search space exhausted (low > high). Value is not in the array.");
+                statusLabel.setText("NOT FOUND ❌");
+                stepLabel.setText("Search space exhausted (low > high). Value is not in the array.");
                 showInfoPopup("Not Found", "Value " + formatNum(target) + " is not in the array.");
             }
         }));
@@ -648,7 +638,7 @@ public class ArrayController {
     void mergeSort() {
         if (runningAnimation) return;
         if (!ensureCreated()) return;
-        if (stepLabel != null) stepLabel.setText("");
+        stepLabel.setText("");
 
         if (!dynamicMode) {
             if (fixedLast <= 0) { flashStatus("Need at least 2 elements!", true); return; }
@@ -678,7 +668,7 @@ public class ArrayController {
                     clearColors();
                     colorRange(s.l, s.r, "#34495e");
                     colorCell(s.index, "#e67e22");
-                    if (statusLabel != null) statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
+                    statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
                 }));
             }
 
@@ -686,8 +676,8 @@ public class ArrayController {
                 for (int i = 0; i < n; i++) fixed[i] = sim[i];
                 drawFixed();
                 clearColors();
-                if (statusLabel != null) statusLabel.setText("Sorting DONE ✅");
-                if (stepLabel != null) stepLabel.setText("Merge sort completed successfully.");
+                statusLabel.setText("Sorting DONE ✅");
+                stepLabel.setText("Merge sort completed successfully.");
                 runningAnimation = false;
             }));
 
@@ -718,8 +708,8 @@ public class ArrayController {
                     clearColors();
                     colorRange(s.l, s.r, "#34495e");
                     colorCell(s.index, "#e67e22");
-                    if (statusLabel != null) statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
-                    if (stepLabel != null) stepLabel.setText("Merging: placing " + formatNum(s.value) + " at sorted position " + s.index + ".");
+                    statusLabel.setText("Write " + formatNum(s.value) + " at index " + s.index);
+                    stepLabel.setText("Merging: placing " + formatNum(s.value) + " at sorted position " + s.index + ".");
                 }));
             }
 
@@ -727,8 +717,8 @@ public class ArrayController {
                 System.arraycopy(sim, 0, dyn, 0, n);
                 drawDynamic();
                 clearColors();
-                if (statusLabel != null) statusLabel.setText("Sorting DONE ✅");
-                if (stepLabel != null) stepLabel.setText("Merge sort completed successfully.");
+                statusLabel.setText("Sorting DONE ✅");
+                stepLabel.setText("Merge sort completed successfully.");
                 runningAnimation = false;
             }));
 
@@ -799,31 +789,31 @@ public class ArrayController {
 
     // ------------ Draw helpers ------------
     private void drawFixed() {
-        if (arrayBox != null) arrayBox.getChildren().clear();
+        arrayBox.getChildren().clear();
         if (fixed == null) return;
 
         for (int i = 0; i < fixed.length; i++) {
             String val = (fixed[i] == null) ? "" : formatNum(fixed[i]);
-            if (arrayBox != null) arrayBox.getChildren().add(makeCell(i, val, fixed[i] == null));
+            arrayBox.getChildren().add(makeCell(i, val, fixed[i] == null));
         }
-        if (sizeCapLabel != null) sizeCapLabel.setText("size=" + (fixedLast + 1) + "  capacity=" + fixed.length);
+        sizeCapLabel.setText("size=" + (fixedLast + 1) + "  capacity=" + fixed.length);
     }
 
     private void drawDynamic() {
-        if (arrayBox != null) arrayBox.getChildren().clear();
+        arrayBox.getChildren().clear();
         if (dyn == null) return;
 
         for (int i = 0; i < dynCap; i++) {
             boolean empty = i >= dynSize;
             String val = empty ? "" : formatNum(dyn[i]);
-            if (arrayBox != null) arrayBox.getChildren().add(makeCell(i, val, empty));
+            arrayBox.getChildren().add(makeCell(i, val, empty));
         }
-        if (sizeCapLabel != null) sizeCapLabel.setText("size=" + dynSize + "  capacity=" + dynCap);
+        sizeCapLabel.setText("size=" + dynSize + "  capacity=" + dynCap);
     }
 
     // draw the working (only used slots shown, rest empty)
     private void drawWorking(double[] a, boolean isDynamic) {
-        if (arrayBox != null) arrayBox.getChildren().clear();
+        arrayBox.getChildren().clear();
 
         if (!isDynamic) {
             int cap = fixed.length;
@@ -831,18 +821,18 @@ public class ArrayController {
             for (int i = 0; i < cap; i++) {
                 boolean empty = i >= used;
                 String val = empty ? "" : formatNum(a[i]);
-                if (arrayBox != null) arrayBox.getChildren().add(makeCell(i, val, empty));
+                arrayBox.getChildren().add(makeCell(i, val, empty));
             }
-            if (sizeCapLabel != null) sizeCapLabel.setText("size=" + used + "  capacity=" + cap);
+            sizeCapLabel.setText("size=" + used + "  capacity=" + cap);
         } else {
             int cap = dynCap;
             int used = a.length;
             for (int i = 0; i < cap; i++) {
                 boolean empty = i >= used;
                 String val = empty ? "" : formatNum(a[i]);
-                if (arrayBox != null) arrayBox.getChildren().add(makeCell(i, val, empty));
+                arrayBox.getChildren().add(makeCell(i, val, empty));
             }
-            if (sizeCapLabel != null) sizeCapLabel.setText("size=" + used + "  capacity=" + cap);
+            sizeCapLabel.setText("size=" + used + "  capacity=" + cap);
         }
     }
 
@@ -867,7 +857,6 @@ public class ArrayController {
     }
 
     private void clearColors() {
-        if (arrayBox == null) return;
         for (Node n : arrayBox.getChildren()) {
             Rectangle r = (Rectangle) n.getUserData();
             if (r != null) r.setStyle(r.getStyle().replaceAll("-fx-fill:[^;]+;", "-fx-fill:#0f3460;"));
@@ -889,7 +878,7 @@ public class ArrayController {
     }
 
     private void setFill(int idx, String hex) {
-        if (arrayBox == null || idx < 0 || idx >= arrayBox.getChildren().size()) return;
+        if (idx < 0 || idx >= arrayBox.getChildren().size()) return;
         Node n = arrayBox.getChildren().get(idx);
         Rectangle r = (Rectangle) n.getUserData();
         if (r == null) return;
@@ -903,7 +892,7 @@ public class ArrayController {
     private void highlightOnce(int idx, String color, String msg) {
         clearColors();
         colorCell(idx, color);
-        if (statusLabel != null) statusLabel.setText(msg);
+        statusLabel.setText(msg);
         PauseTransition p = new PauseTransition(Duration.seconds(0.35 / speed()));
         p.setOnFinished(e -> clearColors());
         p.play();
@@ -960,13 +949,11 @@ public class ArrayController {
     }
 
     private void flashStatus(String msg, boolean error) {
-        if (statusLabel != null) {
-            statusLabel.setText(msg);
-            statusLabel.setStyle(error ? "-fx-text-fill:#d32f2f;" : "-fx-text-fill:#0056b3;");
-            PauseTransition p = new PauseTransition(Duration.seconds(0.5));
-            p.setOnFinished(e -> statusLabel.setStyle("-fx-text-fill:#0056b3;"));
-            p.play();
-        }
+        statusLabel.setText(msg);
+        statusLabel.setStyle(error ? "-fx-text-fill:#d32f2f;" : "-fx-text-fill:#0056b3;");
+        PauseTransition p = new PauseTransition(Duration.seconds(0.5));
+        p.setOnFinished(e -> statusLabel.setStyle("-fx-text-fill:#0056b3;"));
+        p.play();
     }
 
     // ------------ Popups ------------
@@ -1025,11 +1012,10 @@ public class ArrayController {
     // ==========================================================================
     @FXML
     void takeScreenshot() {
-        if (arrayBox == null) return;
         SnapshotParameters params = new SnapshotParameters();
         params.setFill(Color.web("#0f172a")); // Dark theme background
 
-        WritableImage snapshot = arrayBox.snapshot(params, null);
+        WritableImage snapshot = capturePane.snapshot(params, null);
         BufferedImage buffered = SwingFXUtils.fromFXImage(snapshot, null);
 
         String downloadsDir = getDownloadsPath();
@@ -1039,8 +1025,7 @@ public class ArrayController {
         try {
             ImageIO.write(buffered, "png", outputFile);
             System.out.println("Screenshot saved: " + outputFile.getAbsolutePath());
-            if (statusLabel != null) statusLabel.setText("Screenshot saved! ✓");
-            buffered.flush();
+            buffered.flush(); // Prevent memory leak here too!
         } catch (IOException ex) {
             System.err.println("Screenshot failed: " + ex.getMessage());
         }
@@ -1056,30 +1041,21 @@ public class ArrayController {
     }
 
     private void startRecording() {
-        if (arrayBox == null) return;
         isRecording = true;
         isCapturing = false;
+        recordBtn.setText("⏹");
+        recordBtn.setStyle(
+                "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px;" +
+                        "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
+        );
 
-        if (recordBtn != null) {
-            recordBtn.setText("⏹");
-            recordBtn.setStyle(
-                    "-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px;" +
-                            "-fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: #991b1b; -fx-border-radius: 6;"
-            );
-        }
-
-        // LOCK RESOLUTION based on the starting size of the arrayBox
+        // LOCK RESOLUTION based on the starting size of the capturePane
         SnapshotParameters initParams = new SnapshotParameters();
         initParams.setFill(Color.web("#0f172a"));
-        WritableImage initSnap = arrayBox.snapshot(initParams, null);
+        WritableImage initSnap = capturePane.snapshot(initParams, null);
 
-        int rawW = (int) initSnap.getWidth();
-        int rawH = (int) initSnap.getHeight();
-        if (rawW < 2) rawW = 2; // safety bound
-        if (rawH < 2) rawH = 2; // safety bound
-
-        final int lockedW = (rawW % 2 == 0) ? rawW : rawW + 1;
-        final int lockedH = (rawH % 2 == 0) ? rawH : rawH + 1;
+        final int lockedW = ((int) initSnap.getWidth() % 2 == 0) ? (int) initSnap.getWidth() : (int) initSnap.getWidth() + 1;
+        final int lockedH = ((int) initSnap.getHeight() % 2 == 0) ? (int) initSnap.getHeight() : (int) initSnap.getHeight() + 1;
 
         // 1. Initialize the video file and encoder IMMEDIATELY
         try {
@@ -1145,7 +1121,7 @@ public class ArrayController {
                     SnapshotParameters params = new SnapshotParameters();
                     params.setFill(Color.web("#0f172a"));
 
-                    WritableImage fxFrame = arrayBox.snapshot(params, null);
+                    WritableImage fxFrame = capturePane.snapshot(params, null);
                     BufferedImage buffered = SwingFXUtils.fromFXImage(fxFrame, null);
 
                     if (!frameQueue.offer(buffered)) {
@@ -1175,23 +1151,10 @@ public class ArrayController {
             recordingExecutor = null;
         }
 
-        // 2. Finalize the MP4 file
-        if (encoder != null) {
-            try {
-                encoder.finish();
-                System.out.println("Recording stopped and video saved successfully.");
-            } catch (IOException e) {
-                System.err.println("Failed to finalize video: " + e.getMessage());
-            }
-            encoder = null;
-        }
-
         // 3. Reset UI button
         Platform.runLater(() -> {
-            if (recordBtn != null) {
-                recordBtn.setText("🎥 Record");
-                recordBtn.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;");
-            }
+            recordBtn.setText("🎥 Record");
+            recordBtn.setStyle("-fx-background-color: rgba(255,255,255,0.15); -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand; -fx-border-color: rgba(255,255,255,0.25); -fx-border-radius: 6;");
         });
     }
 
